@@ -19,14 +19,16 @@ class ApprovalPolicy:
             return "allow"
         action_type = action.get("type", "")
         if action_type == "shell":
+            if self.mode == "edits-only":
+                return "deny"
             cmd = action.get("command", "")
             prefix = cmd.split()[0] if cmd else ""
             if prefix in self.allowlist:
                 return "allow"
             return "deny"
         if action_type == "edit":
-            if self.mode in ("allowlist", "edits-only"):
-                return "allow"
+            return "allow" if self.mode in ("allowlist", "edits-only") else "deny"
+        if self.mode == "edits-only":
             return "deny"
         # default deny, never open grant
         return "deny"
