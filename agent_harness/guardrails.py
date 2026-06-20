@@ -19,15 +19,31 @@ def validate_output(text: str, max_tokens: int = 4096) -> bool:
         return False
     return True
 
-_loop_counter = 0
 MAX_LOOPS = 100
 
-def check_loop() -> bool:
-    global _loop_counter
-    _loop_counter += 1
-    if _loop_counter > MAX_LOOPS:
-        return False
-    return True
+
+class LoopGuard:
+    """Per-instance loop counter. Create one per agent run and ``reset()`` at the
+    start so iteration limits don't leak across independent runs.
+    """
+
+    def __init__(self, max_loops: int = MAX_LOOPS):
+        self.max_loops = max_loops
+        self.count = 0
+
+    def reset(self) -> None:
+        self.count = 0
+
+    def check(self) -> bool:
+        self.count += 1
+        return self.count <= self.max_loops
+
+
+# Backwards-compatible module-level helper, backed by a single throwaway guard
+# that is reset on every call (so it can never wedge globally). Prefer LoopGuard
+# for real run-scoped limiting.
+def check_loop(_guard: LoopGuard = LoopGuard()) -> bool:
+    return _guard.check()
 
 def refuse_unsafe(reason: str = "unsafe") -> str:
     return f"REFUSAL: {reason}"

@@ -1,4 +1,5 @@
 """Minimal tool-calling agent loop."""
+import os
 from typing import Any, Callable, Dict, List, Optional
 import agent_harness.approval as approval
 import agent_harness.guardrails as guardrails
@@ -13,14 +14,32 @@ def tool(name: str):
         return fn
     return deco
 
+def _sandbox_root() -> str:
+    """Directory that file tools are confined to (default: cwd)."""
+    return os.path.realpath(os.environ.get("AGENT_HARNESS_ROOT", os.getcwd()))
+
+def _resolve_in_sandbox(path: str) -> str:
+    """Resolve ``path`` and ensure it stays inside the sandbox root.
+
+    Uses realpath so symlinks and ``..`` segments cannot escape. Raises
+    ValueError on any attempt to read/write outside the root.
+    """
+    root = _sandbox_root()
+    target = os.path.realpath(os.path.join(root, path))
+    if target != root and not target.startswith(root + os.sep):
+        raise ValueError(f"path escapes sandbox root: {path}")
+    return target
+
 @tool("read_file")
 def read_file(path: str) -> str:
-    with open(path, "r") as f:
+    resolved = _resolve_in_sandbox(path)
+    with open(resolved, "r") as f:
         return f.read()
 
 @tool("write_file")
 def write_file(path: str, content: str) -> str:
-    with open(path, "w") as f:
+    resolved = _resolve_in_sandbox(path)
+    with open(resolved, "w") as f:
         f.write(content)
     return "ok"
 
@@ -42,11 +61,13 @@ class Agent:
         self.policy = policy or approval.ApprovalPolicy()
         self.callbacks = callbacks or {}
         self.tools = TOOLS
+        self.loop_guard = guardrails.LoopGuard()
 
     def run(self, task: str) -> str:
+        self.loop_guard.reset()
         if not guardrails.validate_input(task):
             return guardrails.refuse_unsafe("input")
-        if not guardrails.check_loop():
+        if not self.loop_guard.check():
             return "loop limit"
         # minimal loop: just finish
         msg = {"role": "user", "content": task}
