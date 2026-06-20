@@ -1,0 +1,6 @@
+_brief.md
+.sidekick*
+
+node_modules/
+__pycache__/
+*.pyc
