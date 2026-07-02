@@ -1,3 +1,13 @@
+> ### Developer toolkit for [Context Runtime](https://github.com/redevops-io/context-runtime)
+>
+> The agent toolkit the [ReDevOps reference applications](https://github.com/redevops-io) build on — LLM client, tool registry, approval flow, sandboxed execution, guardrails and an eval harness. The reference applications pair it with **Context Runtime**, which decides *what context each agent sees* before it runs.
+>
+> ```
+> Context Runtime  →  ReDevOps RAG  →  Sidekick  →  Application logic
+> ```
+
+---
+
 # agent_harness
 
 agent_harness is the OSS core that provides the building blocks for a safe, tool-using agent: LLM client, tool registry, approval flow, sandboxed execution, guardrails, and an eval harness. It is the foundation that an agent layer consumes.
