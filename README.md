@@ -10,6 +10,10 @@
 
 # agent_harness
 
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE) ![Python](https://img.shields.io/badge/Python-3.12%2B-3776AB.svg) [![NVIDIA Inception](https://img.shields.io/badge/NVIDIA-Inception%20Program%20Member-76B900.svg)](https://www.nvidia.com/en-us/startups/)
+
+> **🚀 NVIDIA Inception Program Member** — ReDevOps is a member of the NVIDIA Inception Program, supporting startups advancing AI and accelerated computing. Membership provides access to NVIDIA technology, technical resources, and the startup ecosystem. It does not imply product endorsement by NVIDIA.
+
 agent_harness is the OSS core that provides the building blocks for a safe, tool-using agent: LLM client, tool registry, approval flow, sandboxed execution, guardrails, and an eval harness. It is the foundation that an agent layer consumes.
 
 ## Quickstart
