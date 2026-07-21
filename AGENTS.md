@@ -1,4 +1,7 @@
 # redevops.io Agentic Business OS — module build brief
+
+> **Note:** this is the original *build brief* that scoped the repo, not current-state documentation. Some deliverables it lists (compose/install scripts, an `agents/` layer, etc.) are intentionally out of scope for this OSS core. For what actually ships, see [README.md](./README.md), [docs/architecture.md](./docs/architecture.md), and [docs/configuration.md](./docs/configuration.md).
+
 This repo is an AGPL-3.0, self-hostable, AGENTIC module. The market+product research is in
 ./_brief.md (READ IT FIRST — source of truth: pain->legacy->redevops positioning, the
 open-source core stack, value props, ICP, pricing). Do NOT commit _brief.md (gitignored).
