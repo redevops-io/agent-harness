@@ -6,12 +6,13 @@ Environment variables:
 - `OPENAI_API_KEY` – API key or provider token
 - `MODEL` – model identifier
 
-vLLM fallbacks:
+Any OpenAI-compatible endpoint (llama.cpp / vLLM / Ollama / a cloud provider) is reached through
+`OPENAI_BASE_URL` + `MODEL`; the harness core reads no other endpoint env vars.
 
-- `VLLM_HOST`, `VLLM_PORT`, `VLLM_MODEL`
+Approval is configured **in code**, not via an env var — pass `ApprovalPolicy(mode=...)` when you
+construct the policy. Modes:
 
-Approval modes (via `APPROVAL_MODE`):
-
-- `always`
-- `on_risk`
-- `never`
+- `allowlist` – only tools/commands on the allowlist are allowed
+- `edits-only` – allow edits, gate other actions
+- `bypass` – allow everything (use with care)
+- `never` – deny all (available on the `Approver` policy)

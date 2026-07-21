@@ -22,6 +22,8 @@ export MODEL=llama3.1
 python -m examples.tiny_agent
 ```
 
+> Note: the bundled `tiny_agent` example runs fully **offline** against the stub LLM client (it echoes the prompt rather than calling a model), so the env vars above only take effect once an agent layer wires a real provider.
+
 ## Using the modules
 
 ```python
