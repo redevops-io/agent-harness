@@ -12,19 +12,36 @@ running untrusted commands.
 import os
 import shlex
 import subprocess
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
-def run_shell(cmd: str, cwd: str = None, timeout: int = 30) -> Dict[str, Any]:
+from agent_harness.approval import TRUSTED_PATH, resolve_command
+
+def run_shell(cmd: str, cwd: str = None, timeout: int = 30,
+              argv: Optional[List[str]] = None) -> Dict[str, Any]:
+    """Run ``cmd`` (or a pre-resolved ``argv``) without a shell.
+
+    Bare command names are resolved against a fixed trusted search path, never
+    the caller's ``PATH`` or the working directory.
+    """
     if cwd is None:
         cwd = os.getcwd()
     try:
-        argv = shlex.split(cmd)
+        if argv is None:
+            argv = shlex.split(cmd)
         if not argv:
             return {"stdout": "", "stderr": "empty command", "returncode": 1}
+        if "/" not in argv[0]:
+            exe = resolve_command(argv[0])
+            if exe is None:
+                return {"stdout": "", "stderr": "command not found", "returncode": 127}
+            argv = [exe] + list(argv[1:])
+        env = dict(os.environ)
+        env["PATH"] = os.pathsep.join(TRUSTED_PATH)
         proc = subprocess.run(
             argv,
             shell=False,
             cwd=cwd,
+            env=env,
             timeout=timeout,
             capture_output=True,
             text=True
@@ -41,7 +58,8 @@ def run_shell(cmd: str, cwd: str = None, timeout: int = 30) -> Dict[str, Any]:
 
 def run(action: Dict[str, Any], cwd: str = None, timeout: int = 30) -> Dict[str, Any]:
     if action.get("type") == "shell":
-        return run_shell(action.get("command", ""), cwd, timeout)
+        return run_shell(action.get("command", ""), cwd, timeout,
+                         argv=action.get("argv"))
     return {"stdout": "", "stderr": "unknown action", "returncode": 1}
 
 
