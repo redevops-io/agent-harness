@@ -1,0 +1,32 @@
+name: docs-links
+on:
+  pull_request:
+    paths: ["**.md"]
+  push:
+    branches: ["main", "master"]
+    paths: ["**.md"]
+permissions:
+  contents: read
+jobs:
+  relative-links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check relative markdown links resolve
+        shell: python
+        run: |
+          import pathlib, re, sys
+          skip = {".git", "node_modules", ".venv"}
+          bad = []
+          for md in pathlib.Path(".").rglob("*.md"):
+              if skip & set(md.parts):
+                  continue
+              text = re.sub(r"```.*?```", "", md.read_text(errors="ignore"), flags=re.S)
+              for target in re.findall(r"\]\(([^)\s]+)\)", text):
+                  if re.match(r"^(https?:|mailto:|#)", target):
+                      continue
+                  path = target.split("#")[0]
+                  if path and not (md.parent / path).exists():
+                      bad.append(f"{md}: {target}")
+          print("\n".join(bad) or "all relative links resolve")
+          sys.exit(1 if bad else 0)
