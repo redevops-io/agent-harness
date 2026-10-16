@@ -23,7 +23,7 @@
 
 ## Known issues
 
-- Wording "OSS core" appears in `pyproject.toml` (description) and AGENTS.md; this PR neutralised it in the README only. Consistency with sister repos' licence wording is flagged for counsel.
+- Wording "OSS core" appears in `pyproject.toml` (description) and AGENTS.md; this PR neutralised it in the README only.
 - GitHub topics (`rag`, `semantic-search`, `context-runtime`) are generic relative to the package's role.
 
 Related repositories and what each owns: see OVERLAP in [README.md](README.md#overlap).
