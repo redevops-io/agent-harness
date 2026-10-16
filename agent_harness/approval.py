@@ -40,6 +40,13 @@ _INTERPRETERS = frozenset({
 })
 
 
+def _is_inline_code_flag(arg: str) -> bool:
+    """Options that make an interpreter run code given inline or by module name."""
+    if arg.startswith("--"):
+        return arg.split("=", 1)[0] in ("--command", "--eval", "--exec", "--module", "--print")
+    return any(ch in "cmepx" for ch in arg[1:]) or arg == "-exec"
+
+
 def _is_interpreter(path: str) -> bool:
     name = os.path.basename(path)
     return name in _INTERPRETERS or name.startswith(("python", "perl", "ruby"))
@@ -100,23 +107,37 @@ class ApprovalPolicy:
             return None
         return resolve_command(name, self.trusted_path)
 
-    def _args_ok(self, exe: str, args: List[str], root: str) -> bool:
+    def _touches_written(self, real: str) -> bool:
+        """True if ``real`` is a written file, contains one, or sits beside one."""
+        if real in self.written:
+            return True
+        prefix = real.rstrip(os.sep) + os.sep
+        if any(w.startswith(prefix) for w in self.written):
+            return True
+        if os.path.isfile(real):
+            d = os.path.dirname(real)
+            return any(os.path.dirname(w) == d for w in self.written)
+        return False
+
+    def _args_ok(self, exe: str, args: List[str], root: str, inline_ok: bool = False) -> bool:
         check_files = os.path.basename(exe) not in _NO_FILE_ARGS
         interp = _is_interpreter(exe)
         for arg in args:
-            cands = [arg]
-            if arg.startswith("-") and "=" in arg:
+            is_opt = arg.startswith("-") and arg != "--"
+            if interp and is_opt and not inline_ok and _is_inline_code_flag(arg):
+                return False
+            cands = [] if is_opt else [arg]
+            if arg.startswith("--") and "=" in arg:
                 cands.append(arg.split("=", 1)[1])
+            elif is_opt and not arg.startswith("--") and len(arg) > 2:
+                cands.append(arg[2:])  # short option with attached value
             for c in cands:
                 if not c:
                     continue
-                is_opt = c.startswith("-") and c is arg
-                if is_opt and not interp:
-                    continue
                 real = os.path.realpath(os.path.join(root, os.path.expanduser(c)))
-                if interp and real in self.written:
+                if interp and self._touches_written(real):
                     return False
-                if check_files and not is_opt and not _contained(real, root):
+                if check_files and not _contained(real, root):
                     return False
         return True
 
@@ -143,7 +164,7 @@ class ApprovalPolicy:
             root = self._root()
             if os.path.realpath(exe) in self.written:
                 return "deny"
-            if not self._args_ok(exe, argv[1:], root):
+            if not self._args_ok(exe, argv[1:], root, inline_ok=" ".join(argv) in self.allowlist):
                 return "deny"
             return "allow"
         if action_type == "edit":

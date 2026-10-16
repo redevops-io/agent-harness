@@ -21,7 +21,7 @@ def test_edits_only():
 
 # --- resolved allowlist, workspace containment, written-file tracking ---------
 import os
-from agent_harness.agent import Agent, run_bash, write_file
+from agent_harness.agent import Agent, _run_bash as run_bash, _write_file as write_file
 from agent_harness.approval import resolve_command
 
 
@@ -94,3 +94,48 @@ def test_run_bash_uses_agent_policy_and_root(tmp_path):
     assert ag.tools["run_bash"]("echo hi") == {"error": "denied"}
     ag.tools["write_file"]("x.txt", "data")
     assert ag.tools["run_bash"]("cat x.txt")["stdout"] == "data"
+
+
+def test_tool_dispatch_rejects_root_and_policy_arguments(tmp_path):
+    root = tmp_path / "ws"
+    root.mkdir()
+    (root / "ok.txt").write_text("fine")
+    ag = Agent(root=str(root))
+    assert ag.call_tool("read_file", {"path": "ok.txt"}) == "fine"
+    assert "error" in ag.call_tool("read_file", {"path": "hostname", "root": "/etc"})
+    assert "error" in ag.call_tool("write_file", {"path": "a", "content": "x", "root": "/tmp"})
+    assert "error" in ag.call_tool("run_bash", {"cmd": "ls", "policy": None})
+    assert "error" in ag.call_tool("nope", {})
+
+
+def _interp_policy(root):
+    return ApprovalPolicy(allowlist=["python3", "sh", "cat", "ls"], root=str(root))
+
+
+def test_interpreter_denied_for_written_packages_and_siblings(tmp_path):
+    root = str(tmp_path)
+    p = _interp_policy(root)
+    (tmp_path / "main.py").write_text("pass\n")
+    write_file("helper.py", "x = 1\n", root=root, policy=p)
+    os.mkdir(tmp_path / "pkg")
+    write_file("pkg/__init__.py", "", root=root, policy=p)
+    assert _d(p, "python3 pkg") == "deny"
+    assert _d(p, "python3 main.py") == "deny"  # sits beside a written module
+    assert _d(p, "cat helper.py") == "allow"
+
+
+def test_interpreter_inline_code_denied_unless_allowlisted_exactly(tmp_path):
+    p = _interp_policy(tmp_path)
+    assert _d(p, "python3 -c pass") == "deny"
+    assert _d(p, "python3 -m pkg") == "deny"
+    assert _d(p, "python3 -cpass") == "deny"
+    assert _d(p, "sh -c true") == "deny"
+    q = ApprovalPolicy(allowlist=["python3", "python3 -c pass"], root=str(tmp_path))
+    assert _d(q, "python3 -c pass") == "allow"
+    assert _d(q, "python3 -c other") == "deny"
+
+
+def test_short_option_attached_values_are_checked(tmp_path):
+    p = ApprovalPolicy(root=str(tmp_path))
+    assert _d(p, "cat -f/etc/hostname") == "deny"
+    assert _d(p, "ls -la") == "allow"
