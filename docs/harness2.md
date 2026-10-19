@@ -67,4 +67,4 @@ spend limits and human approval belong to the runtime, not to editable files.
 - The adapter that runs upstream refinement from here (optional extra), and its run manifest.
 - Review of the paper's appendices against upstream prompts; the LAB 1,251 vs 1,143 task-count question.
 - Any benchmark run (WorkBuddy-Bench, JobBench, LAB). Costs are unmeasured; no spend cap is approved.
-- Ownership decision for `approval.py` and migration of copies in other repos.
+- Migration of context-runtime to import `agent_harness.tools` (not required: the contract is identical and a conformance test guards drift).

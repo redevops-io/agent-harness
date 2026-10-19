@@ -1,20 +1,20 @@
 import pytest
-from agent_harness.approval import ApprovalPolicy
+from agent_harness.command_policy import CommandPolicy
 
 def test_allowlist_allows_prefix():
-    policy = ApprovalPolicy(mode="allowlist")
+    policy = CommandPolicy(mode="allowlist")
     assert policy.decide({"type": "shell", "command": "echo hi"}) == "allow"
 
 def test_allowlist_denies_other():
-    policy = ApprovalPolicy(mode="allowlist")
+    policy = CommandPolicy(mode="allowlist")
     assert policy.decide({"type": "shell", "command": "rm -rf /"}) == "deny"
 
 def test_bypass_allows():
-    policy = ApprovalPolicy(mode="bypass")
+    policy = CommandPolicy(mode="bypass")
     assert policy.decide({"type": "shell", "command": "rm -rf /"}) == "allow"
 
 def test_edits_only():
-    policy = ApprovalPolicy(mode="edits-only")
+    policy = CommandPolicy(mode="edits-only")
     assert policy.decide({"type": "edit", "path": "x"}) == "allow"
     assert policy.decide({"type": "shell", "command": "echo hi"}) == "deny"
 
@@ -22,7 +22,7 @@ def test_edits_only():
 # --- resolved allowlist, workspace containment, written-file tracking ---------
 import os
 from agent_harness.agent import Agent, _run_bash as run_bash, _write_file as write_file
-from agent_harness.approval import resolve_command
+from agent_harness.command_policy import resolve_command
 
 
 def _d(policy, cmd):
@@ -35,7 +35,7 @@ def test_bare_command_resolves_to_trusted_absolute_path():
 
 
 def test_rejects_path_containing_command_names(tmp_path):
-    p = ApprovalPolicy(root=str(tmp_path))
+    p = CommandPolicy(root=str(tmp_path))
     assert _d(p, "./echo hi") == "deny"
     assert _d(p, "sub/cat x") == "deny"
     assert _d(p, "/tmp/echo hi") == "deny"
@@ -43,7 +43,7 @@ def test_rejects_path_containing_command_names(tmp_path):
 
 def test_literal_path_entry_must_match_exactly(tmp_path):
     exe = resolve_command("echo")
-    p = ApprovalPolicy(allowlist=[exe], root=str(tmp_path))
+    p = CommandPolicy(allowlist=[exe], root=str(tmp_path))
     assert _d(p, f"{exe} hi") == "allow"
     assert _d(p, "echo hi") == "deny"
 
@@ -54,7 +54,7 @@ def test_local_file_named_like_allowlisted_command_is_not_used(tmp_path, monkeyp
     fake.chmod(0o755)
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("PATH", f"{tmp_path}:{os.environ['PATH']}")
-    out = run_bash("ls", root=str(tmp_path), policy=ApprovalPolicy(root=str(tmp_path)))
+    out = run_bash("ls", root=str(tmp_path), policy=CommandPolicy(root=str(tmp_path)))
     assert "local" not in out.get("stdout", "")
 
 
@@ -65,7 +65,7 @@ def test_file_arguments_stay_inside_root(tmp_path):
     outside = tmp_path / "secret.txt"
     outside.write_text("s")
     (root / "link").symlink_to(outside)
-    p = ApprovalPolicy(root=str(root))
+    p = CommandPolicy(root=str(root))
     assert _d(p, "cat a.txt") == "allow"
     assert _d(p, "ls") == "allow"
     assert _d(p, "cat ../secret.txt") == "deny"
@@ -77,7 +77,7 @@ def test_file_arguments_stay_inside_root(tmp_path):
 
 def test_written_files_cannot_be_executed_or_run_by_interpreters(tmp_path):
     root = str(tmp_path)
-    p = ApprovalPolicy(allowlist=["echo", "cat", "sh", "python3", "./run.sh"], root=root)
+    p = CommandPolicy(allowlist=["echo", "cat", "sh", "python3", "./run.sh"], root=root)
     assert write_file("run.sh", "echo hi\n", root=root, policy=p) == "ok"
     assert _d(p, "./run.sh") == "deny"
     assert _d(p, "sh run.sh") == "deny"
@@ -88,7 +88,7 @@ def test_written_files_cannot_be_executed_or_run_by_interpreters(tmp_path):
 
 
 def test_run_bash_uses_agent_policy_and_root(tmp_path):
-    ag = Agent(policy=ApprovalPolicy(allowlist=["pwd", "cat"]), root=str(tmp_path))
+    ag = Agent(policy=CommandPolicy(allowlist=["pwd", "cat"]), root=str(tmp_path))
     out = ag.tools["run_bash"]("pwd")
     assert out["stdout"].strip() == os.path.realpath(tmp_path)
     assert ag.tools["run_bash"]("echo hi") == {"error": "denied"}
@@ -109,7 +109,7 @@ def test_tool_dispatch_rejects_root_and_policy_arguments(tmp_path):
 
 
 def _interp_policy(root):
-    return ApprovalPolicy(allowlist=["python3", "sh", "cat", "ls"], root=str(root))
+    return CommandPolicy(allowlist=["python3", "sh", "cat", "ls"], root=str(root))
 
 
 def test_interpreter_denied_for_written_packages_and_siblings(tmp_path):
@@ -130,12 +130,12 @@ def test_interpreter_inline_code_denied_unless_allowlisted_exactly(tmp_path):
     assert _d(p, "python3 -m pkg") == "deny"
     assert _d(p, "python3 -cpass") == "deny"
     assert _d(p, "sh -c true") == "deny"
-    q = ApprovalPolicy(allowlist=["python3", "python3 -c pass"], root=str(tmp_path))
+    q = CommandPolicy(allowlist=["python3", "python3 -c pass"], root=str(tmp_path))
     assert _d(q, "python3 -c pass") == "allow"
     assert _d(q, "python3 -c other") == "deny"
 
 
 def test_short_option_attached_values_are_checked(tmp_path):
-    p = ApprovalPolicy(root=str(tmp_path))
+    p = CommandPolicy(root=str(tmp_path))
     assert _d(p, "cat -f/etc/hostname") == "deny"
     assert _d(p, "ls -la") == "allow"

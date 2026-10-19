@@ -1,9 +1,10 @@
 """Minimal tool-calling agent loop."""
 import os
 from typing import Any, Callable, Dict, List, Optional
-import agent_harness.approval as approval
+import agent_harness.command_policy as command_policy
 import agent_harness.guardrails as guardrails
 import agent_harness.sandbox as sandbox
+from agent_harness.tools import ApprovalPolicy, ToolRegistry, ToolResult, function_tool
 
 # Built-in tools
 TOOLS = {}
@@ -31,7 +32,7 @@ def _resolve_in_sandbox(path: str, root: Optional[str] = None) -> str:
     return target
 
 # Policy used when the module-level tools are called outside an Agent.
-_DEFAULT_POLICY = approval.ApprovalPolicy()
+_DEFAULT_POLICY = command_policy.CommandPolicy()
 
 def _read_file(path: str, root: Optional[str] = None) -> str:
     resolved = _resolve_in_sandbox(path, root)
@@ -39,7 +40,7 @@ def _read_file(path: str, root: Optional[str] = None) -> str:
         return f.read()
 
 def _write_file(path: str, content: str, root: Optional[str] = None,
-                policy: Optional[approval.ApprovalPolicy] = None) -> str:
+                policy: Optional[command_policy.CommandPolicy] = None) -> str:
     resolved = _resolve_in_sandbox(path, root)
     with open(resolved, "w") as f:
         f.write(content)
@@ -47,7 +48,7 @@ def _write_file(path: str, content: str, root: Optional[str] = None,
     return "ok"
 
 def _run_bash(cmd: str, root: Optional[str] = None,
-              policy: Optional[approval.ApprovalPolicy] = None) -> Dict[str, Any]:
+              policy: Optional[command_policy.CommandPolicy] = None) -> Dict[str, Any]:
     """Run ``cmd`` under ``policy`` with cwd set to the workspace root.
 
     Not full isolation: see the sandbox module docstring.
@@ -79,10 +80,40 @@ def run_bash(cmd: str) -> Dict[str, Any]:
 def finish(result: str = "done") -> str:
     return result
 
+_BUILTIN_SPECS = (
+    ("read_file", "Read a text file inside the workspace root.",
+     {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}, False),
+    ("write_file", "Write a text file inside the workspace root.",
+     {"type": "object", "properties": {"path": {"type": "string"}, "content": {"type": "string"}},
+      "required": ["path", "content"]}, True),
+    ("run_bash", "Run one allowlisted command in the workspace root.",
+     {"type": "object", "properties": {"cmd": {"type": "string"}}, "required": ["cmd"]}, True),
+    ("finish", "Finish the task with a result.",
+     {"type": "object", "properties": {"result": {"type": "string"}}}, False),
+)
+
+
+def _adapt(fn: Callable) -> Callable[[Dict[str, Any]], ToolResult]:
+    """Wrap a keyword-argument tool function as ``fn(args) -> ToolResult``."""
+    def run(args: Dict[str, Any]) -> ToolResult:
+        try:
+            out = fn(**args)
+        except TypeError as e:
+            return ToolResult(ok=False, error=f"invalid arguments: {e}", data={"error": f"invalid arguments: {e}"})
+        if isinstance(out, dict) and "error" in out:
+            return ToolResult(ok=False, error=str(out["error"]), data=out)
+        return ToolResult(ok=True, data=out, text=str(out))
+    return run
+
+
 class Agent:
-    def __init__(self, llm: Optional[Callable] = None, policy: Optional[approval.ApprovalPolicy] = None, callbacks: Optional[Dict[str, Callable]] = None, root: Optional[str] = None):
+    def __init__(self, llm: Optional[Callable] = None, policy: Optional[command_policy.CommandPolicy] = None, callbacks: Optional[Dict[str, Callable]] = None, root: Optional[str] = None,
+                 approval: Optional[ApprovalPolicy] = None):
+        # ``policy`` vets the content of shell commands and edits; ``approval`` is the tool-level gate that
+        # decides whether a side-effecting tool may run at all. By default the Agent's own side-effecting
+        # built-ins are allowed at the tool level and left to ``policy``; pass ``approval`` to require more.
         self.llm = llm
-        self.policy = policy or approval.ApprovalPolicy()
+        self.policy = policy or command_policy.CommandPolicy()
         self.root = os.path.realpath(root) if root else _sandbox_root()
         if self.policy.root is None:
             self.policy.root = self.root
@@ -104,8 +135,18 @@ class Agent:
         self.tools["run_bash"] = run_bash
         self.loop_guard = guardrails.LoopGuard()
 
+        self.registry = ToolRegistry(approval or ApprovalPolicy("allowlist", allow=["write_file", "run_bash"]))
+        for name, desc, params, effect in _BUILTIN_SPECS:
+            self.registry.register(function_tool(
+                name, _adapt(self.tools[name]), description=desc, parameters=params, side_effecting=effect))
+
     def call_tool(self, name: str, args: Optional[Dict[str, Any]] = None) -> Any:
         """Dispatch a model-supplied tool call; unknown tools or arguments are rejected."""
+        if name in self.registry.list():
+            res = self.registry.run(name, args or {})
+            return res.data if res.ok else (res.data if isinstance(res.data, dict) else {"error": res.error})
+        # Tools added through the module-level ``@tool`` decorator are not described to the registry and keep
+        # the legacy direct dispatch (no tool-level gate).
         fn = self.tools.get(name)
         if fn is None:
             return {"error": f"unknown tool: {name}"}

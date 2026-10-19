@@ -11,8 +11,8 @@
 
 ## Supported
 
-- Modules: `llm` (minimal OpenAI-compatible client stub), `tools` (registry), `approval`, `sandbox`, `guardrails` (plus `guardrails_nemo`), `evals`, `agent`, `nim`, `openshell`.
-- A local example (`python -m examples.tiny_agent`) and a pytest suite (44 tests passed locally on 2026-10-15).
+- Modules: `llm` (minimal OpenAI-compatible client stub), `tools` (tool contract, registry, approval gate; same contract as context-runtime), `command_policy` (shell/edit vetting), `sandbox`, `guardrails` (plus `guardrails_nemo`), `evals`, `agent`, `nim`, `openshell`.
+- A local example (`python -m examples.tiny_agent`) and a pytest suite (159 tests passed locally on 2026-10-19, including 69 conformance cases that run only when upstream harness2 and context-runtime are installed).
 
 ## Not supported / not established
 
