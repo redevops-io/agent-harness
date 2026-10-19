@@ -1,10 +1,10 @@
 """agent_harness — OSS core for a safe, tool-using agent.
 
 Submodules: agent, approval, guardrails, sandbox, evals, tools, llm, nim,
-guardrails_nemo, openshell.
+guardrails_nemo, openshell, h2 (Harness² file-tree spec, validators, artifacts).
 """
 from . import (agent, approval, guardrails, sandbox, evals, tools, llm, nim,
-               guardrails_nemo, openshell)
+               guardrails_nemo, openshell, h2)
 
 # Convenient top-level aliases for the real symbols.
 from .agent import Agent, create_agent
@@ -21,6 +21,7 @@ __all__ = [
     "nim",
     "guardrails_nemo",
     "openshell",
+    "h2",
     "Agent",
     "create_agent",
     "ApprovalPolicy",

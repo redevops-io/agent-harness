@@ -18,7 +18,8 @@
 
 - No real LLM provider is wired in this repo; the agent layer that does so is not included.
 - The agent loop is a minimal single-step stub; the sandbox is soft confinement, not full isolation (see `docs/architecture.md`).
-- No CI test workflow (only a secret scan); no benchmarks or performance claims.
+- A tests workflow is defined (`.github/workflows/tests.yml`; run history not checked) alongside the secret scan; no benchmarks or performance claims.
+- `agent_harness.h2` (Harness² file-tree spec, validators, artifacts) is groundwork only: see [docs/harness2.md](docs/harness2.md).
 - No code in the other ReDevOps clones checked imports `agent_harness`; its consumer is described in docs rather than demonstrated by an import.
 
 ## Known issues

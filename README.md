@@ -49,12 +49,12 @@ python -m pytest -q               # 44 tests passed locally on 2026-10-15
 The bundled `tiny_agent` example runs fully **offline** against the stub LLM client (it echoes the prompt rather than calling a model).
 The `OPENAI_BASE_URL` / `OPENAI_API_KEY` / `MODEL` environment variables only take effect once an agent layer wires a real provider.
 
-**Evidence.** [`tests/`](tests) (Internally reproduced: run locally, 44 passed; no CI test workflow exists in this repo, only a secret scan).
+**Evidence.** [`tests/`](tests) (Internally reproduced: run locally, 44 passed; a tests workflow is defined in `.github/workflows/tests.yml`, plus a secret scan; its run history was not checked).
 No benchmark or performance numbers are claimed.
 
 **Limitations.** Stub LLM client; single-step agent loop; sandbox is soft confinement; tool schemas are stored for export, not validated at call time.
 
-**Docs.** [docs/architecture.md](docs/architecture.md), [docs/configuration.md](docs/configuration.md).
+**Docs.** [docs/architecture.md](docs/architecture.md), [docs/configuration.md](docs/configuration.md), [docs/harness2.md](docs/harness2.md) (Harness² file-tree spec and validators; groundwork only, no benchmark results).
 
 ## Quickstart (original text)
 
@@ -91,5 +91,7 @@ Several ReDevOps repositories sound alike. This table is identical in `redevops-
 | [`agent-harness`](https://github.com/redevops-io/agent-harness) | Single-step agent building blocks: LLM client, tool registry, approval flow, sandbox, guardrails, eval harness. | Mission lifecycle, provider integrations, context planning. | AGPL-3.0 text (`LICENSE`) |
 | [`mission-sdk`](https://github.com/redevops-io/mission-sdk) | The `redevops-mission` package and `rdo` CLI: the developer-facing way to author and run governed Missions. | Provider adapters, framework conformance slices. | Apache-2.0 |
 | [`agentic-os`](https://github.com/redevops-io/agentic-os) | The control plane and Mission kernel, plus the reference apps; it is the main consumer of `redevops-connectors` (optional `connectors` / `projects` extras). | Connector contract source, SDK packaging. | See that repo |
+
+Note on the word "harness": here it means the toolkit in this repo. In [Harness²](docs/harness2.md) it means an agent's editable file tree, and `HarnessProfile` in `agentic-os` is an evaluation-profile selector.
 
 Common confusions: `redevops-connectors` is the live-adapter SDK, `redevops-integrations` is a conformance harness (not an adapter library), and `agent-harness` is not a Mission runtime. Do not `pip install agent-harness` from PyPI: that name belongs to an unrelated third-party project.
