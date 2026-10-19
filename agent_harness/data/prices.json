@@ -1,0 +1,51 @@
+{
+  "as_of": "2026-10-19",
+  "unit": "USD per 1M tokens",
+  "note": "Standard (non-batch, non-flex, non-priority) rates read from the providers' public pricing pages on as_of. Prices change; re-check before relying on them. 'long' applies to the whole request when input tokens reach 'threshold'. Not modelled: provider cache-write fees (kimi-k3), priority/fast tiers (requests asking for them are refused).",
+  "sources": {
+    "openai": "https://developers.openai.com/api/docs/pricing",
+    "xai": "https://docs.x.ai/docs/models",
+    "kimi": "https://platform.kimi.ai/docs/pricing/chat"
+  },
+  "providers": {
+    "openai": {
+      "base_url": "https://api.openai.com/v1",
+      "key_env": "OPENAI_API_KEY",
+      "models": {
+        "gpt-5.4":      {"input": 2.50, "cached": 0.25,  "output": 15.00, "long": {"threshold": 272000, "input": 5.00,  "cached": 0.50, "output": 22.50}},
+        "gpt-5.4-mini": {"input": 0.75, "cached": 0.075, "output": 4.50},
+        "gpt-5.4-nano": {"input": 0.20, "cached": 0.02,  "output": 1.25},
+        "gpt-5.5":      {"input": 5.00, "cached": 0.50,  "output": 30.00, "long": {"threshold": 272000, "input": 10.00, "cached": 1.00, "output": 45.00}},
+        "gpt-5.6-sol":  {"input": 4.00, "cached": 0.40,  "output": 20.00, "long": {"threshold": 272000, "input": 8.00,  "cached": 0.80, "output": 30.00}},
+        "gpt-5.6-terra":{"input": 2.00, "cached": 0.20,  "output": 12.00, "long": {"threshold": 272000, "input": 4.00,  "cached": 0.40, "output": 18.00}},
+        "gpt-5.6-luna": {"input": 0.20, "cached": 0.02,  "output": 1.20,  "long": {"threshold": 272000, "input": 0.40,  "cached": 0.04, "output": 1.80}},
+        "gpt-6-sol":    {"input": 2.00, "cached": 0.20,  "output": 10.00, "long": {"threshold": 272000, "input": 4.00,  "cached": 0.40, "output": 15.00}},
+        "gpt-6-luna":   {"input": 0.10, "cached": 0.01,  "output": 0.50,  "long": {"threshold": 272000, "input": 0.20,  "cached": 0.02, "output": 0.75}},
+        "gpt-6-astra":  {"input": 10.00,"cached": 1.00,  "output": 50.00, "long": {"threshold": 272000, "input": 20.00, "cached": 2.00, "output": 75.00}},
+        "gpt-6.1-sol":  {"input": 2.00, "cached": 0.10,  "output": 10.00, "long": {"threshold": 272000, "input": 4.00,  "cached": 0.20, "output": 15.00}}
+      }
+    },
+    "xai": {
+      "base_url": "https://api.x.ai/v1",
+      "key_env": "XAI_API_KEY",
+      "models": {
+        "grok-4.3": {"input": 1.25, "cached": 0.20, "output": 2.50, "long": {"threshold": 200000, "input": 2.50, "cached": 0.40, "output": 5.00}},
+        "grok-4.5": {"input": 2.00, "cached": 0.30, "output": 6.00, "long": {"threshold": 200000, "input": 4.00, "cached": 0.60, "output": 12.00}},
+        "grok-4.6": {"input": 2.00, "cached": 0.50, "output": 6.00, "long": {"threshold": 200000, "input": 4.00, "cached": 1.00, "output": 12.00}},
+        "grok-4.7": {"input": 2.00, "cached": 0.50, "output": 6.00, "long": {"threshold": 200000, "input": 4.00, "cached": 1.00, "output": 12.00}},
+        "grok-4.20-0309-reasoning":     {"input": 1.25, "cached": 0.20, "output": 2.50, "long": {"threshold": 200000, "input": 2.50, "cached": 0.40, "output": 5.00}},
+        "grok-4.20-0309-non-reasoning": {"input": 1.25, "cached": 0.20, "output": 2.50, "long": {"threshold": 200000, "input": 2.50, "cached": 0.40, "output": 5.00}}
+      }
+    },
+    "kimi": {
+      "base_url": "https://api.moonshot.ai/v1",
+      "key_env": "KIMI_API_KEY",
+      "models": {
+        "kimi-k2.7-code":           {"input": 0.95, "cached": 0.19, "output": 4.00},
+        "kimi-k2.7-code-highspeed": {"input": 1.90, "cached": 0.38, "output": 8.00},
+        "kimi-k3":                  {"input": 3.00, "cached": 0.30, "output": 15.00},
+        "kimi-k2.6":                {"input": 0.95, "cached": 0.16, "output": 4.00}
+      }
+    }
+  }
+}
