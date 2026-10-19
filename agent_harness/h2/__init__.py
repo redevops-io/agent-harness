@@ -5,11 +5,11 @@ copies. It does not run the refinement pipeline: that is upstream google-researc
 as an optional adapter against a reviewed commit. See docs/harness2.md.
 """
 from .artifact import ArtifactError, lineage, load_artifact, save_artifact, tree_hash
-from .spec import COMPONENTS, HarnessSpec, render_codex_agents_md, stock_spec
+from .spec import CODEX, OPENCODE, SURFACES, UPSTREAM_COMMIT, HarnessSpec, Surface, stock_spec
 from .validate import Issue, validate
 
 __all__ = [
-    "COMPONENTS", "HarnessSpec", "stock_spec", "render_codex_agents_md",
+    "OPENCODE", "CODEX", "SURFACES", "Surface", "UPSTREAM_COMMIT", "HarnessSpec", "stock_spec",
     "Issue", "validate",
     "ArtifactError", "save_artifact", "load_artifact", "tree_hash", "lineage",
 ]

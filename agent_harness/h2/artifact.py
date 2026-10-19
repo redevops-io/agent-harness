@@ -11,7 +11,7 @@ import shutil
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from .spec import HarnessSpec, normalize
+from .spec import SURFACES, HarnessSpec, normalize
 from .validate import validate
 
 
@@ -21,6 +21,7 @@ class ArtifactError(Exception):
 
 def tree_hash(spec: HarnessSpec) -> str:
     h = hashlib.sha256()
+    h.update(f"surface:{spec.surface.name}\0".encode())
     for path in sorted(spec.files):
         data = spec.files[path].encode("utf-8")
         h.update(f"{len(path)}:{path}\0{len(data)}:".encode())
@@ -49,7 +50,7 @@ def save_artifact(root: Path, spec: HarnessSpec, *, parent: Optional[str] = None
         f = tmp / "tree" / path
         f.parent.mkdir(parents=True, exist_ok=True)
         f.write_text(text, encoding="utf-8")
-    manifest = {"id": aid, "parent": parent, "files": sorted(spec.files), "meta": meta or {}}
+    manifest = {"id": aid, "surface": spec.surface.name, "parent": parent, "files": sorted(spec.files), "meta": meta or {}}
     (tmp / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8")
     tmp.rename(dest)
     return aid
@@ -60,7 +61,11 @@ def load_artifact(root: Path, aid: str) -> HarnessSpec:
     tree = Path(root) / aid / "tree"
     if not tree.is_dir():
         raise ArtifactError(f"no such artifact {aid!r}")
-    spec = HarnessSpec()
+    try:
+        surface = SURFACES[json.loads((Path(root) / aid / "manifest.json").read_text(encoding="utf-8"))["surface"]]
+    except (OSError, KeyError, ValueError) as e:
+        raise ArtifactError(f"unreadable manifest for {aid}: {e}") from e
+    spec = HarnessSpec(surface)
     for f in sorted(p for p in tree.rglob("*") if p.is_file()):
         if f.is_symlink():
             raise ArtifactError(f"symlink in artifact: {f}")

@@ -1,55 +1,70 @@
 # Harness² integration
 
-Status: **groundwork only.** `agent_harness.h2` defines and validates the Harness² file tree and stores
+Status: **groundwork only.** `agent_harness.h2` models and validates the Harness² file tree and stores
 immutable versioned copies. It does not run the refinement pipeline, call any model, or reproduce any
 published result. No performance claim is made here.
 
 Background: [google-research/harness2](https://github.com/google-research/harness2) (Apache-2.0) and
-[arXiv 2610.14224](https://arxiv.org/abs/2610.14224). They keep model weights frozen and refine the files
-around the model: a *harness* of eight components. This is a different meaning of "harness" from the rest
-of this package (tool registry, approval, sandbox, guardrails) and from `HarnessProfile` in agentic-os.
+[arXiv 2610.14224](https://arxiv.org/abs/2610.14224). Model weights stay frozen; the files around the model
+(the *harness*) are refined. "Harness" here is a different thing from the rest of this package (tool
+registry, approval, sandbox, guardrails) and from `HarnessProfile` in agentic-os.
 
-## The eight components
+## Upstream revision
 
-| Id | Component | Path | Activation |
-|---|---|---|---|
-| C1 | System prompt | `systemprompt.md` | every call |
-| C2 | Guardrails | `guardrails.md` | every call |
-| C3 | Memory | `LongTermMEMORY.md` | every call |
-| C4 | Tool guidance | `tool_descriptions/tool_guidance.md` | every call |
-| C5 | Subagents | `sub_agents/<name>/AGENT.md` | task tool, own context |
-| C6 | Skills | `skills/<name>/SKILL.md` | skill tool, on invocation |
-| C7 | Scripts | `scripts/<name>.py` | run via bash |
-| C8 | Plugins | `plugin/<name>.ts` | inside the tool loop |
+Reviewed commit: `1cfe254e8d25b15f37048c3730134686abe60335` (`UPSTREAM_COMMIT`, 3 commits on `main`, no
+release tag). Layouts, validation rules and the OpenCode/Codex surfaces below were read from that commit's
+`harness2/core/tree.py`, `substrate/opencode.py` and `substrate/codex.py`. Upstream requires Python
+3.12-3.13 and is POSIX-only; this package does not depend on it.
 
-Paths come from the paper (Table 5). **They have not yet been checked against a reviewed upstream commit.**
-Candidate upstream commit seen on 2026-10-19: `1cfe254e8d25b15f37048c3730134686abe60335` (HEAD at the time;
-not reviewed, not pinned).
+## Two surfaces, not one tree
+
+The paper's eight components (C1-C8) map to different files depending on the executor:
+
+| Component | OpenCode | Codex |
+|---|---|---|
+| C1-C4 system prompt, guardrails, memory, tool guidance | `systemprompt.md`, `guardrails.md`, `LongTermMEMORY.md`, `tool_descriptions/tool_guidance.md` (cap 24,000 chars combined) | all in `AGENTS.md` (cap 8,000 chars; must not be empty) |
+| C5 subagents | `sub_agents/<name>/AGENT.md` (needs `mode: subagent`, `description:`) | same path (needs `description:`) |
+| C6 skills | `skills/<name>/SKILL.md` (`name:` must equal directory; `description:` required) | `.agents/skills/<name>/SKILL.md` (`description:` required; `name:` optional) |
+| C7 scripts | `scripts/<name>.py` (lowercase snake case) | same |
+| C8 plugins | `plugin/<name>.ts` | `.codex/hooks.json` (Claude-Code hook schema; no TypeScript plugins) |
+
+A skill counts as triggered only if its name appears in the always-on text. Skills with no such mention
+are rejected, because the agent would never invoke them.
 
 ## What this package provides
 
-- `HarnessSpec`, `stock_spec()`: an in-memory tree and the placeholder base tree.
-- `validate(spec)`: structural checks. A skill needs a trigger line; no template braces in always-on text
-  (C1-C4); every `scripts/...` file named in always-on text or Markdown must exist; Python scripts must
-  compile; plugin braces must balance; no file whose name looks like a grader artifact (rubric, verdict,
-  score, answer key, ground truth); every path must belong to a component and stay inside the tree.
-- `save_artifact` / `load_artifact` / `lineage`: content-addressed (SHA-256) artifacts with a parent link.
-  Invalid trees are refused, identical trees collapse to one id, and a modified stored tree fails loading.
-- `render_codex_agents_md(spec)`: Codex keeps always-on text in `AGENTS.md`.
+- `Surface`, `OPENCODE`, `CODEX`: the surface data above, copied from upstream.
+- `HarnessSpec(surface, files)`, `stock_spec(surface)`: an in-memory tree.
+- `validate(spec)`: the upstream rules as a list of issues, plus three checks upstream does not make: path
+  safety, grader-looking file names (rubric, verdict, score, answer key, ground truth), and a TypeScript
+  brace/parenthesis balance check. Template braces (`{{`, `{%`, `{#`) are rejected in always-on text on both
+  surfaces; upstream enforces that only for its Jinja install mode, so this is deliberately stricter.
+- `save_artifact` / `load_artifact` / `lineage`: SHA-256 content-addressed artifacts that record their
+  surface and parent. Invalid trees are refused, identical trees collapse to one id, and a modified stored
+  tree fails loading.
 
-Assumption to verify upstream: the exact "trigger line" format. The validator accepts a frontmatter
-`description:`, a `Trigger:` line, or a `Use when` line.
+## Verification done (2026-10-19)
+
+- `tests/test_h2.py`: unit tests for every rule on both surfaces.
+- `tests/test_h2_conformance.py`: runs a 20-case corpus through both this validator and upstream's
+  `harness2.core.tree.validate`. All 20 agree on accept/reject. The test is skipped when upstream is not
+  installed (it needs Python 3.12+: `pip install` a checkout at the commit above).
+- Upstream's credential-free `harness2-demo --k 2` ran on macOS with Python 3.13 (2 tasks, 0 failed). The
+  five harness trees it wrote (the base and four library entries) all pass `validate()` and round-trip
+  through the artifact store.
+
+Not tested: any model-backed run, any benchmark, Codex trees from a real run, TypeScript compilation.
 
 ## What validation does not do
 
-Passing `validate()` means a tree is well formed, **not that it is safe**. Scripts (C7) and plugins (C8)
-are executable code and prompts are untrusted. TypeScript is not compiled here. A refined harness must not
-reach production without runtime policy checks, regression tests and explicit promotion. Tool allowlists,
-secrets, egress, sandboxing, spend limits and human approval belong to the runtime, not to editable files.
+Passing `validate()` means a tree is well formed, **not that it is safe**. Scripts, hooks and plugins are
+executable code and prompts are untrusted. A refined harness must not reach production without runtime
+policy checks, regression tests and explicit promotion. Tool allowlists, secrets, egress, sandboxing,
+spend limits and human approval belong to the runtime, not to editable files.
 
 ## Not done yet
 
-- Pinning and reviewing an upstream commit; the upstream adapter (`agent_harness.h2` extra).
-- Verifying layouts, prompts and commands against that commit; auditing the paper's appendices.
-- Any benchmark run (WorkBuddy-Bench, JobBench, LAB). Costs are unmeasured.
+- The adapter that runs upstream refinement from here (optional extra), and its run manifest.
+- Review of the paper's appendices against upstream prompts; the LAB 1,251 vs 1,143 task-count question.
+- Any benchmark run (WorkBuddy-Bench, JobBench, LAB). Costs are unmeasured; no spend cap is approved.
 - Ownership decision for `approval.py` and migration of copies in other repos.
