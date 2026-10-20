@@ -78,9 +78,10 @@ def usage_from_response(obj: Dict[str, Any]) -> Optional[Usage]:
 class Ledger:
     """Append-only JSONL of metered calls; totals are rebuilt from the file so caps survive restarts."""
 
-    def __init__(self, path: Path, caps: Dict[str, float], headroom: float = 1.0):
+    def __init__(self, path: Path, caps: Dict[str, float], headroom: float = 1.0, free: Optional[set] = None):
         self.path = Path(path)
         self.caps = dict(caps)
+        self.free = set(free or ())
         self.headroom = headroom
         self._lock = threading.Lock()
         self._spent: Dict[str, float] = {}
@@ -97,6 +98,8 @@ class Ledger:
 
     def allowed(self, provider: str) -> bool:
         """True while spend is more than ``headroom`` below the cap (headroom absorbs in-flight requests)."""
+        if provider in self.free:
+            return True
         cap = self.caps.get(provider)
         return cap is not None and self.spent(provider) < cap - self.headroom
 

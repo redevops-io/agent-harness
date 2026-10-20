@@ -13,9 +13,12 @@ PRICES = load_prices()
 
 
 def test_price_table_is_complete_and_sane():
-    assert PRICES["as_of"] and set(PRICES["providers"]) == {"openai", "xai", "kimi"}
+    assert PRICES["as_of"] and set(PRICES["providers"]) == {"openai", "xai", "kimi", "local", "proxmox"}
     for prov, d in PRICES["providers"].items():
         for name, p in d["models"].items():
+            if d.get("free"):
+                assert d["key_env"] is None and p["input"] == p["cached"] == p["output"] == 0, (prov, name)
+                continue
             assert 0 < p["cached"] <= p["input"] <= p["output"] * 1.0 + 1e-9 or name == "grok-4.3", (prov, name)
             if "long" in p:
                 assert p["long"]["input"] >= p["input"] and p["long"]["output"] >= p["output"]
@@ -160,3 +163,25 @@ def test_ledger_keys_on_requested_model_not_dated_alias(rig):
     base, ledger, _ = rig
     post(base, "/openai/x/v1/chat/completions", {"model": "gpt-5.4-mini", "messages": []})
     assert list(ledger.report()["by_label"]) == ["openai/x/gpt-5.4-mini"]
+
+
+def test_free_provider_is_uncapped_unkeyed_and_recorded_at_zero(tmp_path):
+    Fake.seen, Fake.omit_usage = [], False
+    up = ThreadingHTTPServer(("127.0.0.1", 0), Fake)
+    threading.Thread(target=up.serve_forever, kwargs={"poll_interval": 0.05}, daemon=True).start()
+    prices = load_prices()
+    assert prices["providers"]["proxmox"]["free"] and prices["providers"]["proxmox"]["key_env"] is None
+    ledger = Ledger(tmp_path / "l.jsonl", {}, headroom=1.0, free={"proxmox"})
+    proxy = Proxy(prices, ledger, {"proxmox": ""}, safety=1.1,
+                  upstreams={"proxmox": f"http://127.0.0.1:{up.server_address[1]}/v1"})
+    srv = serve(proxy)
+    try:
+        for _ in range(3):   # no cap, so never refused
+            assert post(f"http://127.0.0.1:{srv.server_address[1]}", "/proxmox/exec/v1/chat/completions",
+                        {"model": "Qwen3.8-27B", "messages": []}, key="client-key")[0] == 200
+        assert all(s["auth"] is None for s in Fake.seen)               # no Authorization sent upstream
+        r = ledger.report()
+        assert r["providers"]["proxmox"]["usd"] == 0 and r["by_label"]["proxmox/exec/Qwen3.8-27B"]["input"] == 3000
+    finally:
+        srv.shutdown()
+        up.shutdown()

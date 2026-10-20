@@ -96,7 +96,8 @@ class Proxy:
                 if self.path.find("?") >= 0:
                     path += "?" + self.path.split("?", 1)[1]
                 headers = {k: v for k, v in self.headers.items() if k.lower() not in _HOP}
-                headers["Authorization"] = "Bearer " + proxy.keys[provider]
+                if proxy.keys[provider]:   # free (self-hosted) providers get no key
+                    headers["Authorization"] = "Bearer " + proxy.keys[provider]
                 if raw:
                     headers["Content-Length"] = str(len(raw))
                 conn_cls = http.client.HTTPSConnection if up.scheme == "https" else http.client.HTTPConnection
@@ -173,11 +174,13 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     caps = {k: float(v) for k, v in (c.split("=", 1) for c in a.cap)}
     prices = load_prices()
-    ledger = Ledger(a.ledger, caps, a.headroom)
+    free = {p for p, v in prices["providers"].items() if v.get("free")}
+    ledger = Ledger(a.ledger, caps, a.headroom, free)
     if a.report:
         print(json.dumps(ledger.report(), indent=2, sort_keys=True))
         return 0
-    keys = {p: os.environ[prices["providers"][p]["key_env"]] for p in caps if os.environ.get(prices["providers"][p]["key_env"])}
+    keys = {p: os.environ[prices["providers"][p]["key_env"]] for p in caps if os.environ.get(prices["providers"][p]["key_env"] or "")}
+    keys.update({p: "" for p in free})
     missing = [p for p in caps if p not in keys]
     if missing:
         print("missing API key env for: " + ", ".join(missing), file=sys.stderr)
