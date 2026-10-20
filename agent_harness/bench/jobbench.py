@@ -52,36 +52,46 @@ exactly where the task says. When the deliverables are saved, reply with a short
 
 def run_task(tasks_base: Path, task_id: str, out_dir: Path, client: ChatClient, system: str = BASE_SYSTEM, *,
              max_turns: int = 200, max_seconds: float = 3600, max_context_tokens: int = 40960, web: bool = True,
-             extra_system: str = "") -> Dict[str, Any]:
-    """Roll one task. Returns a summary dict; deliverables land in ``out_dir/output``, the trajectory in ``out_dir``."""
+             extra_system: str = "", attempts: int = 2) -> Dict[str, Any]:
+    """Roll one task. Returns a summary dict; deliverables land in ``out_dir/output``, the trajectory in ``out_dir``.
+
+    Like the upstream OpenCode runner, a second attempt (fresh workspace) is made only when the first left no
+    deliverables. ``max_seconds`` applies per attempt."""
     src = Path(tasks_base) / task_id / "task_folder"
     if not src.is_dir():
         raise FileNotFoundError(src)
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-    ws = Path(tempfile.mkdtemp(prefix="ah-jb-"))
-    try:
-        shutil.copytree(src, ws / "task_folder")
-        (ws / "output").mkdir()
-        os.chmod(ws, 0o777)
-        for p in [ws / "task_folder", ws / "output", *ws.rglob("*")]:    # container user is uid 1000, not the host user
-            os.chmod(p, 0o777 if p.is_dir() else 0o666)
-        blocked: List[str] = []
-        with DockerSandbox(ws) as sbx:
-            reg = bench_registry(ws, sbx, blocked_log=blocked, web=web)
-            res: LoopResult = run_loop(client, reg, (system + ("\n\n" + extra_system if extra_system else "")), PROMPT,
-                                       max_turns=max_turns, max_seconds=max_seconds,
-                                       max_context_tokens=max_context_tokens, trajectory=out_dir / "trajectory.jsonl")
-        deliver = out_dir / "output"
-        shutil.rmtree(deliver, ignore_errors=True)
-        shutil.copytree(ws / "output", deliver)
-        files = sorted(str(p.relative_to(deliver)) for p in deliver.rglob("*") if p.is_file())
-        summary = {"task": task_id, "stop": res.stop, "turns": res.turns, "seconds": res.seconds,
-                   "prompt_tokens": res.prompt_tokens, "completion_tokens": res.completion_tokens,
-                   "tool_calls": res.tool_calls, "tool_errors": res.tool_errors, "deliverables": files,
-                   "blocked_fetches": blocked, "model": client.model}
-    finally:
-        shutil.rmtree(ws, ignore_errors=True)
+    runs: List[Dict[str, Any]] = []
+    summary: Dict[str, Any] = {}
+    for attempt in range(1, attempts + 1):
+        ws = Path(tempfile.mkdtemp(prefix="ah-jb-"))
+        try:
+            shutil.copytree(src, ws / "task_folder")
+            (ws / "output").mkdir()
+            for p in [ws, ws / "task_folder", ws / "output", *ws.rglob("*")]:    # container user is uid 1000, not the host user
+                os.chmod(p, 0o777 if p.is_dir() else 0o666)
+            blocked: List[str] = []
+            with DockerSandbox(ws) as sbx:
+                reg = bench_registry(ws, sbx, blocked_log=blocked, web=web)
+                res: LoopResult = run_loop(client, reg, (system + ("\n\n" + extra_system if extra_system else "")), PROMPT,
+                                           max_turns=max_turns, max_seconds=max_seconds,
+                                           max_context_tokens=max_context_tokens,
+                                           trajectory=out_dir / f"trajectory{'' if attempt == 1 else f'_attempt{attempt}'}.jsonl")
+            deliver = out_dir / "output"
+            shutil.rmtree(deliver, ignore_errors=True)
+            shutil.copytree(ws / "output", deliver)
+            files = sorted(str(p.relative_to(deliver)) for p in deliver.rglob("*") if p.is_file())
+            summary = {"task": task_id, "attempt": attempt, "stop": res.stop, "turns": res.turns, "seconds": res.seconds,
+                       "prompt_tokens": res.prompt_tokens, "completion_tokens": res.completion_tokens,
+                       "tool_calls": res.tool_calls, "tool_errors": res.tool_errors, "deliverables": files,
+                       "blocked_fetches": blocked, "model": client.model}
+            runs.append({k: summary[k] for k in ("attempt", "stop", "turns", "seconds", "deliverables")})
+        finally:
+            shutil.rmtree(ws, ignore_errors=True)
+        if summary["deliverables"]:
+            break
+    summary["attempts"] = runs
     (out_dir / "summary.json").write_text(json.dumps(summary, indent=2))
     return summary
 
@@ -123,6 +133,7 @@ def main(argv=None) -> int:
     ap.add_argument("--system-file")
     ap.add_argument("--max-turns", type=int, default=200)
     ap.add_argument("--max-seconds", type=float, default=3600)
+    ap.add_argument("--attempts", type=int, default=2)
     ap.add_argument("--context", type=int, default=40960)
     ap.add_argument("--no-web", action="store_true")
     ap.add_argument("--temperature", type=float)
@@ -136,7 +147,7 @@ def main(argv=None) -> int:
     for t in a.task:
         out = Path(a.out) / a.label / t.replace("/", "__")
         s = run_task(Path(a.tasks_base), t, out, client, system, max_turns=a.max_turns, max_seconds=a.max_seconds,
-                     max_context_tokens=a.context, web=not a.no_web)
+                     max_context_tokens=a.context, web=not a.no_web, attempts=a.attempts)
         if a.judge_python:
             s["judge"] = judge(t, Path(a.tasks_base), out / "output", out / "judge_details.json", judge_python=a.judge_python,
                                judge_script=a.judge_script, judge_model=a.judge_model, judge_base_url=a.judge_base_url)
