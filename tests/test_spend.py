@@ -225,3 +225,24 @@ def test_request_defaults_injected_but_never_override_and_failures_are_recorded(
     finally:
         srv2.shutdown()
         bad.shutdown()
+
+
+def test_output_token_ceiling_clamps_only_larger_values(tmp_path):
+    Fake.seen, Fake.omit_usage = [], False
+    up = ThreadingHTTPServer(("127.0.0.1", 0), Fake)
+    threading.Thread(target=up.serve_forever, kwargs={"poll_interval": 0.05}, daemon=True).start()
+    prices = load_prices()
+    assert prices["providers"]["proxmox"]["clamp_output_tokens"] == 8192
+    proxy = Proxy(prices, Ledger(tmp_path / "l.jsonl", {}, free={"proxmox"}), {"proxmox": ""},
+                  upstreams={"proxmox": f"http://127.0.0.1:{up.server_address[1]}/v1"})
+    srv = serve(proxy)
+    base = f"http://127.0.0.1:{srv.server_address[1]}"
+    try:
+        post(base, "/proxmox/x/v1/chat/completions", {"model": "Qwen3.8-27B", "messages": [], "max_completion_tokens": 65536})
+        post(base, "/proxmox/x/v1/chat/completions", {"model": "Qwen3.8-27B", "messages": [], "max_tokens": 500})
+        post(base, "/proxmox/x/v1/chat/completions", {"model": "Qwen3.8-27B", "messages": []})
+        b = [s["body"] for s in Fake.seen]
+        assert b[0]["max_completion_tokens"] == 8192 and b[1]["max_tokens"] == 500 and "max_tokens" not in b[2]
+    finally:
+        srv.shutdown()
+        up.shutdown()

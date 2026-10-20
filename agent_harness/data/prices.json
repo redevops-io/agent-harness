@@ -249,7 +249,9 @@
           "enable_thinking": false
         }
       },
-      "request_defaults_note": "vLLM per-request switch documented in the Qwen3 deployment guide; applied only when the client did not set the key. Recorded in run manifests as a deviation from the model's default (thinking on)."
+      "request_defaults_note": "vLLM per-request switch documented in the Qwen3 deployment guide; applied only when the client did not set the key. Recorded in run manifests as a deviation from the model's default (thinking on).",
+      "clamp_output_tokens": 8192,
+      "clamp_note": "The served context is 40,960 tokens; clients such as the JobBench judge ask for 65,536 output tokens and get HTTP 400. Requests above the ceiling are lowered to it. Recorded as a deviation."
     }
   }
 }

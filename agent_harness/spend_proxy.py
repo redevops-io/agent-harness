@@ -88,6 +88,11 @@ class Proxy:
                         return self._send_json(400, "unpriced_tier", "priority/fast service tiers are not priced; refused")
                     for k, v in (proxy.prices["providers"][provider].get("request_defaults") or {}).items():
                         body.setdefault(k, v)   # configured per provider; never overrides what the client set
+                    ceiling = proxy.prices["providers"][provider].get("clamp_output_tokens")
+                    if ceiling:
+                        for k in ("max_tokens", "max_completion_tokens", "max_output_tokens"):
+                            if isinstance(body.get(k), int) and body[k] > ceiling:
+                                body[k] = ceiling
                     stream = bool(body.get("stream"))
                     if stream and rest.endswith("/chat/completions"):
                         so = body.get("stream_options") if isinstance(body.get("stream_options"), dict) else {}
