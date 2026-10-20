@@ -50,10 +50,31 @@ def elide_old_tool_outputs(messages: List[Dict[str, Any]], keep_last: int = 4) -
     return n
 
 
+def is_context_error(text: str) -> bool:
+    t = text.lower()
+    return "context length" in t or "context_length" in t or "too many tokens" in t or "maximum context" in t
+
+
+def compact(messages: List[Dict[str, Any]], level: int) -> None:
+    """Shrink the conversation. 1: elide old tool outputs (keep 4). 2: keep 1. 3: also clip every remaining
+    message body to 1,500 chars (the system prompt and the task statement are never touched)."""
+    elide_old_tool_outputs(messages, keep_last=4 if level <= 1 else 1)
+    if level >= 3:
+        for i, m in enumerate(messages):
+            if i > 1 and isinstance(m.get("content"), str) and len(m["content"]) > 1500:
+                messages[i] = {**m, "content": _clip(m["content"], 1500)}
+
+
+def estimate_tokens(chars: int) -> int:
+    return chars // 3 + 1
+
+
 def run_loop(client: ChatClient, registry: ToolRegistry, system: str, task: str, *, max_turns: int = 200,
              max_seconds: float = 3600, max_context_tokens: int = 40960, compact_at: float = 0.7,
-             max_tool_chars: int = 12000, trajectory: Optional[Path] = None,
+             max_tool_chars: Optional[int] = None, trajectory: Optional[Path] = None,
              on_turn: Optional[Callable[[int, Dict[str, Any]], None]] = None) -> LoopResult:
+    if max_tool_chars is None:
+        max_tool_chars = min(12000, int(0.2 * max_context_tokens))
     messages: List[Dict[str, Any]] = [{"role": "system", "content": system}, {"role": "user", "content": task}]
     res = LoopResult(stop="done", messages=messages)
     guard = LoopGuard(max_turns)
@@ -66,7 +87,7 @@ def run_loop(client: ChatClient, registry: ToolRegistry, system: str, task: str,
             log.write(json.dumps({"t": round(time.time() - t0, 1), "kind": kind, **kw}) + "\n")
             log.flush()
 
-    last_prompt = 0
+    last_prompt, sent_len = 0, 0
     try:
         while True:
             if not guard.check():
@@ -75,15 +96,26 @@ def run_loop(client: ChatClient, registry: ToolRegistry, system: str, task: str,
             if time.time() - t0 > max_seconds:
                 res.stop = "max_seconds"
                 break
-            if last_prompt > compact_at * max_context_tokens:
+            # size of the next prompt: the last measured one plus everything appended since that reply
+            new_chars = sum(len(m.get("content") or "") for m in messages[sent_len:])
+            if last_prompt + estimate_tokens(new_chars) > compact_at * max_context_tokens:
                 if elide_old_tool_outputs(messages) == 0 and last_prompt > 0.95 * max_context_tokens:
                     res.stop = "context_overflow"
                     break
-            try:
-                out = client.complete(messages, specs)
-            except ChatError as e:
-                emit("model_error", error=str(e)[:300])
-                res.stop = "model_error"
+            out, attempt = None, 0
+            while out is None:
+                try:
+                    out = client.complete(messages, specs)
+                except ChatError as e:
+                    if is_context_error(str(e)) and attempt < 3:
+                        attempt += 1
+                        compact(messages, attempt)
+                        emit("compact", level=attempt, reason="context error from server")
+                        continue
+                    emit("model_error", error=str(e)[:300])
+                    res.stop = "model_error"
+                    break
+            if out is None:
                 break
             res.turns += 1
             msg, usage = out["message"], out["usage"]
@@ -94,6 +126,7 @@ def run_loop(client: ChatClient, registry: ToolRegistry, system: str, task: str,
             keep["role"] = "assistant"
             keep["content"] = msg.get("content") or ""
             messages.append(keep)
+            sent_len = len(messages)
             emit("assistant", turn=res.turns, content=(keep["content"] or "")[:2000], usage=usage,
                  finish=out.get("finish_reason"), tool_calls=[(c["function"]["name"], c["function"]["arguments"][:300])
                                                               for c in msg.get("tool_calls") or []])
