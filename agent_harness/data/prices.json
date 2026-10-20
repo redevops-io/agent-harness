@@ -219,7 +219,13 @@
           "cached": 0.16,
           "output": 4.0
         }
-      }
+      },
+      "label_overrides": {
+        "judge": {
+          "temperature": 1
+        }
+      },
+      "label_overrides_note": "kimi-k2.7 accepts only temperature 1; the JobBench judge sends 0.0 and gets HTTP 400. For calls labelled 'judge' the temperature is forced to 1. Recorded as a deviation; never applied to other labels."
     },
     "local": {
       "base_url": "http://127.0.0.1:11234/v1",

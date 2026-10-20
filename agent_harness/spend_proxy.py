@@ -88,6 +88,8 @@ class Proxy:
                         return self._send_json(400, "unpriced_tier", "priority/fast service tiers are not priced; refused")
                     for k, v in (proxy.prices["providers"][provider].get("request_defaults") or {}).items():
                         body.setdefault(k, v)   # configured per provider; never overrides what the client set
+                    for k, v in ((proxy.prices["providers"][provider].get("label_overrides") or {}).get(label) or {}).items():
+                        body[k] = v   # explicit per-label override (unlike request_defaults, replaces the client's value)
                     ceiling = proxy.prices["providers"][provider].get("clamp_output_tokens")
                     if ceiling:
                         for k in ("max_tokens", "max_completion_tokens", "max_output_tokens"):

@@ -246,3 +246,22 @@ def test_output_token_ceiling_clamps_only_larger_values(tmp_path):
     finally:
         srv.shutdown()
         up.shutdown()
+
+
+def test_label_override_applies_only_to_its_label(tmp_path):
+    Fake.seen, Fake.omit_usage = [], False
+    up = ThreadingHTTPServer(("127.0.0.1", 0), Fake)
+    threading.Thread(target=up.serve_forever, kwargs={"poll_interval": 0.05}, daemon=True).start()
+    prices = load_prices()
+    assert prices["providers"]["kimi"]["label_overrides"] == {"judge": {"temperature": 1}}
+    proxy = Proxy(prices, Ledger(tmp_path / "l.jsonl", {"kimi": 5.0}, headroom=0.0), {"kimi": "K"},
+                  upstreams={"kimi": f"http://127.0.0.1:{up.server_address[1]}/v1"})
+    srv = serve(proxy)
+    base = f"http://127.0.0.1:{srv.server_address[1]}"
+    try:
+        post(base, "/kimi/judge/v1/chat/completions", {"model": "kimi-k2.7-code", "messages": [], "temperature": 0.0})
+        post(base, "/kimi/exec/v1/chat/completions", {"model": "kimi-k2.7-code", "messages": [], "temperature": 0.0})
+        assert Fake.seen[0]["body"]["temperature"] == 1 and Fake.seen[1]["body"]["temperature"] == 0.0
+    finally:
+        srv.shutdown()
+        up.shutdown()
