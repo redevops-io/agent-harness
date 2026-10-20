@@ -120,7 +120,13 @@ class Ledger:
         out: Dict[str, Any] = {"providers": {}, "by_label": {}}
         for line in self.path.read_text(encoding="utf-8").splitlines() if self.path.exists() else []:
             r = json.loads(line)
-            p = out["providers"].setdefault(r["provider"], {"calls": 0, "usd": 0.0, "unmetered_calls": 0})
+            p = out["providers"].setdefault(r["provider"], {"calls": 0, "usd": 0.0, "unmetered_calls": 0, "failed_calls": 0})
+            if r["status"] >= 400 or r["status"] == 0:
+                p["failed_calls"] += 1
+                by = out.setdefault("failures", {})
+                key = f'{r["provider"]}/{r["label"]}/{r["model"]} HTTP {r["status"]}'
+                by[key] = by.get(key, 0) + 1
+                continue
             p["calls"] += 1
             p["usd"] = round(p["usd"] + r["cost_usd"], 6)
             p["unmetered_calls"] += 1 if r["unmetered"] else 0

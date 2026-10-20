@@ -185,3 +185,43 @@ def test_free_provider_is_uncapped_unkeyed_and_recorded_at_zero(tmp_path):
     finally:
         srv.shutdown()
         up.shutdown()
+
+
+def test_request_defaults_injected_but_never_override_and_failures_are_recorded(tmp_path):
+    Fake.seen, Fake.omit_usage = [], False
+    up = ThreadingHTTPServer(("127.0.0.1", 0), Fake)
+    threading.Thread(target=up.serve_forever, kwargs={"poll_interval": 0.05}, daemon=True).start()
+    prices = load_prices()
+    assert prices["providers"]["proxmox"]["request_defaults"] == {"chat_template_kwargs": {"enable_thinking": False}}
+    ledger = Ledger(tmp_path / "l.jsonl", {}, headroom=1.0, free={"proxmox"})
+    proxy = Proxy(prices, ledger, {"proxmox": ""}, upstreams={"proxmox": f"http://127.0.0.1:{up.server_address[1]}/v1"})
+    srv = serve(proxy)
+    base = f"http://127.0.0.1:{srv.server_address[1]}"
+    try:
+        post(base, "/proxmox/x/v1/chat/completions", {"model": "Qwen3.8-27B", "messages": []})
+        post(base, "/proxmox/x/v1/chat/completions", {"model": "Qwen3.8-27B", "messages": [],
+                                                      "chat_template_kwargs": {"enable_thinking": True}})
+        assert Fake.seen[0]["body"]["chat_template_kwargs"] == {"enable_thinking": False}
+        assert Fake.seen[1]["body"]["chat_template_kwargs"] == {"enable_thinking": True}   # client choice wins
+    finally:
+        srv.shutdown()
+        up.shutdown()
+    # a refused-by-upstream call (no usage, 4xx) is recorded as a failure, not silently dropped
+    class Bad(BaseHTTPRequestHandler):
+        def log_message(self, *a): pass
+        def do_POST(self):
+            self.rfile.read(int(self.headers["Content-Length"]))
+            self.send_response(400); self.send_header("Content-Length", "2"); self.end_headers(); self.wfile.write(b"{}")
+    bad = ThreadingHTTPServer(("127.0.0.1", 0), Bad)
+    threading.Thread(target=bad.serve_forever, kwargs={"poll_interval": 0.05}, daemon=True).start()
+    ledger2 = Ledger(tmp_path / "l2.jsonl", {}, free={"proxmox"})
+    srv2 = serve(Proxy(prices, ledger2, {"proxmox": ""}, upstreams={"proxmox": f"http://127.0.0.1:{bad.server_address[1]}/v1"}))
+    try:
+        assert post(f"http://127.0.0.1:{srv2.server_address[1]}", "/proxmox/x/v1/chat/completions",
+                    {"model": "Qwen3.8-27B", "messages": []})[0] == 400
+        r = ledger2.report()
+        assert r["providers"]["proxmox"]["failed_calls"] == 1 and r["failures"] == {"proxmox/x/Qwen3.8-27B HTTP 400": 1}
+        assert r["providers"]["proxmox"]["calls"] == 0
+    finally:
+        srv2.shutdown()
+        bad.shutdown()

@@ -243,7 +243,13 @@
           "cached": 0.0,
           "output": 0.0
         }
-      }
+      },
+      "request_defaults": {
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        }
+      },
+      "request_defaults_note": "vLLM per-request switch documented in the Qwen3 deployment guide; applied only when the client did not set the key. Recorded in run manifests as a deviation from the model's default (thinking on)."
     }
   }
 }

@@ -86,6 +86,8 @@ class Proxy:
                         return self._send_json(400, "unpriced_model", f"refused: {e}")
                     if str(body.get("service_tier", "")).lower() in _EXPENSIVE_TIERS:
                         return self._send_json(400, "unpriced_tier", "priority/fast service tiers are not priced; refused")
+                    for k, v in (proxy.prices["providers"][provider].get("request_defaults") or {}).items():
+                        body.setdefault(k, v)   # configured per provider; never overrides what the client set
                     stream = bool(body.get("stream"))
                     if stream and rest.endswith("/chat/completions"):
                         so = body.get("stream_options") if isinstance(body.get("stream_options"), dict) else {}
@@ -142,6 +144,8 @@ class Proxy:
                     conn.close()
                     if metered and (status < 300 or usage):
                         proxy._account(provider, label, model, rest, status, usage, stream, len(raw), body)
+                    elif metered:   # failed calls cost nothing but must stay visible for diagnosis
+                        proxy.ledger.record(provider, label, str(body.get("model", model)), rest, status, None, 0.0, stream)
 
         return H
 
