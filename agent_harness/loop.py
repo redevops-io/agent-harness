@@ -15,10 +15,9 @@ from typing import Any, Callable, Dict, List, Optional
 
 from .guardrails import LoopGuard
 from .llm import ChatClient, ChatError
+from .context import (ELIDED, BasicContextManager, ContextManager, clip_text as _clip, elide_old_tool_outputs,  # noqa: F401
+                      estimate_tokens, messages_chars, shrink_tool_call_args)
 from .tools import ToolRegistry
-
-ELIDED = "[earlier tool output removed to save context]"
-
 
 @dataclass
 class LoopResult:
@@ -33,63 +32,9 @@ class LoopResult:
     messages: List[Dict[str, Any]] = field(default_factory=list)
 
 
-def _clip(text: str, limit: int) -> str:
-    if len(text) <= limit:
-        return text
-    h = limit * 2 // 3
-    return text[:h] + f"\n[... {len(text) - limit} chars omitted ...]\n" + text[-(limit - h):]
-
-
-def elide_old_tool_outputs(messages: List[Dict[str, Any]], keep_last: int = 4) -> int:
-    """Replace the oldest tool messages with a stub, keeping the last ``keep_last``. Returns how many changed."""
-    idx = [i for i, m in enumerate(messages) if m.get("role") == "tool" and m.get("content") != ELIDED]
-    n = 0
-    for i in idx[:-keep_last] if keep_last else idx:
-        messages[i] = {**messages[i], "content": ELIDED}
-        n += 1
-    return n
-
-
 def is_context_error(text: str) -> bool:
     t = text.lower()
     return "context length" in t or "context_length" in t or "too many tokens" in t or "maximum context" in t
-
-
-def compact(messages: List[Dict[str, Any]], level: int) -> None:
-    """Shrink the conversation. 1: elide old tool outputs (keep 4). 2: keep 1. 3: also clip every remaining
-    message body to 1,500 chars (the system prompt and the task statement are never touched)."""
-    elide_old_tool_outputs(messages, keep_last=4 if level <= 1 else 1)
-    shrink_tool_call_args(messages, keep_last=2 if level <= 1 else 1)
-    if level >= 3:
-        for i, m in enumerate(messages):
-            if i > 1 and isinstance(m.get("content"), str) and len(m["content"]) > 1500:
-                messages[i] = {**m, "content": _clip(m["content"], 1500)}
-
-
-def shrink_tool_call_args(messages: List[Dict[str, Any]], keep_last: int = 2, limit: int = 400) -> int:
-    """Shorten big string arguments (e.g. the whole document passed to write_file) in all but the last ``keep_last``
-    assistant messages. The arguments stay valid JSON with their keys, so the transcript still parses."""
-    idx = [i for i, m in enumerate(messages) if m.get("role") == "assistant" and m.get("tool_calls")]
-    n = 0
-    for i in idx[:-keep_last] if keep_last else idx:
-        calls = []
-        for c in messages[i]["tool_calls"]:
-            try:
-                args = json.loads(c["function"]["arguments"] or "{}")
-            except ValueError:
-                calls.append(c)
-                continue
-            small = {k: (v[:limit // 2] + f"...[{len(v) - limit // 2} chars omitted to save context]" if isinstance(v, str) and len(v) > limit else v)
-                     for k, v in args.items()} if isinstance(args, dict) else args
-            if small != args:
-                n += 1
-            calls.append({**c, "function": {**c["function"], "arguments": json.dumps(small)}})
-        messages[i] = {**messages[i], "tool_calls": calls}
-    return n
-
-
-def estimate_tokens(chars: int) -> int:
-    return chars // 3 + 1
 
 
 def missing_args(registry: ToolRegistry, name: str, args: Dict[str, Any]) -> Optional[str]:
@@ -110,13 +55,17 @@ def missing_args(registry: ToolRegistry, name: str, args: Dict[str, Any]) -> Opt
 def run_loop(client: ChatClient, registry: ToolRegistry, system: str, task: str, *, max_turns: int = 200,
              max_seconds: float = 3600, max_context_tokens: int = 40960, compact_at: float = 0.7,
              max_tool_chars: Optional[int] = None, trajectory: Optional[Path] = None,
-             on_turn: Optional[Callable[[int, Dict[str, Any]], None]] = None) -> LoopResult:
+             on_turn: Optional[Callable[[int, Dict[str, Any]], None]] = None,
+             context_manager: Optional[ContextManager] = None, compact_to: float = 0.5) -> LoopResult:
     if max_tool_chars is None:
         max_tool_chars = min(12000, int(0.2 * max_context_tokens))
     messages: List[Dict[str, Any]] = [{"role": "system", "content": system}, {"role": "user", "content": task}]
     res = LoopResult(stop="done", messages=messages)
     guard = LoopGuard(max_turns)
     t0 = time.time()
+    cm = context_manager or BasicContextManager()
+    for extra in cm.tools():            # e.g. a retrieval tool over content the manager compacted away
+        registry.register(extra)
     specs = registry.specs()
     log = open(trajectory, "a", encoding="utf-8") if trajectory else None
 
@@ -136,10 +85,13 @@ def run_loop(client: ChatClient, registry: ToolRegistry, system: str, task: str,
                 res.stop = "max_seconds"
                 break
             # size of the next prompt: the last measured one plus everything appended since that reply
-            new_chars = sum(len(m.get("content") or "") for m in messages[sent_len:])
-            if last_prompt + estimate_tokens(new_chars) > compact_at * max_context_tokens:
-                shrunk = shrink_tool_call_args(messages)
-                if elide_old_tool_outputs(messages) == 0 and shrunk == 0 and last_prompt > 0.95 * max_context_tokens:
+            new_chars = messages_chars(messages[sent_len:])
+            est = last_prompt + estimate_tokens(new_chars)
+            if est > compact_at * max_context_tokens:
+                changed = cm.prepare(messages, target_tokens=int(compact_to * max_context_tokens), estimated_tokens=est)
+                if changed:
+                    emit("compact", level=0, changed=changed, estimated_before=est)
+                elif last_prompt > 0.95 * max_context_tokens and cm.on_context_error(messages, 3) == 0:
                     res.stop = "context_overflow"
                     break
             out, attempt = None, 0
@@ -149,8 +101,8 @@ def run_loop(client: ChatClient, registry: ToolRegistry, system: str, task: str,
                 except ChatError as e:
                     if is_context_error(str(e)) and attempt < 3:
                         attempt += 1
-                        compact(messages, attempt)
-                        emit("compact", level=attempt, reason="context error from server")
+                        emit("compact", level=attempt, reason="context error from server",
+                             changed=cm.on_context_error(messages, attempt))
                         continue
                     emit("model_error", error=str(e)[:300])
                     res.stop = "model_error"

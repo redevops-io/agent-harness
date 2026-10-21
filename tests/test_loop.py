@@ -147,3 +147,51 @@ def test_shrink_keeps_json_valid_and_recent_calls_intact():
     old = json.loads(msgs[2]["tool_calls"][0]["function"]["arguments"])
     assert old["path"] == "p0" and len(old["content"]) < 400 and "omitted" in old["content"]
     assert json.loads(msgs[5]["tool_calls"][0]["function"]["arguments"])["content"] == big      # recent call untouched
+
+
+# --- ContextManager interface ----------------------------------------------------------------------------------
+from agent_harness.context import BasicContextManager, ContextManager
+
+
+class FakeManager:
+    def __init__(self):
+        self.prepared, self.errors = [], []
+
+    def prepare(self, messages, *, target_tokens, estimated_tokens):
+        self.prepared.append((target_tokens, estimated_tokens))
+        return 0
+
+    def on_context_error(self, messages, attempt):
+        self.errors.append(attempt)
+        return 1
+
+    def tools(self):
+        return [function_tool("search_context", lambda a: ToolResult(text="found"), "retrieve", parameters={"type": "object", "properties": {}})]
+
+
+def test_custom_manager_is_asked_to_prepare_and_its_tools_are_offered():
+    assert isinstance(BasicContextManager(), ContextManager) and isinstance(FakeManager(), ContextManager)
+    fm = FakeManager()
+    seen_tools = []
+
+    class C(Script):
+        def complete(self, messages, tools=None):
+            seen_tools.append([t["function"]["name"] for t in tools])
+            return super().complete(messages, tools)
+
+    c = C([call("echo", x="a"), call("search_context"), {"role": "assistant", "content": "ok"}], prompt_tokens=900)
+    res = run_loop(c, reg(), "s", "t", max_context_tokens=1000, context_manager=fm)
+    assert "search_context" in seen_tools[0] and res.stop == "done"
+    assert fm.prepared and fm.prepared[0][0] == 500            # target = compact_to * window
+    assert any("found" == m["content"] for m in c.seen[-1] if m["role"] == "tool")   # the manager's tool ran
+
+
+def test_manager_is_consulted_before_giving_up_on_overflow_and_on_server_errors():
+    fm = FakeManager()
+    c = Script([call("echo", x="a"), call("echo", x="a"), {"role": "assistant", "content": "ok"}], prompt_tokens=990)
+    assert run_loop(c, reg(), "s", "t", max_context_tokens=1000, context_manager=fm).stop == "done"   # on_context_error freed room
+    assert fm.errors == [3, 3]
+    fm2 = FakeManager()
+    err = ChatError("HTTP 400: maximum context length is 100 tokens")
+    c2 = Script([err, {"role": "assistant", "content": "ok"}])
+    assert run_loop(c2, reg(), "s", "t", context_manager=fm2).stop == "done" and fm2.errors == [1]
