@@ -54,7 +54,7 @@ No benchmark or performance numbers are claimed.
 
 **Limitations.** Stub LLM client; single-step agent loop; sandbox is soft confinement; tool schemas are stored for export, not validated at call time.
 
-**Docs.** [docs/architecture.md](docs/architecture.md), [docs/configuration.md](docs/configuration.md), [docs/harness2.md](docs/harness2.md) (Harness² file-tree spec and validators; groundwork only, no benchmark results), [docs/spend.md](docs/spend.md) (per-provider dollar caps and a metering proxy for paid calls).
+**Docs.** [docs/architecture.md](docs/architecture.md), [docs/configuration.md](docs/configuration.md), [docs/harness2.md](docs/harness2.md) (Harness² file-tree spec and validators; groundwork only, no benchmark results), [docs/spend.md](docs/spend.md) (per-provider dollar caps and a metering proxy for paid calls), [docs/context.md](docs/context.md) (context management interface; lossless compaction via context-runtime).
 
 ## Quickstart (original text)
 
