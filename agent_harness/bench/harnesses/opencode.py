@@ -83,6 +83,8 @@ def generate(exp, cell, workers: int = 1, runner=subprocess.run) -> None:
     lim = exp.cfg.get("limits", {})
     cwd = Path(exp.cfg["harness2_root"]).expanduser()
     env = {**os.environ, **child_env(exp, cell)}
+    root = str(Path(__file__).resolve().parents[3])          # run THIS checkout in the child, whatever is installed in the venv
+    env["PYTHONPATH"] = root + os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else root
     arm = arm_id(NAME, cell.name)
     label = f"oc-{cell.name}"
 
