@@ -59,14 +59,52 @@ def compact(messages: List[Dict[str, Any]], level: int) -> None:
     """Shrink the conversation. 1: elide old tool outputs (keep 4). 2: keep 1. 3: also clip every remaining
     message body to 1,500 chars (the system prompt and the task statement are never touched)."""
     elide_old_tool_outputs(messages, keep_last=4 if level <= 1 else 1)
+    shrink_tool_call_args(messages, keep_last=2 if level <= 1 else 1)
     if level >= 3:
         for i, m in enumerate(messages):
             if i > 1 and isinstance(m.get("content"), str) and len(m["content"]) > 1500:
                 messages[i] = {**m, "content": _clip(m["content"], 1500)}
 
 
+def shrink_tool_call_args(messages: List[Dict[str, Any]], keep_last: int = 2, limit: int = 400) -> int:
+    """Shorten big string arguments (e.g. the whole document passed to write_file) in all but the last ``keep_last``
+    assistant messages. The arguments stay valid JSON with their keys, so the transcript still parses."""
+    idx = [i for i, m in enumerate(messages) if m.get("role") == "assistant" and m.get("tool_calls")]
+    n = 0
+    for i in idx[:-keep_last] if keep_last else idx:
+        calls = []
+        for c in messages[i]["tool_calls"]:
+            try:
+                args = json.loads(c["function"]["arguments"] or "{}")
+            except ValueError:
+                calls.append(c)
+                continue
+            small = {k: (v[:limit // 2] + f"...[{len(v) - limit // 2} chars omitted to save context]" if isinstance(v, str) and len(v) > limit else v)
+                     for k, v in args.items()} if isinstance(args, dict) else args
+            if small != args:
+                n += 1
+            calls.append({**c, "function": {**c["function"], "arguments": json.dumps(small)}})
+        messages[i] = {**messages[i], "tool_calls": calls}
+    return n
+
+
 def estimate_tokens(chars: int) -> int:
     return chars // 3 + 1
+
+
+def missing_args(registry: ToolRegistry, name: str, args: Dict[str, Any]) -> Optional[str]:
+    try:
+        spec = registry.get(name).spec()
+    except Exception:
+        return None            # unknown tool: the registry produces the error
+    params = spec.parameters or {}
+    required = [r for r in params.get("required", []) if r not in args]
+    if not required:
+        return None
+    props = params.get("properties", {})
+    expected = ", ".join(f"{k} ({(v or {}).get('type', 'any')})" for k, v in props.items())
+    return (f"missing required argument(s): {', '.join(required)}. {name} expects: {expected}. "
+            f"You sent: {', '.join(args) or 'no arguments'}.")
 
 
 def run_loop(client: ChatClient, registry: ToolRegistry, system: str, task: str, *, max_turns: int = 200,
@@ -88,6 +126,7 @@ def run_loop(client: ChatClient, registry: ToolRegistry, system: str, task: str,
             log.flush()
 
     last_prompt, sent_len = 0, 0
+    fails: Dict[str, int] = {}
     try:
         while True:
             if not guard.check():
@@ -99,7 +138,8 @@ def run_loop(client: ChatClient, registry: ToolRegistry, system: str, task: str,
             # size of the next prompt: the last measured one plus everything appended since that reply
             new_chars = sum(len(m.get("content") or "") for m in messages[sent_len:])
             if last_prompt + estimate_tokens(new_chars) > compact_at * max_context_tokens:
-                if elide_old_tool_outputs(messages) == 0 and last_prompt > 0.95 * max_context_tokens:
+                shrunk = shrink_tool_call_args(messages)
+                if elide_old_tool_outputs(messages) == 0 and shrunk == 0 and last_prompt > 0.95 * max_context_tokens:
                     res.stop = "context_overflow"
                     break
             out, attempt = None, 0
@@ -142,12 +182,21 @@ def run_loop(client: ChatClient, registry: ToolRegistry, system: str, task: str,
                     args = json.loads(c["function"]["arguments"] or "{}")
                     if not isinstance(args, dict):
                         raise ValueError("arguments must be an object")
-                    r = registry.run(name, args)
-                    text = r.text if r.ok else f"ERROR: {r.error}"
-                    res.tool_errors += 0 if r.ok else 1
+                    bad = missing_args(registry, name, args)
+                    if bad:
+                        text, res.tool_errors = f"ERROR: {bad}", res.tool_errors + 1
+                    else:
+                        r = registry.run(name, args)
+                        err = (r.error or "").removeprefix("ERROR: ").removeprefix("ERROR:").strip()
+                        text = r.text if r.ok else f"ERROR: {err}"
+                        res.tool_errors += 0 if r.ok else 1
                 except ValueError as e:
                     text, res.tool_errors = f"ERROR: bad tool arguments: {e}", res.tool_errors + 1
                 res.tool_calls += 1
+                fails[name] = fails.get(name, 0) + 1 if text.startswith("ERROR:") else 0
+                if fails[name] >= 6 and text.startswith("ERROR:"):
+                    text += (f"\n[note: {name} has failed {fails[name]} times in a row. Stop retrying it; work with the "
+                             f"information and files you already have and finish the task.]")
                 messages.append({"role": "tool", "tool_call_id": c["id"], "content": _clip(text, max_tool_chars)})
                 emit("tool", name=name, ok=not text.startswith("ERROR:"), out=text[:400])
     finally:

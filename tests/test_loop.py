@@ -105,3 +105,45 @@ def test_parallel_tool_outputs_are_estimated_before_sending():
     run_loop(c, reg(), "s", "t", max_context_tokens=10000, compact_at=0.7, max_tool_chars=6000)
     # after the 4 big outputs (~16k estimated tokens > 7k) old outputs were elided before the last call
     assert any(m.get("content") == ELIDED for m in c.seen[-1] if m["role"] == "tool")
+
+
+# --- robustness fixes found on the Qwen3.8-27B runs ----------------------------------------------------------
+from agent_harness.loop import missing_args, shrink_tool_call_args
+
+
+def reg_req():
+    r = ToolRegistry(ApprovalPolicy("allowlist", allow=["write"]))
+    r.register(function_tool("write", lambda a: ToolResult(text="ok"), side_effecting=True,
+                             parameters={"type": "object", "properties": {"path": {"type": "string"}, "content": {"type": "string"}},
+                                         "required": ["path", "content"]}))
+    r.register(function_tool("flaky", lambda a: ToolResult(ok=False, error="ERROR: nope"), parameters={"type": "object", "properties": {}}))
+    return r
+
+
+def test_missing_required_arguments_get_an_actionable_message():
+    r = reg_req()
+    assert missing_args(r, "write", {"path": "a"}).startswith("missing required argument(s): content. write expects: path (string), content (string)")
+    assert missing_args(r, "write", {"path": "a", "content": "b"}) is None and missing_args(r, "nope", {}) is None
+    c = Script([call("write", path="a"), {"role": "assistant", "content": "done"}])
+    res = run_loop(c, r, "s", "t")
+    tool_msg = [m for m in c.seen[1] if m["role"] == "tool"][0]["content"]
+    assert tool_msg.startswith("ERROR: missing required argument(s): content") and res.tool_errors == 1
+
+
+def test_error_prefix_is_not_doubled_and_repeated_failures_get_a_nudge():
+    c = Script([call("flaky")] * 7 + [{"role": "assistant", "content": "end"}])
+    run_loop(c, reg_req(), "s", "t")
+    outs = [[m["content"] for m in seen if m["role"] == "tool"] for seen in c.seen][-1]
+    assert outs[0] == "ERROR: nope" and "note:" not in outs[4] and "failed 6 times in a row" in outs[5]
+
+
+def test_shrink_keeps_json_valid_and_recent_calls_intact():
+    big = "x" * 5000
+    msgs = [{"role": "system", "content": "s"}, {"role": "user", "content": "t"}]
+    for i in range(4):
+        msgs.append({"role": "assistant", "content": "", "tool_calls": [{"id": str(i), "type": "function", "function": {
+            "name": "write", "arguments": json.dumps({"path": f"p{i}", "content": big})}}]})
+    assert shrink_tool_call_args(msgs, keep_last=2) == 2
+    old = json.loads(msgs[2]["tool_calls"][0]["function"]["arguments"])
+    assert old["path"] == "p0" and len(old["content"]) < 400 and "omitted" in old["content"]
+    assert json.loads(msgs[5]["tool_calls"][0]["function"]["arguments"])["content"] == big      # recent call untouched

@@ -42,7 +42,11 @@ class NoRedirectToDenied(urllib.request.HTTPRedirectHandler):
 
 def web_fetch(url: str, max_chars: int = 15000, timeout: int = 30,
               deny=DEFAULT_DENY, allow=DEFAULT_ALLOW, blocked_log: Optional[List[str]] = None) -> str:
-    u = urllib.parse.urlsplit(url)
+    u = urllib.parse.urlsplit(url.strip())
+    if u.scheme in ("http", "https") and u.hostname:    # percent-encode non-ASCII (models paste URLs with an ellipsis etc.)
+        url = urllib.parse.urlunsplit((u.scheme, u.netloc.encode("idna").decode("ascii"), urllib.parse.quote(u.path, safe="/%:@!$&'()*+,;=~-._"),
+                                       urllib.parse.quote(u.query, safe="=&%+:/?@!$'()*,;~-._"), ""))
+        u = urllib.parse.urlsplit(url)
     if u.scheme not in ("http", "https") or not u.hostname:
         return "ERROR: only http(s) URLs are supported"
     if host_denied(u.hostname, deny, allow):
