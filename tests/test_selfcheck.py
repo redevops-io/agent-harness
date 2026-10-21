@@ -5,7 +5,7 @@ import pytest
 
 from agent_harness.bench import selfcheck as sc
 
-needs_docker = pytest.mark.skipif(not sc.docker_ok(), reason="docker daemon not reachable")
+needs_docker = pytest.mark.skipif(not (sc.docker_ok() and sc.image_ok()), reason="docker daemon or the sandbox image is not available")
 
 
 @needs_docker
@@ -47,3 +47,16 @@ def test_judge_controls_flag_a_judge_that_returns_the_same_score_for_everything(
     assert res["judge negative control"].status == "FAIL"       # junk scored 0.5 > 0.25: a constant judge cannot pass
     assert res["judge no-output control"].status == "PASS"
     assert res["judge calibration"].status == "FAIL"            # constant scores carry no rank information (nan/0 correlation)
+
+
+def test_a_missing_sandbox_image_is_a_clear_failure_not_a_crash(monkeypatch):
+    monkeypatch.setattr(sc, "docker_ok", lambda: True)
+    monkeypatch.setattr(sc, "image_ok", lambda image=None: False)
+    for check in (sc.check_sandbox, sc.check_pipeline):
+        c = check()
+        assert c.status == "FAIL" and "docker build" in c.detail
+
+
+def test_checks_skip_when_there_is_no_docker_daemon(monkeypatch):
+    monkeypatch.setattr(sc, "docker_ok", lambda: False)
+    assert sc.check_sandbox().status == "SKIP" and sc.check_pipeline().status == "SKIP"

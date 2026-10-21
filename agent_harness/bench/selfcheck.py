@@ -42,9 +42,25 @@ def docker_ok() -> bool:
         return False
 
 
+def image_ok(image: Optional[str] = None) -> bool:
+    from .sandbox import IMAGE
+    try:
+        return subprocess.run(["docker", "image", "inspect", image or IMAGE], capture_output=True, timeout=30).returncode == 0
+    except (subprocess.SubprocessError, OSError):
+        return False
+
+
+def _image_missing(name: str) -> Check:
+    from .sandbox import IMAGE
+    return Check(name, "FAIL", f"sandbox image {IMAGE} is not built: docker build -t {IMAGE} -f "
+                 f"agent_harness/bench/Dockerfile.office agent_harness/bench")
+
+
 def check_sandbox() -> Check:
     if not docker_ok():
         return Check("sandbox isolation", "SKIP", "docker daemon not reachable")
+    if not image_ok():
+        return _image_missing("sandbox isolation")
     from .sandbox import DockerSandbox
     ws = Path(tempfile.mkdtemp(prefix="ah-selfcheck-"))
     try:
@@ -64,6 +80,8 @@ def check_sandbox() -> Check:
         if writable != "ok":
             problems.append("workspace not writable")
         return Check("sandbox isolation", "FAIL" if problems else "PASS", "; ".join(problems) or "no network, non-root, libraries present, workspace writable")
+    except Exception as e:                                        # noqa: BLE001 - a crash is a failed check, with its message
+        return Check("sandbox isolation", "FAIL", f"{type(e).__name__}: {e}"[:300])
     finally:
         shutil.rmtree(ws, ignore_errors=True)
 
@@ -97,6 +115,8 @@ class _Scripted:
 def check_pipeline() -> Check:
     if not docker_ok():
         return Check("scripted pipeline", "SKIP", "docker daemon not reachable")
+    if not image_ok():
+        return _image_missing("scripted pipeline")
     try:
         import context_runtime  # noqa: F401
     except ImportError:
