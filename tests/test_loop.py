@@ -165,6 +165,10 @@ class FakeManager:
         self.errors.append(attempt)
         return 1
 
+    def admit(self, tool, text, max_chars):
+        self.admitted = getattr(self, "admitted", []) + [(tool, len(text), max_chars)]
+        return text
+
     def tools(self):
         return [function_tool("search_context", lambda a: ToolResult(text="found"), "retrieve", parameters={"type": "object", "properties": {}})]
 
@@ -195,3 +199,15 @@ def test_manager_is_consulted_before_giving_up_on_overflow_and_on_server_errors(
     err = ChatError("HTTP 400: maximum context length is 100 tokens")
     c2 = Script([err, {"role": "assistant", "content": "ok"}])
     assert run_loop(c2, reg(), "s", "t", context_manager=fm2).stop == "done" and fm2.errors == [1]
+
+
+def test_every_tool_result_goes_through_the_managers_admit_hook():
+    fm = FakeManager()
+    c = Script([call("echo", x="abc"), {"role": "assistant", "content": "ok"}])
+    run_loop(c, reg(), "s", "t", context_manager=fm, max_tool_chars=77)
+    assert fm.admitted == [("echo", 6, 77)]
+    # the default manager clips: long results are shortened with an omission marker
+    c2 = Script([call("echo", x="z" * 500), {"role": "assistant", "content": "ok"}])
+    run_loop(c2, reg(), "s", "t", max_tool_chars=300)
+    tool = [m for m in c2.seen[1] if m["role"] == "tool"][0]["content"]
+    assert len(tool) < 1000 and "omitted" in tool

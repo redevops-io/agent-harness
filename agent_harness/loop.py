@@ -149,7 +149,7 @@ def run_loop(client: ChatClient, registry: ToolRegistry, system: str, task: str,
                 if fails[name] >= 6 and text.startswith("ERROR:"):
                     text += (f"\n[note: {name} has failed {fails[name]} times in a row. Stop retrying it; work with the "
                              f"information and files you already have and finish the task.]")
-                messages.append({"role": "tool", "tool_call_id": c["id"], "content": _clip(text, max_tool_chars)})
+                messages.append({"role": "tool", "tool_call_id": c["id"], "content": cm.admit(name, text, max_tool_chars)})
                 emit("tool", name=name, ok=not text.startswith("ERROR:"), out=text[:400])
     finally:
         res.seconds = round(time.time() - t0, 1)

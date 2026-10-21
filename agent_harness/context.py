@@ -3,8 +3,8 @@
 The loop asks a ``ContextManager`` to keep the conversation inside the model's window and may expose extra
 tools it provides (for example retrieval over content that was compacted away). Two implementations:
 
-* ``BasicContextManager`` (default, dependency-free): elides old tool outputs and shortens old tool-call
-  arguments. Lossy: nothing is stored anywhere, so elided content is gone.
+* ``BasicContextManager`` (default, dependency-free): clips big tool outputs, elides old ones and shortens old
+  tool-call arguments. Lossy: nothing is stored anywhere, so elided content is gone.
 * ``context_runtime.integrations.agent_harness.ContextRuntimeManager`` (separate package): compacts against
   a token budget, archives everything it removes, indexes the archive and gives the model a ``search_context``
   tool to get it back. This package never imports it; the dependency points from context-runtime to here.
@@ -50,6 +50,11 @@ class ContextManager(Protocol):
 
     def on_context_error(self, messages: List[Dict[str, Any]], attempt: int) -> int:
         """The server rejected the prompt as too long. Compact harder (``attempt`` is 1, 2, 3). Return changes."""
+        ...
+
+    def admit(self, tool: str, text: str, max_chars: int) -> str:
+        """Called for every tool result before it enters the conversation. Return the text to append. A manager
+        that stores content should keep the full ``text`` and return a shortened version that says how to get it."""
         ...
 
     def tools(self) -> List[ToolPlugin]:
@@ -104,6 +109,9 @@ class BasicContextManager:
                     messages[i] = {**m, "content": clip_text(m["content"], 1500)}
                     n += 1
         return n
+
+    def admit(self, tool, text, max_chars):
+        return clip_text(text, max_chars)
 
     def tools(self):
         return []
