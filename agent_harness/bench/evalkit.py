@@ -39,6 +39,7 @@ class JudgeConfig:
     workers: int = 4
     max_retries: int = 3                   # per rubric, inside the upstream judge
     attempts: int = 3                      # whole-output attempts when infrastructure failures remain
+    rubric_timeout_s: int = 240            # per rubric inside the upstream judge; large deliverables on a local model need far more
     backoff_s: float = 20.0
     timeout_s: int = 1800
     api_key: str = "dummy"
@@ -83,7 +84,7 @@ def judge_output(task_id: str, tasks_base: Path, deliver: Path, details_file: Pa
         cmd = [cfg.python, cfg.script, "--output-dir", str(deliver), "--rubrics-file", str(rubrics),
                "--details-file", str(details_file), "--judge-model", cfg.model, "--api-base", cfg.base_url,
                "--max-workers", str(cfg.workers), "--max-retries", str(cfg.max_retries),
-               "--timeout-per-rubric", "240", "--evaluated-model", "own"]
+               "--timeout-per-rubric", str(cfg.rubric_timeout_s), "--evaluated-model", "own"]
         env = {**os.environ, "JUDGE_API_KEY": cfg.api_key, "JUDGE_REASONING_EFFORT": cfg.reasoning_effort}
         try:
             subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=cfg.timeout_s)

@@ -165,7 +165,10 @@ def check_judge_controls(cfg: JudgeConfig, tasks_base: Path, calibration: Path, 
     """Negative control (garbage must score low), no-output control, then calibration against labelled outputs."""
     out: List[Check] = []
     man = json.loads((calibration / "manifest.json").read_text())
-    items = man["items"][:max_items] if max_items else man["items"]
+    def size(it):                                  # smallest deliverables first: cheaper, and partial results are informative sooner
+        return sum(f.stat().st_size for f in (calibration / it["dir"]).rglob("*") if f.is_file())
+    items = sorted(man["items"], key=size)
+    items = items[:max_items] if max_items else items
     tmp = Path(tempfile.mkdtemp(prefix="ah-judge-"))
     try:
         t = items[0]["task"]
@@ -206,6 +209,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--judge-python"); ap.add_argument("--judge-script"); ap.add_argument("--judge-model"); ap.add_argument("--judge-base-url")
     ap.add_argument("--judge-workers", type=int, default=4)
+    ap.add_argument("--judge-rubric-timeout", type=int, default=240)
+    ap.add_argument("--judge-timeout", type=int, default=1800, help="seconds allowed per output")
     ap.add_argument("--tasks-base"); ap.add_argument("--calibration")
     ap.add_argument("--endpoint", action="append", default=[], help="name=base_url:model[:min_context]")
     ap.add_argument("--max-calibration-items", type=int)
@@ -235,7 +240,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         if not (a.judge_python and a.judge_script and a.judge_model and a.judge_base_url and a.tasks_base and a.calibration):
             show(Check("judge controls", "SKIP", "judge options not given"))
         else:
-            cfg = JudgeConfig(a.judge_python, a.judge_script, a.judge_model, a.judge_base_url, workers=a.judge_workers)
+            cfg = JudgeConfig(a.judge_python, a.judge_script, a.judge_model, a.judge_base_url, workers=a.judge_workers,
+                              rubric_timeout_s=a.judge_rubric_timeout, timeout_s=a.judge_timeout)
             for c in check_judge_controls(cfg, Path(a.tasks_base), Path(a.calibration).expanduser(), min_spearman=a.min_spearman,
                                           max_items=a.max_calibration_items, log=lambda s: print(s, flush=True)):
                 show(c)

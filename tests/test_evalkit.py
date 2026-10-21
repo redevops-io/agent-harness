@@ -142,3 +142,16 @@ def test_spearman_handles_ties_and_ordering():
     assert spearman([1, 2, 3, 4], [10, 20, 30, 40]) == pytest.approx(1.0)
     assert spearman([1, 2, 3, 4], [4, 3, 2, 1]) == pytest.approx(-1.0)
     assert spearman([1, 1, 2, 2], [1, 1, 2, 2]) == pytest.approx(1.0)
+
+
+def test_rubric_timeout_is_passed_to_the_judge_script(rig, tmp_path):
+    cfg, base, deliver, details = rig
+    seen = tmp_path / "argv.txt"
+    script = tmp_path / "echo_judge.py"
+    script.write_text("import sys,json\nopen(%r,'w').write(' '.join(sys.argv))\n"
+                      "a=dict(zip(sys.argv[1::2],sys.argv[2::2]))\n"
+                      "json.dump({'total_score':1,'max_score':2,'rubrics':[]},open(a['--details-file'],'w'))\n" % str(seen))
+    cfg2 = JudgeConfig(sys.executable, str(script), "m", "http://x", rubric_timeout_s=3600, workers=1, attempts=1)
+    r = judge_output("x/task1", base, deliver, details, cfg2)
+    argv = seen.read_text()
+    assert r.status == "graded" and "--timeout-per-rubric 3600" in argv and "--max-workers 1" in argv
