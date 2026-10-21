@@ -70,3 +70,17 @@ def test_generate_registers_outputs_no_output_and_crashes_differently(tmp_path):
     oc.generate(e, cell, 1, runner=lambda *a, **k: SimpleNamespace(returncode=0, stdout="RESULT " + json.dumps({"out": None}), stderr=""))
     assert e.board.finished(a, "b/task1") and e.board.info(a, "b/task1")["deliverables"] == [] and e.board.info(a, "b/task1")["stop"] == "no_output"
     assert e.board.pending(a, e.tasks) == ["a/task1", "b/task1"]                                           # both finished and awaiting judgement
+
+
+def test_the_child_runs_this_checkout_not_an_installed_copy(tmp_path, monkeypatch):
+    from pathlib import Path
+    monkeypatch.setenv("PYTHONPATH", "/somewhere/else")
+    e, seen = make_exp(tmp_path), []
+
+    def runner(cmd, cwd, env, capture_output, text):
+        seen.append(env["PYTHONPATH"])
+        return SimpleNamespace(returncode=1, stdout="", stderr="x")
+    oc.generate(e, e.cells[0], 1, runner=runner)
+    root = str(Path(oc.__file__).resolve().parents[3])
+    assert (Path(root) / "agent_harness" / "bench" / "harnesses" / "opencode.py").is_file()
+    assert seen and all(p.split(":")[0] == root and p.endswith("/somewhere/else") for p in seen)    # ours first, the caller's kept
