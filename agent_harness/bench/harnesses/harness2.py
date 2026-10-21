@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import subprocess
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
@@ -63,8 +64,14 @@ def read_cell(runs: Path, tasks: Sequence[str]) -> Dict[str, Dict[str, Any]]:
     return out
 
 
+def executable() -> str:
+    """The ``harness2`` console script next to the running interpreter (the venv's bin), not whatever PATH happens to hold."""
+    mine = Path(sys.executable).parent / "harness2"
+    return str(mine) if mine.exists() else "harness2"
+
+
 def command(splits: Path, workers: int) -> List[str]:
-    return ["harness2", "--bench", "jb", "--substrate", "oc", "--k", "1", "--mode", "parallel", "--split-file", str(splits),
+    return [executable(), "--bench", "jb", "--substrate", "oc", "--k", "1", "--mode", "parallel", "--split-file", str(splits),
             "--split", "test", "--workers", str(workers)]
 
 

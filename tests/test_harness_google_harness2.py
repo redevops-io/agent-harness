@@ -50,7 +50,7 @@ def test_reader_finds_base_and_final_outputs_and_skips_unfinished_tasks(tmp_path
 
 def test_command_is_k1_parallel_on_the_opencode_substrate_over_the_given_tasks(tmp_path):
     cmd = h2.command(tmp_path / "s.json", 3)
-    assert cmd[:3] == ["harness2", "--bench", "jb"] and cmd[cmd.index("--k") + 1] == "1" and cmd[cmd.index("--mode") + 1] == "parallel"
+    assert cmd[0].endswith("harness2") and cmd[1:3] == ["--bench", "jb"] and cmd[cmd.index("--k") + 1] == "1" and cmd[cmd.index("--mode") + 1] == "parallel"
     assert cmd[cmd.index("--substrate") + 1] == "oc" and cmd[cmd.index("--split") + 1] == "test" and cmd[cmd.index("--workers") + 1] == "3"
 
 
@@ -102,3 +102,16 @@ def test_generate_runs_the_pipeline_in_the_harness2_checkout_then_collects(tmp_p
     h2.generate(e, e.cells[0], 2, runner=runner)
     assert seen["cwd"].endswith("/h2") and seen["solver"] == "px48/M" and json.loads((e.root / "splits.json").read_text())["test"] == TASKS
     assert e.board.finished(arm_id("harness2", "q8"), "a/task1")
+
+
+def test_executable_is_found_next_to_the_interpreter_not_via_path(tmp_path, monkeypatch):
+    from agent_harness.bench.harnesses import harness2 as h
+    fake = tmp_path / "bin"
+    fake.mkdir()
+    (fake / "python").write_text("")
+    (fake / "harness2").write_text("")
+    monkeypatch.setattr(h.sys, "executable", str(fake / "python"))
+    assert h.executable() == str(fake / "harness2")
+    assert h.command(tmp_path / "s.json", 1)[0] == str(fake / "harness2")
+    (fake / "harness2").unlink()
+    assert h.executable() == "harness2"                                    # falls back to PATH only when it is not beside us
