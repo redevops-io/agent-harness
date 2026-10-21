@@ -130,8 +130,15 @@ class Scoreboard:
             f.write(json.dumps({"ts": round(time.time(), 1), "arm": arm, "task": task, "data": data}, sort_keys=True) + "\n")
         self._state.setdefault((arm, task), {}).update(data)
 
-    def mark_generated(self, arm: str, task: str, *, deliverables: Sequence[str], stop: str, finished: bool = True) -> None:
-        self._append(arm, task, generated=True, finished=finished, deliverables=list(deliverables), stop=stop)
+    def mark_generated(self, arm: str, task: str, *, deliverables: Sequence[str], stop: str, finished: bool = True,
+                       **extra: Any) -> None:
+        self._append(arm, task, generated=True, finished=finished, deliverables=list(deliverables), stop=stop, **extra)
+
+    def info(self, arm: str, task: str) -> Dict[str, Any]:
+        return dict(self._state.get((arm, task), {}))
+
+    def arms(self) -> List[str]:
+        return sorted({a for a, _ in self._state})
 
     def finished(self, arm: str, task: str) -> bool:
         return bool(self._state.get((arm, task), {}).get("finished"))

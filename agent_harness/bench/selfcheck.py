@@ -230,12 +230,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     ap.add_argument("--judge-python"); ap.add_argument("--judge-script"); ap.add_argument("--judge-model"); ap.add_argument("--judge-base-url")
     ap.add_argument("--judge-workers", type=int, default=4)
     ap.add_argument("--judge-rubric-timeout", type=int, default=240)
+    ap.add_argument("--judge-reasoning-effort", default="default", help="'default' sends none; 'low'|'medium'|'high' turns thinking on for models that support it")
     ap.add_argument("--judge-timeout", type=int, default=1800, help="seconds allowed per output")
     ap.add_argument("--tasks-base"); ap.add_argument("--calibration")
     ap.add_argument("--endpoint", action="append", default=[], help="name=base_url:model[:min_context]")
     ap.add_argument("--max-calibration-items", type=int)
     ap.add_argument("--min-spearman", type=float, default=0.7)
     ap.add_argument("--skip", action="append", default=[], choices=["sandbox", "pipeline", "endpoints", "judge"])
+    ap.add_argument("--report", help="write a JSON report here (the experiment runner reads it to decide whether the judge may be used)")
     a = ap.parse_args(argv)
     checks: List[Check] = []
 
@@ -261,10 +263,15 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             show(Check("judge controls", "SKIP", "judge options not given"))
         else:
             cfg = JudgeConfig(a.judge_python, a.judge_script, a.judge_model, a.judge_base_url, workers=a.judge_workers,
-                              rubric_timeout_s=a.judge_rubric_timeout, timeout_s=a.judge_timeout)
+                              rubric_timeout_s=a.judge_rubric_timeout, timeout_s=a.judge_timeout,
+                              reasoning_effort=a.judge_reasoning_effort)
             for c in check_judge_controls(cfg, Path(a.tasks_base), Path(a.calibration).expanduser(), min_spearman=a.min_spearman,
                                           max_items=a.max_calibration_items, log=lambda s: print(s, flush=True)):
                 show(c)
+    if a.report:
+        Path(a.report).expanduser().write_text(json.dumps({
+            "time": time.strftime("%Y-%m-%dT%H:%M:%S"), "judge_model": a.judge_model, "judge_reasoning_effort": a.judge_reasoning_effort,
+            "checks": [{"name": c.name, "status": c.status, "detail": c.detail} for c in checks]}, indent=1))
     failed = [c for c in checks if c.status == "FAIL"]
     print(f"\n{len(checks) - len(failed)} of {len(checks)} checks passed" + (f"; FAILED: {', '.join(c.name for c in failed)}" if failed else ""))
     return 1 if failed else 0

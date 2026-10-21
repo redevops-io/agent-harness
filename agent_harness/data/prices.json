@@ -257,10 +257,18 @@
         }
       },
       "request_defaults_note": "vLLM per-request switch documented in the Qwen3 deployment guide; applied only when the client did not set the key. Recorded in run manifests as a deviation from the model's default (thinking on).",
-      "clamp_output_tokens": 8192,
-      "clamp_note": "Large output requests (the JobBench judge asks for 65,536) are lowered to this ceiling; recorded as a deviation.",
+      "clamp_output_tokens": 16384,
+      "clamp_note": "Output ceiling is the same for every cell and both thinking modes (reasoning tokens count against it); larger requests (the JobBench judge asks for 65,536) are lowered to it. Recorded as a deviation.",
       "note": "Qwen/Qwen3.8-27B-FP8 (8-bit) alone on the RTX PRO 5000 Blackwell 48 GB GPU, vLLM, 65,536-token window, max 32 concurrent sequences. Set AGENT_HARNESS_PROXMOX48_URL to the endpoint's real /v1 URL; the default is only a placeholder.",
-      "base_url_env": "AGENT_HARNESS_PROXMOX48_URL"
+      "base_url_env": "AGENT_HARNESS_PROXMOX48_URL",
+      "label_overrides": {
+        "think": {
+          "chat_template_kwargs": {
+            "enable_thinking": true
+          }
+        }
+      },
+      "label_overrides_note": "Requests whose proxy label is 'think' switch the model's reasoning on (the default for these endpoints is off). The label is the only difference between a thinking and a non-thinking cell."
     },
     "proxmox32": {
       "base_url": "http://localhost:8002/v1",
@@ -279,10 +287,18 @@
         }
       },
       "request_defaults_note": "vLLM per-request switch documented in the Qwen3 deployment guide; applied only when the client did not set the key. Recorded in run manifests as a deviation from the model's default (thinking on).",
-      "clamp_output_tokens": 8192,
-      "clamp_note": "Large output requests (the JobBench judge asks for 65,536) are lowered to this ceiling; recorded as a deviation.",
+      "clamp_output_tokens": 16384,
+      "clamp_note": "Output ceiling is the same for every cell and both thinking modes (reasoning tokens count against it); larger requests (the JobBench judge asks for 65,536) are lowered to it. Recorded as a deviation.",
       "note": "nvidia/Qwen3.8-27B-NVFP4 (ModelOpt mixed-precision NVFP4) alone on the RTX PRO 4500 Blackwell 32 GB GPU, vLLM, 65,536-token window, max 32 concurrent sequences. Set AGENT_HARNESS_PROXMOX32_URL to the endpoint's real /v1 URL; the default is only a placeholder.",
-      "base_url_env": "AGENT_HARNESS_PROXMOX32_URL"
+      "base_url_env": "AGENT_HARNESS_PROXMOX32_URL",
+      "label_overrides": {
+        "think": {
+          "chat_template_kwargs": {
+            "enable_thinking": true
+          }
+        }
+      },
+      "label_overrides_note": "Requests whose proxy label is 'think' switch the model's reasoning on (the default for these endpoints is off). The label is the only difference between a thinking and a non-thinking cell."
     }
   }
 }
