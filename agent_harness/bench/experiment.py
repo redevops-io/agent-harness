@@ -47,16 +47,26 @@ class Experiment:
                     continue
                 harnesses.load(arm).generate(self, c, int(self.cfg.get(arm, {}).get("workers", 1)))
 
-    def judge_pending(self, jcfg: JudgeConfig, judge_name: str, details_root: Optional[Path] = None, *, sleep=time.sleep) -> int:
+    def judge_pending(self, jcfg: JudgeConfig, judge_name: str, details_root: Optional[Path] = None, *, sleep=time.sleep,
+                      limit: Optional[int] = None) -> int:
+        """Judge finished rollouts TASK BY TASK (all cells and arms of a task before the next task), so that if the money or
+        the time runs out every arm has the same tasks judged. Stops at once when the spend proxy reports the budget is gone."""
         n = 0
         details_root = details_root or self.root / "judge_details"
-        for c in self.cells:
-            for arm in self.arms:
-                a = arm_id(arm, c.name)
-                for t in self.board.pending(a, self.tasks):
+        for t in self.tasks:
+            for c in self.cells:
+                for arm in self.arms:
+                    a = arm_id(arm, c.name)
+                    if t not in self.board.pending(a, [t]):
+                        continue
+                    if limit is not None and n >= limit:
+                        return n
                     info = self.board.info(a, t)
                     r = judge_output(t, self.tasks_base, Path(info.get("dir") or "/nonexistent"),
                                      details_root / a / f"{task_dir_name(t)}.json", jcfg, finished=True, sleep=sleep)
+                    if r.budget_exhausted:
+                        print("spend budget exhausted: stopping the judge step (nothing recorded for this output)", flush=True)
+                        return n
                     self.board.record_judgement(a, t, r, judge_name)
                     n += 1
         return n
@@ -128,6 +138,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     ap.add_argument("--only")
     ap.add_argument("--cell")
     ap.add_argument("--allow-uncalibrated-judge", action="store_true")
+    ap.add_argument("--limit", type=int, help="judge at most this many outputs in this call")
     a = ap.parse_args(argv)
     ex = Experiment(json.loads(Path(a.config).expanduser().read_text()))
     if a.step == "generate":
@@ -140,7 +151,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             return 2
         jc = JudgeConfig(j["python"], j["script"], j["model"], j["base_url"], j.get("reasoning_effort", "default"),
                          workers=j.get("workers", 1), rubric_timeout_s=j.get("rubric_timeout", 3600), timeout_s=j.get("timeout", 10800))
-        print(f"judged {ex.judge_pending(jc, j['model'])} outputs")
+        print(f"judged {ex.judge_pending(jc, j['model'], limit=a.limit)} outputs")
     else:
         print(ex.report_markdown())
     return 0
