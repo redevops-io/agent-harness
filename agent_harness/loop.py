@@ -76,6 +76,7 @@ def run_loop(client: ChatClient, registry: ToolRegistry, system: str, task: str,
 
     last_prompt, sent_len = 0, 0
     fails: Dict[str, int] = {}
+    seen: Dict[str, List[Any]] = {}       # call signature -> [hash of the last result, how many identical results in a row]
     try:
         while True:
             if not guard.check():
@@ -135,13 +136,23 @@ def run_loop(client: ChatClient, registry: ToolRegistry, system: str, task: str,
                     if not isinstance(args, dict):
                         raise ValueError("arguments must be an object")
                     bad = missing_args(registry, name, args)
+                    sig = name + json.dumps(args, sort_keys=True)
                     if bad:
                         text, res.tool_errors = f"ERROR: {bad}", res.tool_errors + 1
+                    elif seen.get(sig, [None, 0])[1] >= 2:
+                        seen[sig][1] += 1
+                        text = (f"[repeat] You have made this exact {name} call {seen[sig][1]} times and it returned the same result "
+                                f"each time. It will not change. Use what you already have, or change the arguments (for "
+                                f"example another query or offset), then continue with the task.")
+                        emit("repeat", name=name, count=seen[sig][1])
                     else:
                         r = registry.run(name, args)
                         err = (r.error or "").removeprefix("ERROR: ").removeprefix("ERROR:").strip()
                         text = r.text if r.ok else f"ERROR: {err}"
                         res.tool_errors += 0 if r.ok else 1
+                        h = hash(text)
+                        prev = seen.get(sig)
+                        seen[sig] = [h, prev[1] + 1 if prev and prev[0] == h else 1]
                 except ValueError as e:
                     text, res.tool_errors = f"ERROR: bad tool arguments: {e}", res.tool_errors + 1
                 res.tool_calls += 1

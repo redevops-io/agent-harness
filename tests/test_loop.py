@@ -100,7 +100,7 @@ def test_persistent_context_error_gives_up_after_three_compactions():
 
 def test_parallel_tool_outputs_are_estimated_before_sending():
     many = {"role": "assistant", "content": "", "tool_calls": [
-        {"id": f"c{i}", "type": "function", "function": {"name": "echo", "arguments": json.dumps({"x": "z" * 6000})}} for i in range(4)]}
+        {"id": f"c{i}", "type": "function", "function": {"name": "echo", "arguments": json.dumps({"x": "z" * 6000 + str(i)})}} for i in range(4)]}
     c = Script([call("echo", x="a"), many, {"role": "assistant", "content": "end"}], prompt_tokens=100)
     run_loop(c, reg(), "s", "t", max_context_tokens=10000, compact_at=0.7, max_tool_chars=6000)
     # after the 4 big outputs (~16k estimated tokens > 7k) old outputs were elided before the last call
@@ -131,7 +131,7 @@ def test_missing_required_arguments_get_an_actionable_message():
 
 
 def test_error_prefix_is_not_doubled_and_repeated_failures_get_a_nudge():
-    c = Script([call("flaky")] * 7 + [{"role": "assistant", "content": "end"}])
+    c = Script([call("flaky", i=i) for i in range(7)] + [{"role": "assistant", "content": "end"}])   # varied args: not a repeat
     run_loop(c, reg_req(), "s", "t")
     outs = [[m["content"] for m in seen if m["role"] == "tool"] for seen in c.seen][-1]
     assert outs[0] == "ERROR: nope" and "note:" not in outs[4] and "failed 6 times in a row" in outs[5]
@@ -211,3 +211,25 @@ def test_every_tool_result_goes_through_the_managers_admit_hook():
     run_loop(c2, reg(), "s", "t", max_tool_chars=300)
     tool = [m for m in c2.seen[1] if m["role"] == "tool"][0]["content"]
     assert len(tool) < 1000 and "omitted" in tool
+
+
+def test_identical_calls_with_identical_results_are_short_circuited_after_two():
+    calls = {"n": 0}
+    r = reg()
+    r.register(function_tool("peek", lambda a: (calls.__setitem__("n", calls["n"] + 1), ToolResult(text="same"))[1],
+                             parameters={"type": "object", "properties": {"k": {"type": "integer"}}, "required": ["k"]}))
+    c = Script([call("peek", k=1)] * 5 + [call("peek", k=2), {"role": "assistant", "content": "ok"}])
+    run_loop(c, r, "s", "t")
+    outs = [m["content"] for m in c.seen[-1] if m["role"] == "tool"]
+    assert outs[:2] == ["same", "same"] and outs[2].startswith("[repeat]") and "3 times" in outs[2] and "5 times" in outs[4]
+    assert outs[5] == "same"                       # different arguments are a different call
+    assert calls["n"] == 3                         # peek(k=1) executed twice, peek(k=2) once; the repeats never ran
+
+
+def test_a_repeated_call_whose_result_changes_is_not_blocked():
+    state = {"n": 0}
+    r = reg()
+    r.register(function_tool("poll", lambda a: (state.__setitem__("n", state["n"] + 1), ToolResult(text=f"v{state['n']}"))[1]))
+    c = Script([call("poll")] * 5 + [{"role": "assistant", "content": "ok"}])
+    run_loop(c, r, "s", "t")
+    assert [m["content"] for m in c.seen[-1] if m["role"] == "tool"] == ["v1", "v2", "v3", "v4", "v5"]

@@ -77,3 +77,25 @@ def test_runner_passes_a_context_runtime_manager_into_the_loop_and_reports_archi
     s = jb.run_task(base, "x/task1", tmp_path / "out", client=type("C", (), {"model": "m"})())
     assert s["context_manager"] == "context-runtime" and s["archived_items"] == 3        # two input files + the oversized output
     assert type(got["mgr"]).__name__ == "ContextRuntimeManager"
+
+
+def test_grader_artifacts_in_the_workspace_abort_the_run(tmp_path, monkeypatch):
+    base = make_task(tmp_path)
+    (base / "x" / "task1" / "task_folder" / "RUBRICS.json").write_text("{}")
+    monkeypatch.setattr(jb, "DockerSandbox", FakeSandbox)
+    monkeypatch.setattr(jb, "run_loop", lambda *a, **k: pytest.fail("the agent must never start"))
+    with pytest.raises(RuntimeError, match="grader artifacts"):
+        jb.run_task(base, "x/task1", tmp_path / "out", client=type("C", (), {"model": "m"})(), context="basic")
+
+
+def test_guard_flags_grader_names_but_not_ordinary_inputs(tmp_path):
+    (tmp_path / "scoring_rules.xlsx").write_text("x")           # an ordinary task input that merely mentions scoring
+    (tmp_path / "answer_key_template.docx").write_text("x")     # likewise: not one of JobBench's grader file names
+    jb.assert_workspace_clean(tmp_path)
+    for name in ("RUBRICS.json", "rubric.json", "eval_result", "gpt-5-4_judge.json"):
+        (tmp_path / name).write_text("x")
+        with pytest.raises(RuntimeError):
+            jb.assert_workspace_clean(tmp_path)
+        (tmp_path / name).unlink()
+    (tmp_path / "rubric_notes.md").write_text("x")             # \b stops at "_": only the exact grader file names are flagged
+    jb.assert_workspace_clean(tmp_path)

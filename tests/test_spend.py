@@ -13,7 +13,7 @@ PRICES = load_prices()
 
 
 def test_price_table_is_complete_and_sane():
-    assert PRICES["as_of"] and set(PRICES["providers"]) == {"openai", "xai", "kimi", "local", "proxmox"}
+    assert PRICES["as_of"] and set(PRICES["providers"]) == {"openai", "xai", "kimi", "local", "proxmox48", "proxmox32"}
     for prov, d in PRICES["providers"].items():
         for name, p in d["models"].items():
             if d.get("free"):
@@ -170,18 +170,18 @@ def test_free_provider_is_uncapped_unkeyed_and_recorded_at_zero(tmp_path):
     up = ThreadingHTTPServer(("127.0.0.1", 0), Fake)
     threading.Thread(target=up.serve_forever, kwargs={"poll_interval": 0.05}, daemon=True).start()
     prices = load_prices()
-    assert prices["providers"]["proxmox"]["free"] and prices["providers"]["proxmox"]["key_env"] is None
-    ledger = Ledger(tmp_path / "l.jsonl", {}, headroom=1.0, free={"proxmox"})
-    proxy = Proxy(prices, ledger, {"proxmox": ""}, safety=1.1,
-                  upstreams={"proxmox": f"http://127.0.0.1:{up.server_address[1]}/v1"})
+    assert prices["providers"]["proxmox48"]["free"] and prices["providers"]["proxmox48"]["key_env"] is None
+    ledger = Ledger(tmp_path / "l.jsonl", {}, headroom=1.0, free={"proxmox48"})
+    proxy = Proxy(prices, ledger, {"proxmox48": ""}, safety=1.1,
+                  upstreams={"proxmox48": f"http://127.0.0.1:{up.server_address[1]}/v1"})
     srv = serve(proxy)
     try:
         for _ in range(3):   # no cap, so never refused
-            assert post(f"http://127.0.0.1:{srv.server_address[1]}", "/proxmox/exec/v1/chat/completions",
+            assert post(f"http://127.0.0.1:{srv.server_address[1]}", "/proxmox48/exec/v1/chat/completions",
                         {"model": "Qwen3.8-27B", "messages": []}, key="client-key")[0] == 200
         assert all(s["auth"] is None for s in Fake.seen)               # no Authorization sent upstream
         r = ledger.report()
-        assert r["providers"]["proxmox"]["usd"] == 0 and r["by_label"]["proxmox/exec/Qwen3.8-27B"]["input"] == 3000
+        assert r["providers"]["proxmox48"]["usd"] == 0 and r["by_label"]["proxmox48/exec/Qwen3.8-27B"]["input"] == 3000
     finally:
         srv.shutdown()
         up.shutdown()
@@ -192,14 +192,14 @@ def test_request_defaults_injected_but_never_override_and_failures_are_recorded(
     up = ThreadingHTTPServer(("127.0.0.1", 0), Fake)
     threading.Thread(target=up.serve_forever, kwargs={"poll_interval": 0.05}, daemon=True).start()
     prices = load_prices()
-    assert prices["providers"]["proxmox"]["request_defaults"] == {"chat_template_kwargs": {"enable_thinking": False}}
-    ledger = Ledger(tmp_path / "l.jsonl", {}, headroom=1.0, free={"proxmox"})
-    proxy = Proxy(prices, ledger, {"proxmox": ""}, upstreams={"proxmox": f"http://127.0.0.1:{up.server_address[1]}/v1"})
+    assert prices["providers"]["proxmox48"]["request_defaults"] == {"chat_template_kwargs": {"enable_thinking": False}}
+    ledger = Ledger(tmp_path / "l.jsonl", {}, headroom=1.0, free={"proxmox48"})
+    proxy = Proxy(prices, ledger, {"proxmox48": ""}, upstreams={"proxmox48": f"http://127.0.0.1:{up.server_address[1]}/v1"})
     srv = serve(proxy)
     base = f"http://127.0.0.1:{srv.server_address[1]}"
     try:
-        post(base, "/proxmox/x/v1/chat/completions", {"model": "Qwen3.8-27B", "messages": []})
-        post(base, "/proxmox/x/v1/chat/completions", {"model": "Qwen3.8-27B", "messages": [],
+        post(base, "/proxmox48/x/v1/chat/completions", {"model": "Qwen3.8-27B", "messages": []})
+        post(base, "/proxmox48/x/v1/chat/completions", {"model": "Qwen3.8-27B", "messages": [],
                                                       "chat_template_kwargs": {"enable_thinking": True}})
         assert Fake.seen[0]["body"]["chat_template_kwargs"] == {"enable_thinking": False}
         assert Fake.seen[1]["body"]["chat_template_kwargs"] == {"enable_thinking": True}   # client choice wins
@@ -214,14 +214,14 @@ def test_request_defaults_injected_but_never_override_and_failures_are_recorded(
             self.send_response(400); self.send_header("Content-Length", "2"); self.end_headers(); self.wfile.write(b"{}")
     bad = ThreadingHTTPServer(("127.0.0.1", 0), Bad)
     threading.Thread(target=bad.serve_forever, kwargs={"poll_interval": 0.05}, daemon=True).start()
-    ledger2 = Ledger(tmp_path / "l2.jsonl", {}, free={"proxmox"})
-    srv2 = serve(Proxy(prices, ledger2, {"proxmox": ""}, upstreams={"proxmox": f"http://127.0.0.1:{bad.server_address[1]}/v1"}))
+    ledger2 = Ledger(tmp_path / "l2.jsonl", {}, free={"proxmox48"})
+    srv2 = serve(Proxy(prices, ledger2, {"proxmox48": ""}, upstreams={"proxmox48": f"http://127.0.0.1:{bad.server_address[1]}/v1"}))
     try:
-        assert post(f"http://127.0.0.1:{srv2.server_address[1]}", "/proxmox/x/v1/chat/completions",
+        assert post(f"http://127.0.0.1:{srv2.server_address[1]}", "/proxmox48/x/v1/chat/completions",
                     {"model": "Qwen3.8-27B", "messages": []})[0] == 400
         r = ledger2.report()
-        assert r["providers"]["proxmox"]["failed_calls"] == 1 and r["failures"] == {"proxmox/x/Qwen3.8-27B HTTP 400": 1}
-        assert r["providers"]["proxmox"]["calls"] == 0
+        assert r["providers"]["proxmox48"]["failed_calls"] == 1 and r["failures"] == {"proxmox48/x/Qwen3.8-27B HTTP 400": 1}
+        assert r["providers"]["proxmox48"]["calls"] == 0
     finally:
         srv2.shutdown()
         bad.shutdown()
@@ -232,15 +232,15 @@ def test_output_token_ceiling_clamps_only_larger_values(tmp_path):
     up = ThreadingHTTPServer(("127.0.0.1", 0), Fake)
     threading.Thread(target=up.serve_forever, kwargs={"poll_interval": 0.05}, daemon=True).start()
     prices = load_prices()
-    assert prices["providers"]["proxmox"]["clamp_output_tokens"] == 8192
-    proxy = Proxy(prices, Ledger(tmp_path / "l.jsonl", {}, free={"proxmox"}), {"proxmox": ""},
-                  upstreams={"proxmox": f"http://127.0.0.1:{up.server_address[1]}/v1"})
+    assert prices["providers"]["proxmox48"]["clamp_output_tokens"] == 8192
+    proxy = Proxy(prices, Ledger(tmp_path / "l.jsonl", {}, free={"proxmox48"}), {"proxmox48": ""},
+                  upstreams={"proxmox48": f"http://127.0.0.1:{up.server_address[1]}/v1"})
     srv = serve(proxy)
     base = f"http://127.0.0.1:{srv.server_address[1]}"
     try:
-        post(base, "/proxmox/x/v1/chat/completions", {"model": "Qwen3.8-27B", "messages": [], "max_completion_tokens": 65536})
-        post(base, "/proxmox/x/v1/chat/completions", {"model": "Qwen3.8-27B", "messages": [], "max_tokens": 500})
-        post(base, "/proxmox/x/v1/chat/completions", {"model": "Qwen3.8-27B", "messages": []})
+        post(base, "/proxmox48/x/v1/chat/completions", {"model": "Qwen3.8-27B", "messages": [], "max_completion_tokens": 65536})
+        post(base, "/proxmox48/x/v1/chat/completions", {"model": "Qwen3.8-27B", "messages": [], "max_tokens": 500})
+        post(base, "/proxmox48/x/v1/chat/completions", {"model": "Qwen3.8-27B", "messages": []})
         b = [s["body"] for s in Fake.seen]
         assert b[0]["max_completion_tokens"] == 8192 and b[1]["max_tokens"] == 500 and "max_tokens" not in b[2]
     finally:
@@ -265,3 +265,10 @@ def test_label_override_applies_only_to_its_label(tmp_path):
     finally:
         srv.shutdown()
         up.shutdown()
+
+
+def test_the_two_proxmox_endpoints_are_handled_identically_apart_from_their_address():
+    a, b = PRICES["providers"]["proxmox48"], PRICES["providers"]["proxmox32"]
+    for k in ("free", "key_env", "request_defaults", "clamp_output_tokens", "models"):
+        assert a[k] == b[k], k
+    assert a["base_url"] != b["base_url"] and a["base_url"].endswith(":30807/v1") and b["base_url"].endswith(":30820/v1")

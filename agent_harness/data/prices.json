@@ -239,7 +239,7 @@
         }
       }
     },
-    "proxmox": {
+    "proxmox48": {
       "base_url": "http://192.168.40.105:30807/v1",
       "key_env": null,
       "free": true,
@@ -257,7 +257,29 @@
       },
       "request_defaults_note": "vLLM per-request switch documented in the Qwen3 deployment guide; applied only when the client did not set the key. Recorded in run manifests as a deviation from the model's default (thinking on).",
       "clamp_output_tokens": 8192,
-      "clamp_note": "The served context is 40,960 tokens; clients such as the JobBench judge ask for 65,536 output tokens and get HTTP 400. Requests above the ceiling are lowered to it. Recorded as a deviation."
+      "clamp_note": "Large output requests (the JobBench judge asks for 65,536) are lowered to this ceiling; recorded as a deviation.",
+      "note": "Qwen/Qwen3.8-27B-FP8 (8-bit) alone on the RTX PRO 5000 Blackwell 48 GB GPU, vLLM, 65,536-token window, max 32 concurrent sequences."
+    },
+    "proxmox32": {
+      "base_url": "http://192.168.40.105:30820/v1",
+      "key_env": null,
+      "free": true,
+      "models": {
+        "Qwen3.8-27B": {
+          "input": 0.0,
+          "cached": 0.0,
+          "output": 0.0
+        }
+      },
+      "request_defaults": {
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        }
+      },
+      "request_defaults_note": "vLLM per-request switch documented in the Qwen3 deployment guide; applied only when the client did not set the key. Recorded in run manifests as a deviation from the model's default (thinking on).",
+      "clamp_output_tokens": 8192,
+      "clamp_note": "Large output requests (the JobBench judge asks for 65,536) are lowered to this ceiling; recorded as a deviation.",
+      "note": "nvidia/Qwen3.8-27B-NVFP4 (ModelOpt mixed-precision NVFP4) alone on the RTX PRO 4500 Blackwell 32 GB GPU, vLLM, 65,536-token window, max 32 concurrent sequences."
     }
   }
 }

@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -48,6 +49,16 @@ IMPORTANT:
 BASE_SYSTEM = """You are an autonomous agent that completes professional work tasks end to end using the tools provided.
 Work step by step: inspect the inputs, do the work, check the result against the task statement, then save the deliverables
 exactly where the task says. When the deliverables are saved, reply with a short summary and stop calling tools."""
+
+
+_GRADER = re.compile(r"^(rubrics?\b|eval_result|.*_judge\.json$)", re.I)
+
+
+def assert_workspace_clean(ws: Path) -> None:
+    """The agent must never see grader material. Abort the run (not just the task) if any is in its workspace."""
+    leaks = sorted(str(p.relative_to(ws)) for p in ws.rglob("*") if _GRADER.search(p.name))
+    if leaks:
+        raise RuntimeError(f"grader artifacts in the agent workspace, refusing to run: {leaks[:5]}")
 
 
 def _count_tool_calls(trajectory: Path, names) -> int:
@@ -93,6 +104,7 @@ def run_task(tasks_base: Path, task_id: str, out_dir: Path, client: ChatClient, 
         try:
             shutil.copytree(src, ws / "task_folder")
             (ws / "output").mkdir()
+            assert_workspace_clean(ws)
             for p in [ws, ws / "task_folder", ws / "output", *ws.rglob("*")]:    # container user is uid 1000, not the host user
                 os.chmod(p, 0o777 if p.is_dir() else 0o666)
             blocked: List[str] = []
@@ -127,29 +139,18 @@ def run_task(tasks_base: Path, task_id: str, out_dir: Path, client: ChatClient, 
 
 
 def judge(task_id: str, tasks_base: Path, deliver: Path, details_file: Path, *, judge_python: str, judge_script: str,
-          judge_model: str, judge_base_url: str, reasoning_effort: str = "low", timeout: int = 1800) -> Optional[Dict[str, Any]]:
-    """Score ``deliver`` with the upstream judge script. None means the judge failed (never a zero)."""
-    rubrics = Path(tasks_base) / task_id / "RUBRICS.json"
-    if not any(deliver.iterdir()) if deliver.is_dir() else True:
-        return {"score": 0.0, "total": 0.0, "max": None, "no_output": True}
-    details_file.parent.mkdir(parents=True, exist_ok=True)
-    cmd = [judge_python, judge_script, "--output-dir", str(deliver), "--rubrics-file", str(rubrics),
-           "--details-file", str(details_file), "--judge-model", judge_model, "--api-base", judge_base_url,
-           "--max-workers", "8", "--max-retries", "3", "--timeout-per-rubric", "240", "--evaluated-model", "own"]
-    env = {**os.environ, "JUDGE_API_KEY": "dummy", "JUDGE_REASONING_EFFORT": reasoning_effort}
-    try:
-        subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=timeout)
-        d = json.loads(details_file.read_text())
-    except (subprocess.SubprocessError, OSError, ValueError):
-        return None
-    if not isinstance(d, dict) or not d.get("max_score"):
-        return None
-    failed = sum(1 for r in d.get("rubrics", []) for c in (r.get("result", {}).get("criteria_results") or [])
-                 if str(c.get("reasoning", "")).startswith("Failed to get judge response"))
-    if failed:
-        return {"graded": False, "judge_failures": failed}   # upstream treats these as ungraded, not zero
-    return {"graded": True, "total": d["total_score"], "max": d["max_score"], "score": d["total_score"] / d["max_score"],
-            "passed": d.get("passed_count"), "count": d.get("total_count")}
+          judge_model: str, judge_base_url: str, reasoning_effort: str = "default", timeout: int = 1800,
+          finished: bool = True) -> Dict[str, Any]:
+    """Score a finished rollout (see ``evalkit.judge_output``). ``graded: False`` means ungraded, never zero."""
+    from .evalkit import JudgeConfig, judge_output
+    r = judge_output(task_id, tasks_base, deliver, details_file,
+                     JudgeConfig(judge_python, judge_script, judge_model, judge_base_url, reasoning_effort, timeout_s=timeout),
+                     finished=finished)
+    if r.status == "no_output":
+        return {"graded": True, "score": 0.0, "no_output": True}
+    if r.status == "graded":
+        return {"graded": True, "score": r.score, "total": r.total, "max": r.max, "passed": r.passed, "count": r.count}
+    return {"graded": False, "score": None, "reason": r.reason, "judge_failures": r.failures}
 
 
 def main(argv=None) -> int:
