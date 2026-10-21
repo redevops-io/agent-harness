@@ -50,9 +50,33 @@ Work step by step: inspect the inputs, do the work, check the result against the
 exactly where the task says. When the deliverables are saved, reply with a short summary and stop calling tools."""
 
 
+def _count_tool_calls(trajectory: Path, names) -> int:
+    try:
+        return sum(1 for line in trajectory.read_text().splitlines() if json.loads(line).get("kind") == "tool"
+                   and json.loads(line).get("name") in names)
+    except (OSError, ValueError):
+        return 0
+
+
+def make_context_manager(kind: str, archive_dir: Path, *, rag: bool = False):
+    """``context-runtime`` (default): lossless archive + retrieval, from the context-runtime package; ``basic``:
+    agent_harness's dependency-free lossy elision. A missing package is an error, never a silent downgrade."""
+    if kind == "basic":
+        return None
+    if kind != "context-runtime":
+        raise ValueError(f"unknown context manager {kind!r}")
+    try:
+        from context_runtime.integrations.agent_harness import ContextRuntimeManager
+    except ImportError as e:
+        raise RuntimeError("context manager 'context-runtime' needs the context-runtime package "
+                           "(pip install -e <context-runtime checkout>); pass context='basic' to opt out") from e
+    return ContextRuntimeManager(archive_dir, use_redevops_rag=rag)
+
+
 def run_task(tasks_base: Path, task_id: str, out_dir: Path, client: ChatClient, system: str = BASE_SYSTEM, *,
              max_turns: int = 200, max_seconds: float = 3600, max_context_tokens: int = 40960, web: bool = True,
-             extra_system: str = "", attempts: int = 2) -> Dict[str, Any]:
+             extra_system: str = "", attempts: int = 2, context: str = "context-runtime", rag: bool = False,
+             index_inputs: bool = True) -> Dict[str, Any]:
     """Roll one task. Returns a summary dict; deliverables land in ``out_dir/output``, the trajectory in ``out_dir``.
 
     Like the upstream OpenCode runner, a second attempt (fresh workspace) is made only when the first left no
@@ -72,11 +96,14 @@ def run_task(tasks_base: Path, task_id: str, out_dir: Path, client: ChatClient, 
             for p in [ws, ws / "task_folder", ws / "output", *ws.rglob("*")]:    # container user is uid 1000, not the host user
                 os.chmod(p, 0o777 if p.is_dir() else 0o666)
             blocked: List[str] = []
+            mgr = make_context_manager(context, out_dir / f"archive{attempt}", rag=rag)
+            if mgr is not None and index_inputs:
+                mgr.index_files(ws / "task_folder")
             with DockerSandbox(ws) as sbx:
                 reg = bench_registry(ws, sbx, blocked_log=blocked, web=web)
                 res: LoopResult = run_loop(client, reg, (system + ("\n\n" + extra_system if extra_system else "")), PROMPT,
                                            max_turns=max_turns, max_seconds=max_seconds,
-                                           max_context_tokens=max_context_tokens,
+                                           max_context_tokens=max_context_tokens, context_manager=mgr,
                                            trajectory=out_dir / f"trajectory{'' if attempt == 1 else f'_attempt{attempt}'}.jsonl")
             deliver = out_dir / "output"
             shutil.rmtree(deliver, ignore_errors=True)
@@ -85,7 +112,10 @@ def run_task(tasks_base: Path, task_id: str, out_dir: Path, client: ChatClient, 
             summary = {"task": task_id, "attempt": attempt, "stop": res.stop, "turns": res.turns, "seconds": res.seconds,
                        "prompt_tokens": res.prompt_tokens, "completion_tokens": res.completion_tokens,
                        "tool_calls": res.tool_calls, "tool_errors": res.tool_errors, "deliverables": files,
-                       "blocked_fetches": blocked, "model": client.model}
+                       "blocked_fetches": blocked, "model": client.model, "context_manager": context, "rag": rag,
+                       "archived_items": len(mgr.archive.entries) if mgr is not None else 0,
+                       "retrieval_calls": _count_tool_calls(out_dir / f"trajectory{'' if attempt == 1 else f'_attempt{attempt}'}.jsonl",
+                                                            ("search_context", "read_archive"))}
             runs.append({k: summary[k] for k in ("attempt", "stop", "turns", "seconds", "deliverables")})
         finally:
             shutil.rmtree(ws, ignore_errors=True)
@@ -134,6 +164,9 @@ def main(argv=None) -> int:
     ap.add_argument("--max-turns", type=int, default=200)
     ap.add_argument("--max-seconds", type=float, default=3600)
     ap.add_argument("--attempts", type=int, default=2)
+    ap.add_argument("--context-manager", choices=["context-runtime", "basic"], default="context-runtime")
+    ap.add_argument("--rag", action="store_true", help="back retrieval with redevops-rag (hybrid vector+BM25) instead of offline BM25")
+    ap.add_argument("--no-index-inputs", action="store_true")
     ap.add_argument("--context", type=int, default=40960)
     ap.add_argument("--no-web", action="store_true")
     ap.add_argument("--temperature", type=float)
@@ -147,7 +180,8 @@ def main(argv=None) -> int:
     for t in a.task:
         out = Path(a.out) / a.label / t.replace("/", "__")
         s = run_task(Path(a.tasks_base), t, out, client, system, max_turns=a.max_turns, max_seconds=a.max_seconds,
-                     max_context_tokens=a.context, web=not a.no_web, attempts=a.attempts)
+                     max_context_tokens=a.context, web=not a.no_web, attempts=a.attempts,
+                     context=a.context_manager, rag=a.rag, index_inputs=not a.no_index_inputs)
         if a.judge_python:
             s["judge"] = judge(t, Path(a.tasks_base), out / "output", out / "judge_details.json", judge_python=a.judge_python,
                                judge_script=a.judge_script, judge_model=a.judge_model, judge_base_url=a.judge_base_url)
