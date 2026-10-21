@@ -56,10 +56,16 @@ class JudgeResult:
     failures: int = 0
     attempts: int = 0
     reason: str = ""
+    budget_exhausted: bool = False        # the spend proxy refused the calls: stop judging, do not retry
 
 
 def has_deliverables(deliver: Path) -> bool:
     return deliver.is_dir() and any(p.is_file() for p in deliver.rglob("*"))
+
+
+def _budget_exhausted(details: Dict[str, Any]) -> bool:
+    return any(("budget_exceeded" in str(c.get("reasoning", "")) or "budget exhausted" in str(c.get("reasoning", "")))
+               for r in details.get("rubrics", []) for c in (r.get("result", {}).get("criteria_results") or []))
 
 
 def _failures(details: Dict[str, Any]) -> int:
@@ -102,6 +108,8 @@ def judge_output(task_id: str, tasks_base: Path, deliver: Path, details_file: Pa
                 sleep(cfg.backoff_s * attempt)
             continue
         fails = _failures(d)
+        if fails and _budget_exhausted(d):
+            return JudgeResult("ungraded", failures=fails, attempts=attempt, reason="spend budget exhausted", budget_exhausted=True)
         if fails or mx <= 0:
             last = JudgeResult("ungraded", failures=fails, attempts=attempt,
                                reason=f"{fails} rubric criteria got no judge reply" if fails else "max score is 0")
