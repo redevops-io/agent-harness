@@ -1,7 +1,10 @@
-"""Approval/permission policy module.
+"""Command/edit vetting for shell-running agent tools (lower layer under ``agent_harness.tools``).
 
-Modes: allowlist | edits-only | bypass
+Modes: allowlist | edits-only | bypass (| never)
 Decide(action) returns allow/deny. Never open grant by default.
+
+The tool-level gate (which tools may side-effect at all) is ``tools.ApprovalPolicy``; this module vets
+the *content* of a shell command or edit once a tool such as ``run_bash`` is allowed to run.
 
 In ``allowlist`` mode a shell command is allowed only when:
 
@@ -12,7 +15,7 @@ In ``allowlist`` mode a shell command is allowed only when:
 * file-like arguments stay inside the workspace root (after ``realpath``, so
   symlinks and ``..`` are accounted for);
 * it does not execute, or hand to an interpreter, a file written during the
-  session (see :meth:`ApprovalPolicy.note_write`).
+  session (see :meth:`CommandPolicy.note_write`).
 
 This is a policy check, not isolation: an allowed command still runs as the
 host user. Use an OS-level sandbox or container for untrusted workloads.
@@ -70,7 +73,7 @@ def _contained(path: str, root: str) -> bool:
     return path == root or path.startswith(root.rstrip(os.sep) + os.sep)
 
 
-class ApprovalPolicy:
+class CommandPolicy:
     def __init__(self, mode: str = "allowlist", allowlist: List[str] = None,
                  root: Optional[str] = None, trusted_path=TRUSTED_PATH):
         self.mode = mode
@@ -142,6 +145,8 @@ class ApprovalPolicy:
         return True
 
     def decide(self, action: Dict[str, Any]) -> str:
+        if self.mode == "never":
+            return "deny"
         if self.mode == "bypass":
             return "allow"
         action_type = action.get("type", "")
@@ -187,15 +192,3 @@ class ApprovalPolicy:
         if exe is None:
             return None
         return [exe] + argv[1:]
-
-
-class Approver(ApprovalPolicy):
-    """Backwards-compatible alias for ApprovalPolicy (older docs/examples used
-    this name). Also accepts ``mode="never"`` as an explicit deny-everything
-    policy.
-    """
-
-    def decide(self, action: Dict[str, Any]) -> str:
-        if self.mode == "never":
-            return "deny"
-        return super().decide(action)

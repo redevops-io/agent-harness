@@ -1,0 +1,288 @@
+{
+  "as_of": "2026-10-19",
+  "unit": "USD per 1M tokens",
+  "note": "Standard (non-batch, non-flex, non-priority) rates read from the providers' public pricing pages on as_of. Prices change; re-check before relying on them. 'long' applies to the whole request when input tokens reach 'threshold'. Not modelled: provider cache-write fees (kimi-k3), priority/fast tiers (requests asking for them are refused). 'free' providers are self-hosted: cost is recorded as 0 and excludes hardware, electricity and operator time; they are never capped and receive no API key.",
+  "sources": {
+    "openai": "https://developers.openai.com/api/docs/pricing",
+    "xai": "https://docs.x.ai/docs/models",
+    "kimi": "https://platform.kimi.ai/docs/pricing/chat"
+  },
+  "providers": {
+    "openai": {
+      "base_url": "https://api.openai.com/v1",
+      "key_env": "OPENAI_API_KEY",
+      "models": {
+        "gpt-5.4": {
+          "input": 2.5,
+          "cached": 0.25,
+          "output": 15.0,
+          "long": {
+            "threshold": 272000,
+            "input": 5.0,
+            "cached": 0.5,
+            "output": 22.5
+          }
+        },
+        "gpt-5.4-mini": {
+          "input": 0.75,
+          "cached": 0.075,
+          "output": 4.5
+        },
+        "gpt-5.4-nano": {
+          "input": 0.2,
+          "cached": 0.02,
+          "output": 1.25
+        },
+        "gpt-5.5": {
+          "input": 5.0,
+          "cached": 0.5,
+          "output": 30.0,
+          "long": {
+            "threshold": 272000,
+            "input": 10.0,
+            "cached": 1.0,
+            "output": 45.0
+          }
+        },
+        "gpt-5.6-sol": {
+          "input": 4.0,
+          "cached": 0.4,
+          "output": 20.0,
+          "long": {
+            "threshold": 272000,
+            "input": 8.0,
+            "cached": 0.8,
+            "output": 30.0
+          }
+        },
+        "gpt-5.6-terra": {
+          "input": 2.0,
+          "cached": 0.2,
+          "output": 12.0,
+          "long": {
+            "threshold": 272000,
+            "input": 4.0,
+            "cached": 0.4,
+            "output": 18.0
+          }
+        },
+        "gpt-5.6-luna": {
+          "input": 0.2,
+          "cached": 0.02,
+          "output": 1.2,
+          "long": {
+            "threshold": 272000,
+            "input": 0.4,
+            "cached": 0.04,
+            "output": 1.8
+          }
+        },
+        "gpt-6-sol": {
+          "input": 2.0,
+          "cached": 0.2,
+          "output": 10.0,
+          "long": {
+            "threshold": 272000,
+            "input": 4.0,
+            "cached": 0.4,
+            "output": 15.0
+          }
+        },
+        "gpt-6-luna": {
+          "input": 0.1,
+          "cached": 0.01,
+          "output": 0.5,
+          "long": {
+            "threshold": 272000,
+            "input": 0.2,
+            "cached": 0.02,
+            "output": 0.75
+          }
+        },
+        "gpt-6-astra": {
+          "input": 10.0,
+          "cached": 1.0,
+          "output": 50.0,
+          "long": {
+            "threshold": 272000,
+            "input": 20.0,
+            "cached": 2.0,
+            "output": 75.0
+          }
+        },
+        "gpt-6.1-sol": {
+          "input": 2.0,
+          "cached": 0.1,
+          "output": 10.0,
+          "long": {
+            "threshold": 272000,
+            "input": 4.0,
+            "cached": 0.2,
+            "output": 15.0
+          }
+        }
+      }
+    },
+    "xai": {
+      "base_url": "https://api.x.ai/v1",
+      "key_env": "XAI_API_KEY",
+      "models": {
+        "grok-4.3": {
+          "input": 1.25,
+          "cached": 0.2,
+          "output": 2.5,
+          "long": {
+            "threshold": 200000,
+            "input": 2.5,
+            "cached": 0.4,
+            "output": 5.0
+          }
+        },
+        "grok-4.5": {
+          "input": 2.0,
+          "cached": 0.3,
+          "output": 6.0,
+          "long": {
+            "threshold": 200000,
+            "input": 4.0,
+            "cached": 0.6,
+            "output": 12.0
+          }
+        },
+        "grok-4.6": {
+          "input": 2.0,
+          "cached": 0.5,
+          "output": 6.0,
+          "long": {
+            "threshold": 200000,
+            "input": 4.0,
+            "cached": 1.0,
+            "output": 12.0
+          }
+        },
+        "grok-4.7": {
+          "input": 2.0,
+          "cached": 0.5,
+          "output": 6.0,
+          "long": {
+            "threshold": 200000,
+            "input": 4.0,
+            "cached": 1.0,
+            "output": 12.0
+          }
+        },
+        "grok-4.20-0309-reasoning": {
+          "input": 1.25,
+          "cached": 0.2,
+          "output": 2.5,
+          "long": {
+            "threshold": 200000,
+            "input": 2.5,
+            "cached": 0.4,
+            "output": 5.0
+          }
+        },
+        "grok-4.20-0309-non-reasoning": {
+          "input": 1.25,
+          "cached": 0.2,
+          "output": 2.5,
+          "long": {
+            "threshold": 200000,
+            "input": 2.5,
+            "cached": 0.4,
+            "output": 5.0
+          }
+        }
+      }
+    },
+    "kimi": {
+      "base_url": "https://api.moonshot.ai/v1",
+      "key_env": "KIMI_API_KEY",
+      "models": {
+        "kimi-k2.7-code": {
+          "input": 0.95,
+          "cached": 0.19,
+          "output": 4.0
+        },
+        "kimi-k2.7-code-highspeed": {
+          "input": 1.9,
+          "cached": 0.38,
+          "output": 8.0
+        },
+        "kimi-k3": {
+          "input": 3.0,
+          "cached": 0.3,
+          "output": 15.0
+        },
+        "kimi-k2.6": {
+          "input": 0.95,
+          "cached": 0.16,
+          "output": 4.0
+        }
+      },
+      "label_overrides": {
+        "judge": {
+          "temperature": 1
+        }
+      },
+      "label_overrides_note": "kimi-k2.7 accepts only temperature 1; the JobBench judge sends 0.0 and gets HTTP 400. For calls labelled 'judge' the temperature is forced to 1. Recorded as a deviation; never applied to other labels."
+    },
+    "local": {
+      "base_url": "http://127.0.0.1:11234/v1",
+      "key_env": null,
+      "free": true,
+      "models": {
+        "Qwen3.8-Flash-Next-MLX-Serve-8bit": {
+          "input": 0.0,
+          "cached": 0.0,
+          "output": 0.0
+        }
+      },
+      "base_url_env": "AGENT_HARNESS_LOCAL_URL"
+    },
+    "proxmox48": {
+      "base_url": "http://localhost:8001/v1",
+      "key_env": null,
+      "free": true,
+      "models": {
+        "Qwen3.8-27B": {
+          "input": 0.0,
+          "cached": 0.0,
+          "output": 0.0
+        }
+      },
+      "request_defaults": {
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        }
+      },
+      "request_defaults_note": "vLLM per-request switch documented in the Qwen3 deployment guide; applied only when the client did not set the key. Recorded in run manifests as a deviation from the model's default (thinking on).",
+      "clamp_output_tokens": 8192,
+      "clamp_note": "Large output requests (the JobBench judge asks for 65,536) are lowered to this ceiling; recorded as a deviation.",
+      "note": "Qwen/Qwen3.8-27B-FP8 (8-bit) alone on the RTX PRO 5000 Blackwell 48 GB GPU, vLLM, 65,536-token window, max 32 concurrent sequences. Set AGENT_HARNESS_PROXMOX48_URL to the endpoint's real /v1 URL; the default is only a placeholder.",
+      "base_url_env": "AGENT_HARNESS_PROXMOX48_URL"
+    },
+    "proxmox32": {
+      "base_url": "http://localhost:8002/v1",
+      "key_env": null,
+      "free": true,
+      "models": {
+        "Qwen3.8-27B": {
+          "input": 0.0,
+          "cached": 0.0,
+          "output": 0.0
+        }
+      },
+      "request_defaults": {
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        }
+      },
+      "request_defaults_note": "vLLM per-request switch documented in the Qwen3 deployment guide; applied only when the client did not set the key. Recorded in run manifests as a deviation from the model's default (thinking on).",
+      "clamp_output_tokens": 8192,
+      "clamp_note": "Large output requests (the JobBench judge asks for 65,536) are lowered to this ceiling; recorded as a deviation.",
+      "note": "nvidia/Qwen3.8-27B-NVFP4 (ModelOpt mixed-precision NVFP4) alone on the RTX PRO 4500 Blackwell 32 GB GPU, vLLM, 65,536-token window, max 32 concurrent sequences. Set AGENT_HARNESS_PROXMOX32_URL to the endpoint's real /v1 URL; the default is only a placeholder.",
+      "base_url_env": "AGENT_HARNESS_PROXMOX32_URL"
+    }
+  }
+}

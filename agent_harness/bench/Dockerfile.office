@@ -1,0 +1,10 @@
+# Sandbox image for benchmark agents that must read/write office documents. No network at run time
+# (the container is started with --network none); packages are installed at build time only.
+FROM python:3.12-slim
+RUN apt-get update && apt-get install -y --no-install-recommends poppler-utils pandoc ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache-dir pandas numpy openpyxl xlsxwriter python-docx python-pptx pdfplumber pypdf \
+    mammoth matplotlib reportlab markdown beautifulsoup4 lxml pyyaml
+RUN useradd -m -u 1000 agent
+USER agent
+WORKDIR /work

@@ -5,7 +5,7 @@ directory with a timeout, and captures stdout/stderr/returncode.
 
 NOTE: this is *not* a real isolation boundary. The command still runs as the
 host user with full filesystem/network access — ``cwd`` and ``timeout`` only
-constrain where it starts and how long it runs. Pair this with the approval
+constrain where it starts and how long it runs. Pair this with the command policy
 allowlist (and, for real isolation, an OS-level sandbox/container) before
 running untrusted commands.
 """
@@ -14,7 +14,7 @@ import shlex
 import subprocess
 from typing import Any, Dict, List, Optional
 
-from agent_harness.approval import TRUSTED_PATH, resolve_command
+from agent_harness.command_policy import TRUSTED_PATH, resolve_command
 
 def run_shell(cmd: str, cwd: str = None, timeout: int = 30,
               argv: Optional[List[str]] = None) -> Dict[str, Any]:
