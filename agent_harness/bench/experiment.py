@@ -43,7 +43,7 @@ class Experiment:
             if cell and c.name != cell:
                 continue
             for arm in self.arms:
-                if only and arm != only:
+                if (only and arm != only) or arm in harnesses.PASSIVE:
                     continue
                 harnesses.load(arm).generate(self, c, int(self.cfg.get(arm, {}).get("workers", 1)))
 

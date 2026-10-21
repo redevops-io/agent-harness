@@ -143,3 +143,17 @@ def test_report_uses_only_tasks_graded_in_every_arm_and_flags_context_pressure(t
     assert r["diagnostics"]["ours@fp4"]["runs_at_90pct_of_window"] == 2 and r["diagnostics"]["opencode@fp4"]["runs_at_90pct_of_window"] == 0
     md = e.report_markdown()
     assert "| ours | 60.0 | 50.0 |" in md and "1 graded in every arm" in md
+
+
+def test_passive_arms_are_never_generated_on_their_own(tmp_path, monkeypatch):
+    e = ex.Experiment(make_cfg(tmp_path, arms=["ours", "h2-base"]))
+    ran = []
+
+    class Fake:
+        NAME = "ours"
+        @staticmethod
+        def generate(exp, cell, workers):
+            ran.append(cell.name)
+    monkeypatch.setattr(harnesses, "load", lambda name: Fake if name == "ours" else pytest.fail(f"loaded {name}"))
+    e.generate()
+    assert ran == ["q8", "fp4", "q8-think"]

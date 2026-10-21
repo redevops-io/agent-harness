@@ -9,6 +9,7 @@ import importlib
 from types import ModuleType
 
 KNOWN = ("ours", "opencode", "harness2")
+PASSIVE = ("h2-base",)      # arms recorded as a by-product of another harness's run; never generated on their own
 
 
 def load(name: str) -> ModuleType:
