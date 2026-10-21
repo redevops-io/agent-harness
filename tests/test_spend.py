@@ -271,4 +271,19 @@ def test_the_two_proxmox_endpoints_are_handled_identically_apart_from_their_addr
     a, b = PRICES["providers"]["proxmox48"], PRICES["providers"]["proxmox32"]
     for k in ("free", "key_env", "request_defaults", "clamp_output_tokens", "models"):
         assert a[k] == b[k], k
-    assert a["base_url"] != b["base_url"] and a["base_url"].endswith(":30807/v1") and b["base_url"].endswith(":30820/v1")
+    assert a["base_url_env"] != b["base_url_env"]
+
+
+def test_price_table_contains_no_private_network_addresses():
+    import re
+    text = json.dumps(PRICES)
+    assert not re.search(r"\b(10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)\b", text)
+
+
+def test_a_providers_base_url_can_come_from_the_environment(monkeypatch):
+    monkeypatch.setenv("AGENT_HARNESS_PROXMOX48_URL", "http://example.internal:9/v1")
+    px = Proxy(PRICES, Ledger("/tmp/_unused_ledger.jsonl", {}, free={"proxmox48"}), {"proxmox48": ""})
+    assert px.upstreams["proxmox48"] == "http://example.internal:9/v1"
+    monkeypatch.delenv("AGENT_HARNESS_PROXMOX48_URL")
+    px2 = Proxy(PRICES, Ledger("/tmp/_unused_ledger.jsonl", {}, free={"proxmox48"}), {"proxmox48": ""})
+    assert px2.upstreams["proxmox48"] == "http://localhost:8001/v1"

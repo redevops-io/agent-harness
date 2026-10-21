@@ -35,7 +35,9 @@ class Proxy:
     def __init__(self, prices: Dict[str, Any], ledger: Ledger, keys: Dict[str, str], safety: float = 1.10,
                  upstreams: Optional[Dict[str, str]] = None):
         self.prices, self.ledger, self.keys, self.safety = prices, ledger, keys, safety
-        self.upstreams = upstreams or {p: v["base_url"] for p, v in prices["providers"].items()}
+        # a provider may name an environment variable that overrides its base_url (self-hosted endpoints: keeps addresses out of the repo)
+        self.upstreams = upstreams or {p: (os.environ.get(v.get("base_url_env", "")) or v["base_url"])
+                                       for p, v in prices["providers"].items()}
 
     def handler(self):
         proxy = self

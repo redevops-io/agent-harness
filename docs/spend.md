@@ -26,5 +26,7 @@ python -m agent_harness.spend_proxy --cap openai=20 --ledger runs/spend.jsonl --
 `prices.json` marks self-hosted endpoints `"free": true`: never capped, no key sent, recorded at $0 (tokens still counted;
 hardware and electricity are not). Optional per-provider settings, all recorded as deviations: `request_defaults` (e.g. Qwen
 thinking off), `clamp_output_tokens`, and `label_overrides` (e.g. a fixed temperature for the judge label only). Providers
-defined: `local` (mlx-serve on 127.0.0.1:11234), `proxmox48` (Qwen3.8-27B FP8 on a 48 GB GPU) and `proxmox32`
+defined: `local` (mlx-serve on 127.0.0.1:11234, override with `AGENT_HARNESS_LOCAL_URL`), `proxmox48` (Qwen3.8-27B FP8 on a 48 GB GPU) and `proxmox32`
 (Qwen3.8-27B NVFP4 on a 32 GB GPU), both vLLM with a 65,536-token window.
+
+Addresses of self-hosted endpoints are not stored in the repository: set `AGENT_HARNESS_PROXMOX48_URL` / `AGENT_HARNESS_PROXMOX32_URL` (each a full `.../v1` URL). The defaults are localhost placeholders.
