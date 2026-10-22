@@ -84,10 +84,27 @@ def make_context_manager(kind: str, archive_dir: Path, *, rag: bool = False):
     return ContextRuntimeManager(archive_dir, use_redevops_rag=rag)
 
 
+EXTRA_DIRS = ("skills", "scripts", "sub_agents", "plugin")
+
+
+def _write_extra_files(ws: Path, files: Optional[Dict[str, str]]) -> None:
+    """Files the harness itself provides (skills, scripts), written into the workspace at the same relative paths they have in
+    the harness tree, so the harness's own instructions ("run scripts/x.py") stay valid. Only under EXTRA_DIRS: never over
+    ``task_folder/`` or ``output/``, never outside the workspace."""
+    root = ws.resolve()
+    for rel, text in (files or {}).items():
+        dest = (root / rel).resolve()
+        top = dest.relative_to(root).parts[0] if root in dest.parents else None
+        if top not in EXTRA_DIRS:
+            raise ValueError(f"harness file outside the allowed directories {EXTRA_DIRS}: {rel!r}")
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(text, encoding="utf-8")
+
+
 def run_task(tasks_base: Path, task_id: str, out_dir: Path, client: ChatClient, system: str = BASE_SYSTEM, *,
              max_turns: int = 200, max_seconds: float = 3600, max_context_tokens: int = 40960, web: bool = True,
              extra_system: str = "", attempts: int = 2, context: str = "context-runtime", rag: bool = False,
-             index_inputs: bool = True) -> Dict[str, Any]:
+             index_inputs: bool = True, extra_files: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
     """Roll one task. Returns a summary dict; deliverables land in ``out_dir/output``, the trajectory in ``out_dir``.
 
     Like the upstream OpenCode runner, a second attempt (fresh workspace) is made only when the first left no
@@ -105,6 +122,7 @@ def run_task(tasks_base: Path, task_id: str, out_dir: Path, client: ChatClient, 
             shutil.copytree(src, ws / "task_folder")
             (ws / "output").mkdir()
             assert_workspace_clean(ws)
+            _write_extra_files(ws, extra_files)
             for p in [ws, ws / "task_folder", ws / "output", *ws.rglob("*")]:    # container user is uid 1000, not the host user
                 os.chmod(p, 0o777 if p.is_dir() else 0o666)
             blocked: List[str] = []

@@ -8,7 +8,7 @@ from __future__ import annotations
 import importlib
 from types import ModuleType
 
-KNOWN = ("ours", "opencode", "harness2")
+KNOWN = ("ours", "ours-h2", "opencode", "harness2")
 PASSIVE = ("h2-base",)      # arms recorded as a by-product of another harness's run; never generated on their own
 
 
@@ -16,8 +16,8 @@ def load(name: str) -> ModuleType:
     if name not in KNOWN:
         raise ValueError(f"unknown harness {name!r}; known: {', '.join(KNOWN)}")
     try:
-        return importlib.import_module(f"{__name__}.{name}")
+        return importlib.import_module(f"{__name__}.{name.replace('-', '_')}")
     except ModuleNotFoundError as e:
-        if e.name and e.name.endswith(f".{name}"):
+        if e.name and e.name.endswith(f".{name.replace('-', '_')}"):
             raise RuntimeError(f"the {name!r} harness adapter is not present in this checkout (it lives on its own branch)") from e
         raise
