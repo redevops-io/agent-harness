@@ -75,19 +75,44 @@ def command(splits: Path, workers: int) -> List[str]:
             "--split", "test", "--workers", str(workers)]
 
 
-def env_for(exp, cell) -> Dict[str, str]:
+def chunk_dir(exp, cell, i: int) -> Path:
+    """Upstream pins a run directory to ONE task set, so each chunk of tasks gets its own. Chunk 0 is the cell's base directory
+    (so a single-chunk run keeps the plain layout); later chunks live beside it. Safe for the per-domain library as long as a
+    domain does not span chunks (stage 1 has one task per domain)."""
+    base = runs_dir(exp, cell)
+    return base if i == 0 else base / f"chunk{i:02d}"
+
+
+def run_dirs(exp, cell) -> List[Path]:
+    base = runs_dir(exp, cell)
+    return [base] + sorted(p for p in base.glob("chunk*") if p.is_dir())
+
+
+def adapt_dir(exp, cell, task: str) -> Optional[Path]:
+    """The pipeline's per-task adapt directory (summary, composed harness trees), wherever its chunk put it."""
+    for d in run_dirs(exp, cell):
+        a = d / "jb" / "adapt" / NS / task_dir_name(task)
+        if a.is_dir():
+            return a
+    return None
+
+
+def env_for(exp, cell, runs: Optional[Path] = None) -> Dict[str, str]:
     imp = exp.cfg["improver"]
     max_out = int(exp.cfg.get("max_output_tokens", 16384))
     env = opencode_env(exp.proxy, {cell.provider: {"model": cell.model, "context": cell.window, "output": max_out},
                                    imp["provider"]: {"model": imp["model"], "context": imp["window"], "output": 32768}},
                        exp.cfg.get("egress_proxy"), labels={cell.provider: cell.label("oc")})
     env.update({"HARNESS2_SOLVER_MODEL": f"{cell.provider}/{cell.model}", "HARNESS2_IMPROVER_MODEL": f"{imp['provider']}/{imp['model']}",
-                "HARNESS2_RUNS_DIR": str(runs_dir(exp, cell))})
+                "HARNESS2_RUNS_DIR": str(runs or runs_dir(exp, cell))})
     return env
 
 
 def collect(exp, cell) -> None:
-    for task, r in read_cell(runs_dir(exp, cell), exp.tasks).items():
+    results = {}
+    for d in run_dirs(exp, cell):
+        results.update(read_cell(d, exp.tasks))
+    for task, r in results.items():
         pairs = [(NAME, r["chosen_dir"], r["chosen_traj"], r["chosen_label"])]
         if "h2-base" in exp.arms:
             pairs.append(("h2-base", r["base_dir"], r["base_traj"], r["base_label"]))
@@ -106,15 +131,25 @@ def chunks(tasks: Sequence[str], size: int) -> List[List[str]]:
 
 
 def generate(exp, cell, workers: int = 1, runner=subprocess.run) -> None:
-    """Run upstream's pipeline over the tasks ``workers`` at a time (one upstream invocation per chunk) and register each chunk's
-    results as soon as it ends, so judging can start long before the last task. Tasks already registered are not re-run;
-    a per-cell splits file keeps concurrent cells from overwriting one another."""
+    """Run upstream's pipeline over the tasks in FIXED groups of ``workers`` (one upstream invocation and one run directory per
+    group; a group re-run after a crash is the same set, so upstream resumes it) and register each group's results as soon as it
+    ends, so judging can start long before the last task. A group whose tasks are all registered is skipped. Every group is
+    attempted; if any upstream invocation exits non-zero this raises at the end, naming the log, so a failure is never silent."""
     splits = exp.root / NAME / f"{cell.name}.splits.json"
     log = exp.root / NAME / f"{cell.name}.log"
     log.parent.mkdir(parents=True, exist_ok=True)
-    for chunk in chunks([t for t in exp.tasks if not exp.board.finished(arm_id(NAME, cell.name), t)], workers):
-        splits.write_text(json.dumps({"benchmark": "jb", "train": [], "test": chunk}))
+    arm, failures = arm_id(NAME, cell.name), []
+    for i, group in enumerate(chunks(exp.tasks, workers)):
+        if all(exp.board.finished(arm, t) for t in group):
+            continue
+        runs = chunk_dir(exp, cell, i)
+        splits.write_text(json.dumps({"benchmark": "jb", "train": [], "test": group}))
         with open(log, "ab") as f:
-            runner(command(splits, workers), cwd=Path(exp.cfg["harness2_root"]).expanduser(), env={**os.environ, **env_for(exp, cell)},
-                   stdout=f, stderr=subprocess.STDOUT)
+            p = runner(command(splits, workers), cwd=Path(exp.cfg["harness2_root"]).expanduser(),
+                       env={**os.environ, **env_for(exp, cell, runs)}, stdout=f, stderr=subprocess.STDOUT)
         collect(exp, cell)
+        rc = getattr(p, "returncode", 0) or 0
+        if rc:
+            failures.append(f"group {i} {group} exited {rc}")
+    if failures:
+        raise RuntimeError(f"harness2 {cell.name}: " + "; ".join(failures) + f" (see {log})")
