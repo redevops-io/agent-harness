@@ -100,12 +100,21 @@ def collect(exp, cell) -> None:
                                      **(opencode_diagnostics(traj) if traj else {}))
 
 
+def chunks(tasks: Sequence[str], size: int) -> List[List[str]]:
+    size = max(1, size)
+    return [list(tasks[i:i + size]) for i in range(0, len(tasks), size)]
+
+
 def generate(exp, cell, workers: int = 1, runner=subprocess.run) -> None:
-    splits = exp.root / "splits.json"
-    splits.write_text(json.dumps({"benchmark": "jb", "train": [], "test": exp.tasks}))
+    """Run upstream's pipeline over the tasks ``workers`` at a time (one upstream invocation per chunk) and register each chunk's
+    results as soon as it ends, so judging can start long before the last task. Tasks already registered are not re-run;
+    a per-cell splits file keeps concurrent cells from overwriting one another."""
+    splits = exp.root / NAME / f"{cell.name}.splits.json"
     log = exp.root / NAME / f"{cell.name}.log"
     log.parent.mkdir(parents=True, exist_ok=True)
-    with open(log, "ab") as f:
-        runner(command(splits, workers), cwd=Path(exp.cfg["harness2_root"]).expanduser(), env={**os.environ, **env_for(exp, cell)},
-               stdout=f, stderr=subprocess.STDOUT)
-    collect(exp, cell)
+    for chunk in chunks([t for t in exp.tasks if not exp.board.finished(arm_id(NAME, cell.name), t)], workers):
+        splits.write_text(json.dumps({"benchmark": "jb", "train": [], "test": chunk}))
+        with open(log, "ab") as f:
+            runner(command(splits, workers), cwd=Path(exp.cfg["harness2_root"]).expanduser(), env={**os.environ, **env_for(exp, cell)},
+                   stdout=f, stderr=subprocess.STDOUT)
+        collect(exp, cell)
