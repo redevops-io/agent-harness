@@ -55,7 +55,7 @@ def test_an_unchanged_tree_adds_nothing_so_the_arm_equals_ours():
 
 def test_an_invalid_composed_tree_is_refused():
     base, final = trees()
-    final["guardrails.md"] += "\nrubric: {{ answer key }}\n"
+    final["skills/answer-key/SKILL.md"] = "---\nname: answer-key\ndescription: x\n---\nbody\n"
     with pytest.raises(ValueError, match="invalid"):
         oh.delta(base, final)
 
@@ -118,10 +118,23 @@ def test_the_trees_a_real_harness2_run_produced_load_and_diff(tmp_path):
     assert changed and "guardrails.md" in changed and text.startswith("## Additional guidance") and files
 
 
-def test_problems_in_unchanged_stock_text_do_not_block_but_problems_in_edits_do():
+def test_problems_in_unchanged_stock_text_do_not_block_but_real_problems_in_edits_do():
     base, final = trees()
     base["systemprompt.md"] = final["systemprompt.md"] = "stock text with {{ braces }}\n"
     assert oh.delta(base, final)[2]                                              # stock braces are not our concern
-    final["guardrails.md"] += "{{ edit with braces }}"
-    with pytest.raises(ValueError, match="template-braces"):
+    final["systemprompt.md"] += "more {{ braces }} in an edit"
+    assert oh.delta(base, final)[2]                                              # nor are braces in an edit: our prompt is no template
+    final["skills/rubric-check/SKILL.md"] = "---\nname: rubric-check\ndescription: x\n---\nbody\n"
+    with pytest.raises(ValueError, match="invalid"):                             # a grader-looking name in an edit is refused
         oh.delta(base, final)
+
+
+def test_trees_are_found_in_whichever_chunk_directory_the_pipeline_ran_the_task(tmp_path):
+    e = make_exp(tmp_path)
+    d = h2.chunk_dir(e, e.cells[0], 3) / "jb" / "adapt" / h2.NS / "a__task1" / "harnesses"
+    for which, files in (("base", trees()[0]), ("agg1", trees()[1])):
+        for rel, text in files.items():
+            (d / which / rel).parent.mkdir(parents=True, exist_ok=True)
+            (d / which / rel).write_text(text)
+    assert oh.tree_dir(e, e.cells[0], "a/task1", "agg1") == d / "agg1"
+    assert oh.delta(oh.read_tree(oh.tree_dir(e, e.cells[0], "a/task1", "base")), oh.read_tree(oh.tree_dir(e, e.cells[0], "a/task1", "agg1")))[2]

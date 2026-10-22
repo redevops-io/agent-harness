@@ -24,10 +24,12 @@ from .ours import diagnostics
 NAME = "ours-h2"
 ALWAYS_ON = ("systemprompt.md", "guardrails.md", "LongTermMEMORY.md", "tool_descriptions/tool_guidance.md")
 MAX_ADDENDUM_CHARS = 24000
+IGNORED_RULES = ("template-braces",)
 
 
 def tree_dir(exp, cell, task: str, which: str) -> Path:
-    return h2.runs_dir(exp, cell) / "jb" / "adapt" / h2.NS / task_dir_name(task) / "harnesses" / which
+    a = h2.adapt_dir(exp, cell, task)              # the pipeline's chunk directory that holds this task
+    return (a if a is not None else h2.runs_dir(exp, cell) / "jb" / "adapt" / h2.NS / task_dir_name(task)) / "harnesses" / which
 
 
 # upstream scaffolds an explanatory README.md into each component directory; they are not editable harness files
@@ -47,8 +49,10 @@ def _description(skill_md: str) -> str:
 def delta(base: Dict[str, str], final: Dict[str, str]) -> Tuple[str, Dict[str, str], List[str]]:
     """(text appended to the system prompt, files for ``<workspace>/harness/``, the paths that differ from stock)."""
     changed = sorted(p for p in final if final[p] != base.get(p))
-    # refuse on problems in what the pipeline CHANGED (or whole-tree problems); stock text we do not use is not ours to police
-    issues = [i for i in validate(HarnessSpec(OPENCODE, dict(final))) if not i.path or i.path in changed]
+    # refuse on problems in what the pipeline CHANGED (or whole-tree problems); stock text we do not use is not ours to police.
+    # "template-braces" is skipped: our validator is stricter than upstream there, and our prompt is not a template
+    issues = [i for i in validate(HarnessSpec(OPENCODE, dict(final)))
+              if (not i.path or i.path in changed) and i.rule not in IGNORED_RULES]
     if issues:
         raise ValueError("composed harness is invalid: " + "; ".join(str(i) for i in issues[:3]))
     parts, files = [], {}
