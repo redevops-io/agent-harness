@@ -93,25 +93,41 @@ def test_the_reference_arm_is_only_recorded_when_asked_for(tmp_path):
     assert e.board.finished(arm_id("harness2", "q8"), "a/task1") and not e.board.finished(arm_id("h2-base", "q8"), "a/task1")
 
 
-def test_generate_runs_the_pipeline_in_chunks_and_registers_each_chunk_as_it_ends(tmp_path):
+def test_generate_runs_fixed_groups_each_in_its_own_run_directory_and_registers_each_as_it_ends(tmp_path):
     e = make_exp(tmp_path)
     calls = []
 
     def runner(cmd, cwd, env, stdout, stderr):
         sp = Path(cmd[cmd.index("--split-file") + 1])
-        chunk = json.loads(sp.read_text())["test"]
-        calls.append((chunk, str(cwd), env["HARNESS2_SOLVER_MODEL"], str(sp)))
-        for t in chunk[:1]:                                  # the first task of each chunk finishes; the others produce no summary
-            write_task(h2.runs_dir(e, e.cells[0]), t)
-        a = arm_id("harness2", "q8")
-        assert all(e.board.finished(a, t) for c, *_ in calls[:-1] for t in c[:1])          # earlier chunks were registered already
-    h2.generate(e, e.cells[0], 1, runner=runner)
-    assert [c[0] for c in calls] == [[t] for t in TASKS]                                       # one task per chunk at workers=1
-    assert calls[0][1].endswith("/h2") and calls[0][2] == "px48/M" and "q8.splits.json" in calls[0][3]
-    assert e.board.finished(arm_id("harness2", "q8"), "a/task1")
+        group = json.loads(sp.read_text())["test"]
+        calls.append((group, str(cwd), env["HARNESS2_SOLVER_MODEL"], env["HARNESS2_RUNS_DIR"]))
+        for t in group[:1]:                                  # the first task of each group finishes; the others produce no summary
+            if not (Path(env["HARNESS2_RUNS_DIR"]) / "jb" / "adapt" / h2.NS / t.replace("/", "__")).exists():
+                write_task(Path(env["HARNESS2_RUNS_DIR"]), t)
+    h2.generate(e, e.cells[0], 2, runner=runner)
+    base = str(h2.runs_dir(e, e.cells[0]))
+    assert [c[0] for c in calls] == [["a/task1", "b/task1"], ["c/task1"]]                      # fixed groups of `workers`
+    assert calls[0][3] == base and calls[1][3] == base + "/chunk01"                            # upstream pins a run dir to one task set
+    assert calls[0][1].endswith("/h2") and calls[0][2] == "px48/M"
+    a = arm_id("harness2", "q8")
+    assert e.board.finished(a, "a/task1") and e.board.finished(a, "c/task1") and not e.board.finished(a, "b/task1")
+    assert h2.adapt_dir(e, e.cells[0], "c/task1").parts[-5] == "chunk01"                       # found in the chunk that ran it
     calls.clear()
-    h2.generate(e, e.cells[0], 2, runner=runner)                                               # finished tasks are not re-run
-    assert all("a/task1" not in c for c, *_ in calls)
+    h2.generate(e, e.cells[0], 2, runner=runner)                                               # only the group with an unfinished task re-runs, as the SAME set
+    assert [c[0] for c in calls] == [["a/task1", "b/task1"]]
+
+
+def test_a_failing_upstream_run_is_never_silent_but_other_groups_still_run(tmp_path):
+    from types import SimpleNamespace
+    e = make_exp(tmp_path)
+    ran = []
+
+    def runner(cmd, cwd, env, stdout, stderr):
+        ran.append(env["HARNESS2_RUNS_DIR"])
+        return SimpleNamespace(returncode=2 if len(ran) == 1 else 0)
+    with pytest.raises(RuntimeError, match="exited 2"):
+        h2.generate(e, e.cells[0], 2, runner=runner)
+    assert len(ran) == 2
 
 
 def test_executable_is_found_next_to_the_interpreter_not_via_path(tmp_path, monkeypatch):
