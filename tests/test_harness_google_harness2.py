@@ -1,3 +1,4 @@
+from pathlib import Path
 import json
 
 import pytest
@@ -92,16 +93,25 @@ def test_the_reference_arm_is_only_recorded_when_asked_for(tmp_path):
     assert e.board.finished(arm_id("harness2", "q8"), "a/task1") and not e.board.finished(arm_id("h2-base", "q8"), "a/task1")
 
 
-def test_generate_runs_the_pipeline_in_the_harness2_checkout_then_collects(tmp_path):
+def test_generate_runs_the_pipeline_in_chunks_and_registers_each_chunk_as_it_ends(tmp_path):
     e = make_exp(tmp_path)
-    seen = {}
+    calls = []
 
     def runner(cmd, cwd, env, stdout, stderr):
-        seen.update(cmd=cmd, cwd=str(cwd), solver=env["HARNESS2_SOLVER_MODEL"])
-        write_task(h2.runs_dir(e, e.cells[0]), "a/task1")
-    h2.generate(e, e.cells[0], 2, runner=runner)
-    assert seen["cwd"].endswith("/h2") and seen["solver"] == "px48/M" and json.loads((e.root / "splits.json").read_text())["test"] == TASKS
+        sp = Path(cmd[cmd.index("--split-file") + 1])
+        chunk = json.loads(sp.read_text())["test"]
+        calls.append((chunk, str(cwd), env["HARNESS2_SOLVER_MODEL"], str(sp)))
+        for t in chunk[:1]:                                  # the first task of each chunk finishes; the others produce no summary
+            write_task(h2.runs_dir(e, e.cells[0]), t)
+        a = arm_id("harness2", "q8")
+        assert all(e.board.finished(a, t) for c, *_ in calls[:-1] for t in c[:1])          # earlier chunks were registered already
+    h2.generate(e, e.cells[0], 1, runner=runner)
+    assert [c[0] for c in calls] == [[t] for t in TASKS]                                       # one task per chunk at workers=1
+    assert calls[0][1].endswith("/h2") and calls[0][2] == "px48/M" and "q8.splits.json" in calls[0][3]
     assert e.board.finished(arm_id("harness2", "q8"), "a/task1")
+    calls.clear()
+    h2.generate(e, e.cells[0], 2, runner=runner)                                               # finished tasks are not re-run
+    assert all("a/task1" not in c for c, *_ in calls)
 
 
 def test_executable_is_found_next_to_the_interpreter_not_via_path(tmp_path, monkeypatch):
