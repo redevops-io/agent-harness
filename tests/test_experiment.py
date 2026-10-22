@@ -157,3 +157,37 @@ def test_passive_arms_are_never_generated_on_their_own(tmp_path, monkeypatch):
     monkeypatch.setattr(harnesses, "load", lambda name: Fake if name == "ours" else pytest.fail(f"loaded {name}"))
     e.generate()
     assert ran == ["q8", "fp4", "q8-think"]
+
+
+def test_judging_goes_task_by_task_so_a_cut_off_run_stays_balanced_and_stops_when_the_budget_is_gone(tmp_path, monkeypatch):
+    e = ex.Experiment(make_cfg(tmp_path, tasks=["a/task1", "b/task1"], arms=["ours", "opencode"]))
+    e.cells = e.cells[:2]
+    for c in e.cells:
+        for arm in e.arms:
+            for t in e.tasks:
+                e.board.mark_generated(arm_id(arm, c.name), t, deliverables=["f"], stop="done", dir="d")
+    order = []
+
+    def fake_judge(task, base, deliver, details, cfg, **kw):
+        order.append(task)
+        return JudgeResult("graded", 0.5) if len(order) <= 6 else JudgeResult("ungraded", budget_exhausted=True)
+    monkeypatch.setattr(ex, "judge_output", fake_judge)
+    n = e.judge_pending(object(), "J", tmp_path / "d")
+    assert order[:4] == ["a/task1"] * 4 and order[4:6] == ["b/task1"] * 2          # all 4 arm-cells of task a first, then task b
+    assert n == 6 and len(order) == 7                                              # the 7th call hit the budget and stopped everything
+    assert e.board.pending(arm_id("ours", "q8"), e.tasks) == []                    # judged
+    assert [t for a in ("ours", "opencode") for c in ("q8", "fp4") for t in e.board.pending(arm_id(a, c), e.tasks)] == ["b/task1", "b/task1"]
+    monkeypatch.setattr(ex, "judge_output", lambda *a, **k: JudgeResult("graded", 0.1))
+    assert e.judge_pending(object(), "J", tmp_path / "d", limit=1) == 1             # --limit caps a call
+
+
+def test_reused_calibration_is_computed_from_saved_scores_and_says_so(tmp_path):
+    from agent_harness.bench import selfcheck as sc
+    f = tmp_path / "c.json"
+    f.write_text(json.dumps([{"ref": i / 10, "cand": min(1, i / 10 + 0.2)} for i in range(8)]))
+    c = sc.calibration_from_results(f, 0.7)
+    assert c.status == "PASS" and "REUSED" in c.detail and "Spearman 1.00" in c.detail
+    f.write_text(json.dumps([{"ref": i / 10, "cand": 0.5} for i in range(8)]))
+    assert sc.calibration_from_results(f, 0.7).status == "FAIL"                    # a constant judge carries no rank information
+    f.write_text(json.dumps([{"ref": 0.1, "cand": None}] * 8))
+    assert sc.calibration_from_results(f, 0.7).status == "FAIL"                    # ungraded entries are not scores

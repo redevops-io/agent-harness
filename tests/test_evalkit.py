@@ -155,3 +155,28 @@ def test_rubric_timeout_is_passed_to_the_judge_script(rig, tmp_path):
     r = judge_output("x/task1", base, deliver, details, cfg2)
     argv = seen.read_text()
     assert r.status == "graded" and "--timeout-per-rubric 3600" in argv and "--max-workers 1" in argv
+
+
+def test_a_budget_refusal_stops_judging_immediately_and_is_not_retried(rig):
+    cfg, base, deliver, details = rig
+    script = Path(cfg.script)
+    script.write_text(r'''
+import json, os, sys
+a = dict(zip(sys.argv[1::2], sys.argv[2::2]))
+n = a["--details-file"] + ".calls"
+open(n, "a").write("x")
+msg = "Failed to get judge response: Error code: 402 - {'error': {'message': 'kimi budget exhausted (spent $49.00)', 'type': 'budget_exceeded'}}"
+json.dump({"total_score": 0, "max_score": 60, "rubrics": [{"result": {"criteria_results": [{"reasoning": msg}]}}]}, open(a["--details-file"], "w"))
+''')
+    r = judge_output("x/task1", base, deliver, details, cfg, sleep=lambda s: None)
+    assert r.status == "ungraded" and r.budget_exhausted and r.attempts == 1
+    assert len(Path(str(details) + ".calls").read_text()) == 1             # one call: no retries against an empty wallet
+
+
+def test_a_finished_rollout_clears_the_error_of_an_earlier_crash(tmp_path):
+    b = Scoreboard(tmp_path / "s.jsonl")
+    b.mark_failed("a", "t", "RuntimeError: boom") if hasattr(b, "mark_failed") else b._append("a", "t", error="RuntimeError: boom")
+    assert b.info("a", "t")["error"]
+    b.mark_generated("a", "t", deliverables=["f"], stop="done")
+    assert not b.info("a", "t")["error"] and b.finished("a", "t")
+    assert not Scoreboard(tmp_path / "s.jsonl").info("a", "t")["error"]            # also after a reload
