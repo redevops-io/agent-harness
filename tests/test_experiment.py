@@ -174,7 +174,7 @@ def test_judging_goes_task_by_task_so_a_cut_off_run_stays_balanced_and_stops_whe
     monkeypatch.setattr(ex, "judge_output", fake_judge)
     n = e.judge_pending(object(), "J", tmp_path / "d")
     assert order[:4] == ["a/task1"] * 4 and order[4:6] == ["b/task1"] * 2          # all 4 arm-cells of task a first, then task b
-    assert n == 6 and len(order) == 7                                              # the 7th call hit the budget and stopped everything
+    assert n == 6 and len(order) == 8                                              # b's last two were refused (free, not recorded) and judging stopped
     assert e.board.pending(arm_id("ours", "q8"), e.tasks) == []                    # judged
     assert [t for a in ("ours", "opencode") for c in ("q8", "fp4") for t in e.board.pending(arm_id(a, c), e.tasks)] == ["b/task1", "b/task1"]
     monkeypatch.setattr(ex, "judge_output", lambda *a, **k: JudgeResult("graded", 0.1))
@@ -191,3 +191,18 @@ def test_reused_calibration_is_computed_from_saved_scores_and_says_so(tmp_path):
     assert sc.calibration_from_results(f, 0.7).status == "FAIL"                    # a constant judge carries no rank information
     f.write_text(json.dumps([{"ref": 0.1, "cand": None}] * 8))
     assert sc.calibration_from_results(f, 0.7).status == "FAIL"                    # ungraded entries are not scores
+
+
+def test_complete_only_waits_for_every_arm_and_cell_and_parallel_judges_the_same_set(tmp_path, monkeypatch):
+    e = ex.Experiment(make_cfg(tmp_path, tasks=["a/task1", "b/task1"], arms=["ours", "opencode"]))
+    e.cells = e.cells[:2]
+    for c in e.cells:
+        for arm in e.arms:
+            e.board.mark_generated(arm_id(arm, c.name), "a/task1", deliverables=["f"], stop="done", dir="d")
+    e.board.mark_generated(arm_id("ours", e.cells[0].name), "b/task1", deliverables=["f"], stop="done", dir="d")   # b is incomplete
+    seen = []
+    monkeypatch.setattr(ex, "judge_output", lambda t, *a, **k: (seen.append(t), JudgeResult("graded", 0.5))[1])
+    assert e.judge_pending(object(), "J", tmp_path / "d", complete_only=True, parallel=4) == 4
+    assert set(seen) == {"a/task1"} and len(seen) == 4                       # only the complete task, all four of its outputs
+    assert e.judge_pending(object(), "J", tmp_path / "d", complete_only=True) == 0
+    assert e.judge_pending(object(), "J", tmp_path / "d") == 1                # without the gate the lone b output is judged

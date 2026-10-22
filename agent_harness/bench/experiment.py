@@ -48,27 +48,42 @@ class Experiment:
                 harnesses.load(arm).generate(self, c, int(self.cfg.get(arm, {}).get("workers", 1)))
 
     def judge_pending(self, jcfg: JudgeConfig, judge_name: str, details_root: Optional[Path] = None, *, sleep=time.sleep,
-                      limit: Optional[int] = None) -> int:
+                      limit: Optional[int] = None, complete_only: bool = False, parallel: int = 1) -> int:
         """Judge finished rollouts TASK BY TASK (all cells and arms of a task before the next task), so that if the money or
-        the time runs out every arm has the same tasks judged. Stops at once when the spend proxy reports the budget is gone."""
+        the time runs out every arm has the same tasks judged. ``complete_only`` skips a task until EVERY arm and cell has a
+        finished rollout for it (a fair, balanced spend while generation is still running). ``parallel`` judges that many outputs
+        of a task at once. Stops when the spend proxy reports the budget is gone (nothing is recorded for refused outputs)."""
+        from concurrent.futures import ThreadPoolExecutor
         n = 0
         details_root = details_root or self.root / "judge_details"
         for t in self.tasks:
-            for c in self.cells:
-                for arm in self.arms:
-                    a = arm_id(arm, c.name)
-                    if t not in self.board.pending(a, [t]):
-                        continue
-                    if limit is not None and n >= limit:
-                        return n
-                    info = self.board.info(a, t)
-                    r = judge_output(t, self.tasks_base, Path(info.get("dir") or "/nonexistent"),
-                                     details_root / a / f"{task_dir_name(t)}.json", jcfg, finished=True, sleep=sleep)
-                    if r.budget_exhausted:
-                        print("spend budget exhausted: stopping the judge step (nothing recorded for this output)", flush=True)
-                        return n
-                    self.board.record_judgement(a, t, r, judge_name)
-                    n += 1
+            arms = [arm_id(arm, c.name) for c in self.cells for arm in self.arms]
+            if complete_only and not all(self.board.finished(a, t) for a in arms):
+                continue
+            todo = [a for a in arms if t in self.board.pending(a, [t])]
+            if limit is not None:
+                todo = todo[:max(0, limit - n)]
+            if not todo:
+                continue
+
+            def one(a: str):
+                info = self.board.info(a, t)
+                return a, judge_output(t, self.tasks_base, Path(info.get("dir") or "/nonexistent"),
+                                       details_root / a / f"{task_dir_name(t)}.json", jcfg, finished=True, sleep=sleep)
+            with ThreadPoolExecutor(max(1, parallel)) as pool:
+                results = list(pool.map(one, todo))
+            exhausted = False
+            for a, r in results:
+                if r.budget_exhausted:
+                    exhausted = True
+                    continue
+                self.board.record_judgement(a, t, r, judge_name)
+                n += 1
+            if exhausted:
+                print("spend budget exhausted: stopping the judge step (nothing recorded for refused outputs)", flush=True)
+                return n
+            if limit is not None and n >= limit:
+                return n
         return n
 
     def cell_pairs(self) -> List[Sequence[str]]:
@@ -139,6 +154,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     ap.add_argument("--cell")
     ap.add_argument("--allow-uncalibrated-judge", action="store_true")
     ap.add_argument("--limit", type=int, help="judge at most this many outputs in this call")
+    ap.add_argument("--complete-only", action="store_true", help="judge a task only once every arm and cell has finished it")
+    ap.add_argument("--parallel", type=int, default=1, help="outputs of one task judged at the same time")
     a = ap.parse_args(argv)
     ex = Experiment(json.loads(Path(a.config).expanduser().read_text()))
     if a.step == "generate":
@@ -151,7 +168,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             return 2
         jc = JudgeConfig(j["python"], j["script"], j["model"], j["base_url"], j.get("reasoning_effort", "default"),
                          workers=j.get("workers", 1), rubric_timeout_s=j.get("rubric_timeout", 3600), timeout_s=j.get("timeout", 10800))
-        print(f"judged {ex.judge_pending(jc, j['model'], limit=a.limit)} outputs")
+        print(f"judged {ex.judge_pending(jc, j['model'], limit=a.limit, complete_only=a.complete_only, parallel=a.parallel)} outputs")
     else:
         print(ex.report_markdown())
     return 0
