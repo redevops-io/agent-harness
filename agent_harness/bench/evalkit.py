@@ -140,6 +140,7 @@ class Scoreboard:
 
     def mark_generated(self, arm: str, task: str, *, deliverables: Sequence[str], stop: str, finished: bool = True,
                        **extra: Any) -> None:
+        extra.setdefault("error", None)         # a rollout that now finished supersedes an earlier crash record
         self._append(arm, task, generated=True, finished=finished, deliverables=list(deliverables), stop=stop, **extra)
 
     def info(self, arm: str, task: str) -> Dict[str, Any]:

@@ -171,3 +171,12 @@ json.dump({"total_score": 0, "max_score": 60, "rubrics": [{"result": {"criteria_
     r = judge_output("x/task1", base, deliver, details, cfg, sleep=lambda s: None)
     assert r.status == "ungraded" and r.budget_exhausted and r.attempts == 1
     assert len(Path(str(details) + ".calls").read_text()) == 1             # one call: no retries against an empty wallet
+
+
+def test_a_finished_rollout_clears_the_error_of_an_earlier_crash(tmp_path):
+    b = Scoreboard(tmp_path / "s.jsonl")
+    b.mark_failed("a", "t", "RuntimeError: boom") if hasattr(b, "mark_failed") else b._append("a", "t", error="RuntimeError: boom")
+    assert b.info("a", "t")["error"]
+    b.mark_generated("a", "t", deliverables=["f"], stop="done")
+    assert not b.info("a", "t")["error"] and b.finished("a", "t")
+    assert not Scoreboard(tmp_path / "s.jsonl").info("a", "t")["error"]            # also after a reload
