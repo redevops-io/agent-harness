@@ -120,10 +120,17 @@ class Experiment:
                 outcomes = list(pool.map(one, jobs))
             for (c, ids, cand), res in outcomes:
                 for arm, r in res.items():
+                    protocol = "batched"
+                    if r.status == "ungraded" and not r.budget_exhausted and cand.get(arm):
+                        # too large for a shared pass (a four-answer request can exceed the judge's window) or repeatedly unusable:
+                        # judge this one output alone with the per-output judge, and record that this is what happened
+                        r = judge_output(t, self.tasks_base, cand[arm], details_root / c.name / task_dir_name(t) / f"{arm}.single.json", jcfg,
+                                         finished=True, sleep=sleep)
+                        protocol = "per_output_fallback"
                     if r.budget_exhausted:
                         stopped = True
                         continue
-                    self.board.record_judgement(ids[arm], t, r, judge_name, protocol="batched")
+                    self.board.record_judgement(ids[arm], t, r, judge_name, protocol=protocol)
                     n += 1
             if stopped:
                 print("judge money exhausted: stopping the judge step (nothing recorded for refused outputs)", flush=True)

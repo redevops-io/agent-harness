@@ -331,3 +331,26 @@ def test_validation_compares_batched_with_per_output_and_applies_fixed_threshold
     assert calibration_ok(rep, "judge-m", "default", "batched")                                # a passing validation unlocks exactly this protocol
     rep.write_text(json.dumps(bad))
     assert not calibration_ok(rep, "judge-m", "default", "batched")
+
+
+def test_an_output_that_stays_ungraded_in_the_shared_pass_falls_back_to_the_per_output_judge(tmp_path, monkeypatch):
+    from agent_harness.bench import experiment as ex
+    from agent_harness.bench.evalkit import JudgeResult
+    e = make_exp(tmp_path, arms=("a1", "a2"))
+    finish_all(e, tasks=("t1/task1",))
+    monkeypatch.setattr(ex, "judge_batch", lambda task, base, cand, ddir, cfg, *, seed, sleep=None:
+                        {k: (JudgeResult("graded", 1.0, 1, 1) if k == "a1" else JudgeResult("ungraded", reason="too large")) for k in cand})
+    singles = []
+    monkeypatch.setattr(ex, "judge_output", lambda t, base, d, details, cfg, **kw: (singles.append(str(d)), JudgeResult("graded", 0.25, 1, 4))[1])
+    e.judge_pending_batched(object(), "J", tmp_path / "d", parallel=1)
+    assert len(singles) == 2                                                        # a2 on each of the two models
+    assert e.board.info("a1@c1", "t1/task1")["judge_protocol"] == "batched"
+    i = e.board.info("a2@c1", "t1/task1")
+    assert i["judge_protocol"] == "per_output_fallback" and i["score"] == 0.25
+    # a money-exhausted result is never retried alone
+    monkeypatch.setattr(ex, "judge_batch", lambda task, base, cand, ddir, cfg, *, seed, sleep=None: {k: JudgeResult("ungraded", budget_exhausted=True) for k in cand})
+    e2 = make_exp(tmp_path / "x", arms=("a1",)) if (tmp_path / "x").mkdir() is None else None
+    finish_all(e2, tasks=("t1/task1",))
+    n_before = len(singles)
+    e2.judge_pending_batched(object(), "J", tmp_path / "d2", parallel=1)
+    assert len(singles) == n_before
