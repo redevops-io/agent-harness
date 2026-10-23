@@ -94,6 +94,25 @@ def shrink_tool_call_args(messages: List[Dict[str, Any]], keep_last: int = 2, li
     return n
 
 
+class NoCompactionManager:
+    """No proactive context management: nothing is elided, archived or summarised while the prompt fits. Only when the server
+    rejects a prompt as too long (or the last prompt used >95% of the window) does the loop fall back to the same last-resort
+    clipping ``BasicContextManager`` uses, so a run does not die where a stock harness would carry on. Tool output is still
+    capped per call (``admit``), identically to ``BasicContextManager``. Used to measure what proactive management costs or buys."""
+
+    def prepare(self, messages, *, target_tokens, estimated_tokens):
+        return 0
+
+    def on_context_error(self, messages, attempt):
+        return BasicContextManager().on_context_error(messages, attempt)
+
+    def admit(self, tool, text, max_chars):
+        return clip_text(text, max_chars)
+
+    def tools(self):
+        return []
+
+
 class BasicContextManager:
     """Default manager: lossy elision, no storage, no extra tools."""
 

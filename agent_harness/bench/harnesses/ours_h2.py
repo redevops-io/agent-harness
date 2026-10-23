@@ -74,13 +74,14 @@ def delta(base: Dict[str, str], final: Dict[str, str]) -> Tuple[str, Dict[str, s
     return text, files, changed
 
 
-def generate(exp, cell, workers: int = 1, run_task=None, client_factory=None) -> None:
+def generate(exp, cell, workers: int = 1, run_task=None, client_factory=None, *, name: str = NAME,
+             context: str = "context-runtime") -> None:
     from .. import jobbench as jb
     from ...llm import ChatClient
     run_task = run_task or jb.run_task
     lim = exp.cfg.get("limits", {})
     max_out = int(exp.cfg.get("max_output_tokens", 16384))
-    arm = arm_id(NAME, cell.name)
+    arm = arm_id(name, cell.name)
 
     def one(task: str) -> None:
         if exp.board.finished(arm, task):
@@ -89,19 +90,19 @@ def generate(exp, cell, workers: int = 1, run_task=None, client_factory=None) ->
         if not (base.is_dir() and final.is_dir()):
             print(f"{arm} {task}: no composed harness yet (run the harness2 arm for this cell first); skipped", flush=True)
             return
-        out = exp.root / NAME / cell.name / task_dir_name(task)
+        out = exp.root / name / cell.name / task_dir_name(task)
         client = (client_factory or (lambda: ChatClient(f"{exp.proxy}/{cell.provider}/{cell.label('ours')}/v1", cell.model,
                                                         max_tokens=max_out)))()
         try:
             text, files, changed = delta(read_tree(base), read_tree(final))
             s = run_task(exp.tasks_base, task, out, client, max_turns=lim.get("max_turns", 200), max_seconds=lim.get("max_seconds", 3600),
-                         max_context_tokens=cell.window, attempts=lim.get("attempts", 2), context="context-runtime",
+                         max_context_tokens=cell.window, attempts=lim.get("attempts", 2), context=context,
                          extra_system=text, extra_files=files)
         except Exception as e:             # a crash is NOT finished: neither judged nor scored 0
             exp.board._append(arm, task, generated=False, error=f"{type(e).__name__}: {e}"[:300])
             return
         exp.board.mark_generated(arm, task, deliverables=s["deliverables"], stop=s["stop"], dir=str(out / "output"),
                                  archived_items=s.get("archived_items"), retrieval_calls=s.get("retrieval_calls"),
-                                 seconds=s.get("seconds"), harness_changed_files=changed, **diagnostics(out))
+                                 seconds=s.get("seconds"), context=context, harness_changed_files=changed, **diagnostics(out))
     with ThreadPoolExecutor(workers) as ex:
         list(ex.map(one, exp.tasks))

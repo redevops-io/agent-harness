@@ -71,9 +71,12 @@ def _count_tool_calls(trajectory: Path, names) -> int:
 
 def make_context_manager(kind: str, archive_dir: Path, *, rag: bool = False):
     """``context-runtime`` (default): lossless archive + retrieval, from the context-runtime package; ``basic``:
-    agent_harness's dependency-free lossy elision. A missing package is an error, never a silent downgrade."""
+    agent_harness's dependency-free lossy elision; ``none``: no proactive management at all (last-resort clipping only). A missing package is an error, never a silent downgrade."""
     if kind == "basic":
         return None
+    if kind == "none":
+        from ..context import NoCompactionManager
+        return NoCompactionManager()
     if kind != "context-runtime":
         raise ValueError(f"unknown context manager {kind!r}")
     try:
@@ -127,7 +130,7 @@ def run_task(tasks_base: Path, task_id: str, out_dir: Path, client: ChatClient, 
                 os.chmod(p, 0o777 if p.is_dir() else 0o666)
             blocked: List[str] = []
             mgr = make_context_manager(context, out_dir / f"archive{attempt}", rag=rag)
-            if mgr is not None and index_inputs:
+            if hasattr(mgr, "index_files") and index_inputs:
                 mgr.index_files(ws / "task_folder")
             with DockerSandbox(ws) as sbx:
                 reg = bench_registry(ws, sbx, blocked_log=blocked, web=web)
@@ -143,7 +146,7 @@ def run_task(tasks_base: Path, task_id: str, out_dir: Path, client: ChatClient, 
                        "prompt_tokens": res.prompt_tokens, "completion_tokens": res.completion_tokens,
                        "tool_calls": res.tool_calls, "tool_errors": res.tool_errors, "deliverables": files,
                        "blocked_fetches": blocked, "model": client.model, "context_manager": context, "rag": rag,
-                       "archived_items": len(mgr.archive.entries) if mgr is not None else 0,
+                       "archived_items": len(mgr.archive.entries) if hasattr(mgr, "archive") else 0,
                        "retrieval_calls": _count_tool_calls(out_dir / f"trajectory{'' if attempt == 1 else f'_attempt{attempt}'}.jsonl",
                                                             ("search_context", "read_archive"))}
             runs.append({k: summary[k] for k in ("attempt", "stop", "turns", "seconds", "deliverables")})
@@ -183,7 +186,7 @@ def main(argv=None) -> int:
     ap.add_argument("--max-turns", type=int, default=200)
     ap.add_argument("--max-seconds", type=float, default=3600)
     ap.add_argument("--attempts", type=int, default=2)
-    ap.add_argument("--context-manager", choices=["context-runtime", "basic"], default="context-runtime")
+    ap.add_argument("--context-manager", choices=["context-runtime", "basic", "none"], default="context-runtime")
     ap.add_argument("--rag", action="store_true", help="back retrieval with redevops-rag (hybrid vector+BM25) instead of offline BM25")
     ap.add_argument("--no-index-inputs", action="store_true")
     ap.add_argument("--context", type=int, default=40960)
