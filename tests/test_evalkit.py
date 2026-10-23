@@ -180,3 +180,32 @@ def test_a_finished_rollout_clears_the_error_of_an_earlier_crash(tmp_path):
     b.mark_generated("a", "t", deliverables=["f"], stop="done")
     assert not b.info("a", "t")["error"] and b.finished("a", "t")
     assert not Scoreboard(tmp_path / "s.jsonl").info("a", "t")["error"]            # also after a reload
+
+
+@pytest.mark.parametrize("msg", [
+    "Failed to get judge response: Error code: 429 - {'error': {'message': 'Your account org-x is suspended due to insufficient balance, please recharge', 'type': 'exceeded_current_quota_error'}}",
+    "Failed to get judge response: Error code: 429 - insufficient_quota",
+    "Failed to get judge response: Error code: 402 - kimi budget exhausted (spent $49.00)"])
+def test_provider_quota_errors_stop_judging_at_once_like_our_own_budget_refusal(rig, msg):
+    cfg, base, deliver, details = rig
+    Path(cfg.script).write_text(r'''
+import json, sys
+a = dict(zip(sys.argv[1::2], sys.argv[2::2]))
+open(a["--details-file"] + ".calls", "a").write("x")
+json.dump({"total_score": 0, "max_score": 60, "rubrics": [{"result": {"criteria_results": [{"reasoning": %r}]}}]}, open(a["--details-file"], "w"))
+''' % msg)
+    r = judge_output("x/task1", base, deliver, details, cfg, sleep=lambda s: None)
+    assert r.status == "ungraded" and r.budget_exhausted and r.attempts == 1
+    assert len(Path(str(details) + ".calls").read_text()) == 1                       # one call, no retries against a closed account
+
+
+def test_an_ordinary_rate_limit_is_still_retried(rig):
+    cfg, base, deliver, details = rig
+    Path(cfg.script).write_text(r'''
+import json, sys
+a = dict(zip(sys.argv[1::2], sys.argv[2::2]))
+open(a["--details-file"] + ".calls", "a").write("x")
+json.dump({"total_score": 0, "max_score": 60, "rubrics": [{"result": {"criteria_results": [{"reasoning": "Failed to get judge response: Error code: 429 - rate limit reached for requests, retry later"}]}}]}, open(a["--details-file"], "w"))
+''')
+    r = judge_output("x/task1", base, deliver, details, cfg, sleep=lambda s: None)
+    assert r.status == "ungraded" and not r.budget_exhausted and len(Path(str(details) + ".calls").read_text()) == cfg.attempts

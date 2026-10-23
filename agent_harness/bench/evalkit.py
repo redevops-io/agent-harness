@@ -65,8 +65,14 @@ def has_deliverables(deliver: Path) -> bool:
     return deliver.is_dir() and any(p.is_file() for p in deliver.rglob("*"))
 
 
+# Our own spend proxy says "budget_exceeded"/"budget exhausted"; the PROVIDER says it when the account has no balance left, in a
+# 429 that looks like a rate limit ("exceeded_current_quota_error ... suspended due to insufficient balance"). Retrying cannot help.
+_NO_MONEY = ("budget_exceeded", "budget exhausted", "exceeded_current_quota", "insufficient balance", "insufficient_quota",
+             "account is suspended")
+
+
 def _budget_exhausted(details: Dict[str, Any]) -> bool:
-    return any(("budget_exceeded" in str(c.get("reasoning", "")) or "budget exhausted" in str(c.get("reasoning", "")))
+    return any(any(m in str(c.get("reasoning", "")).lower() for m in _NO_MONEY)
                for r in details.get("rubrics", []) for c in (r.get("result", {}).get("criteria_results") or []))
 
 
