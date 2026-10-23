@@ -43,6 +43,7 @@ class JudgeConfig:
     backoff_s: float = 20.0
     timeout_s: int = 1800
     api_key: str = "dummy"
+    batch_script: str = ""                 # the four-answers-per-call judge; empty = the copy shipped with this package
 
 
 @dataclass
@@ -81,6 +82,81 @@ def _failures(details: Dict[str, Any]) -> int:
                if str(c.get("reasoning", "")).startswith(FAIL_PREFIX))
 
 
+def classify_details(d: Optional[Dict[str, Any]], attempt: int) -> JudgeResult:
+    """Graded, ungraded (infrastructure failure, retry later) or budget-exhausted, from one upstream-format details report."""
+    try:
+        total, mx = float(d["total_score"]), float(d["max_score"])
+    except (TypeError, KeyError, ValueError):
+        return JudgeResult("ungraded", attempts=attempt, reason="judge wrote no readable details")
+    fails = _failures(d)
+    if fails and _budget_exhausted(d):
+        return JudgeResult("ungraded", failures=fails, attempts=attempt, reason="spend budget exhausted", budget_exhausted=True)
+    if fails or mx <= 0:
+        return JudgeResult("ungraded", failures=fails, attempts=attempt,
+                           reason=f"{fails} rubric criteria got no judge reply" if fails else "max score is 0")
+    rubrics = d.get("rubrics") or []
+    cp = sum(int((r.get("result") or {}).get("criteria_passed") or 0) for r in rubrics)
+    ct = sum(int((r.get("result") or {}).get("criteria_count") or 0) for r in rubrics)
+    return JudgeResult("graded", total / mx, total, mx, d.get("passed_count"), d.get("total_count"), 0, attempt,
+                       criteria_passed=cp if ct else None, criteria_total=ct or None)
+
+
+def judge_batch(task_id: str, tasks_base: Path, candidates: Dict[str, Path], details_dir: Path, cfg: JudgeConfig, *, seed: str,
+                sleep=time.sleep) -> Dict[str, JudgeResult]:
+    """Judge several candidates (arm -> deliverables dir) of ONE task and model in a single shared pass per rubric group, blinded and
+    shuffled by ``seed``. A candidate with no deliverables is no_output (never sent). Candidates whose verdicts are incomplete are
+    retried together; if the provider reports the money is gone, everything still open is marked budget_exhausted at once."""
+    out: Dict[str, JudgeResult] = {}
+    todo: Dict[str, Path] = {}
+    for k, d in candidates.items():
+        if has_deliverables(d):
+            todo[k] = d
+        else:
+            out[k] = JudgeResult("no_output", 0.0, 0.0, None, reason="finished with no deliverables")
+    rubrics = Path(tasks_base) / task_id / "RUBRICS.json"
+    if todo and not rubrics.is_file():
+        return {**out, **{k: JudgeResult("ungraded", reason=f"no rubrics at {rubrics}") for k in todo}}
+    script = cfg.batch_script or str(Path(__file__).with_name("judge_batch_script.py"))
+    details_dir.mkdir(parents=True, exist_ok=True)
+    last: Dict[str, JudgeResult] = {}
+    for attempt in range(1, cfg.attempts + 1):
+        if not todo:
+            break
+        for k in todo:
+            (details_dir / f"{k}.json").unlink(missing_ok=True)          # never reuse a previous attempt's file
+        cmd = [cfg.python, script, "--judge-script", cfg.script, "--rubrics-file", str(rubrics), "--details-dir", str(details_dir),
+               "--judge-model", cfg.model, "--api-base", cfg.base_url, "--seed", f"{seed}|{attempt}", "--max-workers", str(cfg.workers),
+               "--max-retries", str(cfg.max_retries), "--timeout-per-rubric", str(cfg.rubric_timeout_s)]
+        for k, d in todo.items():
+            cmd += ["--candidate", f"{k}={d}"]
+        env = {**os.environ, "JUDGE_API_KEY": cfg.api_key, "JUDGE_REASONING_EFFORT": cfg.reasoning_effort}
+        try:
+            subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=cfg.timeout_s)
+        except (subprocess.SubprocessError, OSError) as e:
+            for k in todo:
+                last[k] = JudgeResult("ungraded", attempts=attempt, reason=f"judge process failed: {type(e).__name__}")
+            if attempt < cfg.attempts:
+                sleep(cfg.backoff_s * attempt)
+            continue
+        for k in list(todo):
+            try:
+                d = json.loads((details_dir / f"{k}.json").read_text())
+            except (OSError, ValueError):
+                d = None
+            r = classify_details(d, attempt)
+            if r.budget_exhausted:
+                return {**out, **{kk: r for kk in todo}}
+            last[k] = r
+            if r.status == "graded":
+                out[k] = r
+                del todo[k]
+        if todo and attempt < cfg.attempts:
+            sleep(cfg.backoff_s * attempt)
+    for k in todo:
+        out[k] = last.get(k, JudgeResult("ungraded", reason="not attempted"))
+    return out
+
+
 def judge_output(task_id: str, tasks_base: Path, deliver: Path, details_file: Path, cfg: JudgeConfig, *,
                  finished: bool = True, sleep=time.sleep) -> JudgeResult:
     """Score one deliverables directory with the upstream JobBench judge script."""
@@ -109,26 +185,14 @@ def judge_output(task_id: str, tasks_base: Path, deliver: Path, details_file: Pa
             continue
         try:
             d = json.loads(details_file.read_text())
-            total, mx = float(d["total_score"]), float(d["max_score"])
-        except (OSError, ValueError, KeyError, TypeError):
-            last = JudgeResult("ungraded", attempts=attempt, reason="judge wrote no readable details")
-            if attempt < cfg.attempts:
-                sleep(cfg.backoff_s * attempt)
-            continue
-        fails = _failures(d)
-        if fails and _budget_exhausted(d):
-            return JudgeResult("ungraded", failures=fails, attempts=attempt, reason="spend budget exhausted", budget_exhausted=True)
-        if fails or mx <= 0:
-            last = JudgeResult("ungraded", failures=fails, attempts=attempt,
-                               reason=f"{fails} rubric criteria got no judge reply" if fails else "max score is 0")
-            if attempt < cfg.attempts:
-                sleep(cfg.backoff_s * attempt)
-            continue
-        rubrics = d.get("rubrics") or []
-        cp = sum(int((r.get("result") or {}).get("criteria_passed") or 0) for r in rubrics)
-        ct = sum(int((r.get("result") or {}).get("criteria_count") or 0) for r in rubrics)
-        return JudgeResult("graded", total / mx, total, mx, d.get("passed_count"), d.get("total_count"), 0, attempt,
-                           criteria_passed=cp if ct else None, criteria_total=ct or None)
+        except (OSError, ValueError):
+            d = None
+        r = classify_details(d, attempt)
+        if r.status == "graded" or r.budget_exhausted:
+            return r
+        last = r
+        if attempt < cfg.attempts:
+            sleep(cfg.backoff_s * attempt)
     return last
 
 
