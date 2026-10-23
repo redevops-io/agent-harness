@@ -31,6 +31,15 @@ _HOP = {"host", "authorization", "content-length", "connection", "transfer-encod
 _EXPENSIVE_TIERS = {"priority", "fast", "ultrafast"}
 
 
+def request_params(body: Dict[str, Any]) -> Dict[str, Any]:
+    """Sampling and size settings of a request AS SENT UPSTREAM (after the proxy's defaults, overrides and clamps); no content."""
+    ctk = body.get("chat_template_kwargs") if isinstance(body.get("chat_template_kwargs"), dict) else {}
+    out = {"temperature": body.get("temperature"), "top_p": body.get("top_p"), "top_k": body.get("top_k"),
+           "max_tokens": next((body[k] for k in ("max_tokens", "max_completion_tokens", "max_output_tokens") if body.get(k) is not None), None),
+           "thinking": ctk.get("enable_thinking"), "n_messages": len(body.get("messages") or []), "n_tools": len(body.get("tools") or [])}
+    return {k: v for k, v in out.items() if v is not None}
+
+
 class Proxy:
     def __init__(self, prices: Dict[str, Any], ledger: Ledger, keys: Dict[str, str], safety: float = 1.10,
                  upstreams: Optional[Dict[str, str]] = None):
@@ -154,7 +163,7 @@ class Proxy:
                     if metered and (status < 300 or usage):
                         proxy._account(provider, label, model, rest, status, usage, stream, len(raw), body)
                     elif metered:   # failed calls cost nothing but must stay visible for diagnosis
-                        proxy.ledger.record(provider, label, str(body.get("model", model)), rest, status, None, 0.0, stream)
+                        proxy.ledger.record(provider, label, str(body.get("model", model)), rest, status, None, 0.0, stream, params=request_params(body))
 
         return H
 
@@ -167,7 +176,8 @@ class Proxy:
             cost = cost_usd(self.prices, provider, model, usage, self.safety)
         except SpendError:   # response named a model we cannot price: charge by the requested model instead
             cost = cost_usd(self.prices, provider, str(body.get("model", model)), usage, self.safety)
-        self.ledger.record(provider, label, str(body.get("model", model)), path, status, usage, cost, stream, unmetered)
+        self.ledger.record(provider, label, str(body.get("model", model)), path, status, usage, cost, stream, unmetered,
+                           params=request_params(body))
 
 
 def serve(proxy: Proxy, host: str = "127.0.0.1", port: int = 0) -> ThreadingHTTPServer:

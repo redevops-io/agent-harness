@@ -63,13 +63,13 @@ def test_executor_varies_by_cell_but_the_editor_and_everything_else_are_identica
     assert a["HARNESS2_RUNS_DIR"] != b["HARNESS2_RUNS_DIR"]                       # cells never share state or libraries
     pa, pb = json.loads(a["OPENCODE_CONFIG_CONTENT"])["provider"], json.loads(b["OPENCODE_CONFIG_CONTENT"])["provider"]
     assert pa["local"] == pb["local"]                                             # the editor's configuration is the same in both cells
-    assert pa["local"]["options"]["baseURL"].endswith("/local/oc/v1") and pa["local"]["models"]["I"]["reasoning"] is False
+    assert pa["local"]["options"]["baseURL"].endswith("/local/editor/v1") and pa["local"]["models"]["I"]["reasoning"] is False
 
 
 def test_a_thinking_cell_switches_only_the_executor_label(tmp_path):
     e = make_exp(tmp_path, think=True)
     pa = json.loads(h2.env_for(e, e.cells[0])["OPENCODE_CONFIG_CONTENT"])["provider"]
-    assert pa["px48"]["options"]["baseURL"].endswith("/px48/think/v1") and pa["local"]["options"]["baseURL"].endswith("/local/oc/v1")
+    assert pa["px48"]["options"]["baseURL"].endswith("/px48/think/v1") and pa["local"]["options"]["baseURL"].endswith("/local/editor/v1")
 
 
 def test_collect_registers_the_final_rollout_and_optionally_the_reference(tmp_path):

@@ -316,3 +316,24 @@ def test_the_think_label_turns_reasoning_on_and_is_the_only_difference_between_t
     finally:
         srv.shutdown()
         up.shutdown()
+
+
+def test_the_ledger_records_sampling_as_sent_upstream_and_never_request_content(tmp_path):
+    Fake.seen, Fake.omit_usage = [], False
+    up = ThreadingHTTPServer(("127.0.0.1", 0), Fake)
+    threading.Thread(target=up.serve_forever, kwargs={"poll_interval": 0.05}, daemon=True).start()
+    ledger = Ledger(tmp_path / "l.jsonl", {}, headroom=1.0, free={"proxmox48"})
+    proxy = Proxy(load_prices(), ledger, {"proxmox48": ""}, upstreams={"proxmox48": f"http://127.0.0.1:{up.server_address[1]}/v1"})
+    srv = serve(proxy)
+    base = f"http://127.0.0.1:{srv.server_address[1]}"
+    try:
+        post(base, "/proxmox48/ours/v1/chat/completions", {"model": "Qwen3.8-27B", "temperature": 0.55, "top_p": 1.0, "max_tokens": 99999,
+                                                          "messages": [{"role": "user", "content": "secret-prompt-text"}], "tools": [{"type": "function"}]})
+        post(base, "/proxmox48/other/v1/chat/completions", {"model": "Qwen3.8-27B", "messages": []})          # nothing sent: nothing recorded
+    finally:
+        srv.shutdown()
+        up.shutdown()
+    rows = [json.loads(l) for l in (tmp_path / "l.jsonl").read_text().splitlines()]
+    assert rows[0]["params"] == {"temperature": 0.55, "top_p": 1.0, "max_tokens": 16384, "thinking": False, "n_messages": 1, "n_tools": 1}
+    assert "temperature" not in rows[1]["params"] and "top_p" not in rows[1]["params"]                       # an unset value is visible as absent
+    assert "secret-prompt-text" not in (tmp_path / "l.jsonl").read_text()

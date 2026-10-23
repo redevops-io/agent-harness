@@ -104,12 +104,15 @@ class Ledger:
         return cap is not None and self.spent(provider) < cap - self.headroom
 
     def record(self, provider: str, label: str, model: str, path: str, status: int,
-               usage: Optional[Usage], cost: float, stream: bool, unmetered: bool = False) -> None:
+               usage: Optional[Usage], cost: float, stream: bool, unmetered: bool = False,
+               params: Optional[Dict[str, Any]] = None) -> None:
         row = {"ts": round(time.time(), 3), "provider": provider, "label": label, "model": model, "path": path,
                "status": status, "stream": stream, "unmetered": unmetered, "cost_usd": round(cost, 6),
                "input_tokens": usage.input_tokens if usage else None,
                "cached_tokens": usage.cached_tokens if usage else None,
                "output_tokens": usage.output_tokens if usage else None}
+        if params:                                  # what the request asked for (never its content): lets a run be audited afterwards
+            row["params"] = params
         with self._lock:
             with open(self.path, "a", encoding="utf-8") as f:
                 f.write(json.dumps(row, sort_keys=True) + "\n")

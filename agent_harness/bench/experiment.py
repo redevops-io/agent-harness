@@ -38,7 +38,14 @@ class Experiment:
         self.proxy = cfg.get("proxy_base", "http://127.0.0.1:8765")
         self.board = Scoreboard(self.root / "scoreboard.jsonl")
 
-    def generate(self, only: Optional[str] = None, cell: Optional[str] = None) -> None:
+    def generate(self, only: Optional[str] = None, cell: Optional[str] = None, *, skip_audit: bool = False) -> None:
+        if not skip_audit:                  # refuse to spend hours on a run whose settings differ from the declared spec
+            from . import audit
+            findings = audit.audit_config(self)
+            for f in findings:
+                print(f, flush=True)
+            if not audit.passed(findings):
+                raise SystemExit("config audit failed: fix the configuration (or pass --skip-audit knowingly); nothing was started")
         for c in self.cells:
             if cell and c.name != cell:
                 continue
@@ -154,12 +161,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     ap.add_argument("--cell")
     ap.add_argument("--allow-uncalibrated-judge", action="store_true")
     ap.add_argument("--limit", type=int, help="judge at most this many outputs in this call")
+    ap.add_argument("--skip-audit", action="store_true", help="generate even if the config audit fails (the run is then not comparable)")
     ap.add_argument("--complete-only", action="store_true", help="judge a task only once every arm and cell has finished it")
     ap.add_argument("--parallel", type=int, default=1, help="outputs of one task judged at the same time")
     a = ap.parse_args(argv)
     ex = Experiment(json.loads(Path(a.config).expanduser().read_text()))
     if a.step == "generate":
-        ex.generate(a.only, a.cell)
+        ex.generate(a.only, a.cell, skip_audit=a.skip_audit)
     elif a.step == "judge":
         j = ex.cfg["judge"]
         if not a.allow_uncalibrated_judge and not calibration_ok(Path(ex.cfg["selfcheck_report"]).expanduser(), j["model"], j.get("reasoning_effort", "default")):

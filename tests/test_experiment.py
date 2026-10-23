@@ -155,7 +155,7 @@ def test_passive_arms_are_never_generated_on_their_own(tmp_path, monkeypatch):
         def generate(exp, cell, workers):
             ran.append(cell.name)
     monkeypatch.setattr(harnesses, "load", lambda name: Fake if name == "ours" else pytest.fail(f"loaded {name}"))
-    e.generate()
+    e.generate(skip_audit=True)          # the audit is not what this test is about
     assert ran == ["q8", "fp4", "q8-think"]
 
 
