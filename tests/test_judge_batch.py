@@ -132,7 +132,7 @@ def test_the_real_upstream_helpers_accept_and_produce_the_same_shapes(tmp_path):
     d = reports["x"]
     assert {"evaluated_model", "judge_model", "total_score", "max_score", "pass_rate", "passed_count", "total_count", "rubrics"} <= set(d)
     assert d["total_score"] == 16 and d["max_score"] == 16 and d["rubrics"][0]["result"]["criteria_results"][0]["criterion"] == "c0"
-    assert reports["y"]["total_score"] == 0 and reports["y"]["rubrics"][0]["result"]["criteria_passed"] == 0     # [False, True] sliced per group: both fail
+    assert reports["y"]["total_score"] == 0 and reports["y"]["rubrics"][0]["result"]["criteria_passed"] == 1     # group score 0 (all-or-nothing) but one criterion passed
 
 
 # -- evalkit.judge_batch ------------------------------------------------------------------------------------------------
