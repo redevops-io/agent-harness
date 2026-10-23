@@ -10,11 +10,13 @@ def opencode_env(proxy_base: str, providers: Dict[str, Dict[str, Any]], egress: 
                  labels: Optional[Dict[str, str]] = None) -> Dict[str, str]:
     """Environment for OpenCode: every provider is routed through the spend proxy; web goes through the egress filter.
 
-    ``providers``: name -> {model, context, output}. ``labels``: name -> proxy path label (default ``oc``); the label
-    ``think`` makes the proxy switch reasoning on for that provider's requests."""
+    ``providers``: name -> {model, context, output[, route]}. ``route`` is the spend-proxy provider the requests go to (default: the
+    name itself); it lets two OpenCode providers with different limits share one backend and model, which OpenCode otherwise cannot
+    tell apart. ``labels``: name -> proxy path label (default ``oc``); the label ``think`` makes the proxy switch reasoning on for
+    that provider's requests."""
     labels = labels or {}
     cfg = {"provider": {name: {"npm": "@ai-sdk/openai-compatible", "name": name,
-                               "options": {"baseURL": f"{proxy_base}/{name}/{labels.get(name, 'oc')}/v1", "apiKey": "dummy"},
+                               "options": {"baseURL": f"{proxy_base}/{p.get('route', name)}/{labels.get(name, 'oc')}/v1", "apiKey": "dummy"},
                                "models": {p["model"]: {"name": p["model"], "tool_call": True, "reasoning": bool(labels.get(name) == "think"),
                                                        "limit": {"context": p["context"], "output": p["output"]}}}}
                          for name, p in providers.items()}}

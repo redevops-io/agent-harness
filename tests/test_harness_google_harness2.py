@@ -141,3 +141,26 @@ def test_executable_is_found_next_to_the_interpreter_not_via_path(tmp_path, monk
     assert h.command(tmp_path / "s.json", 1)[0] == str(fake / "harness2")
     (fake / "harness2").unlink()
     assert h.executable() == "harness2"                                    # falls back to PATH only when it is not beside us
+
+
+def test_the_editor_never_overwrites_the_executors_limits_when_both_use_one_provider(tmp_path):
+    import json as _json
+    e = make_exp(tmp_path)
+    e.cfg["improver"] = {"provider": "px48", "model": "M", "window": 262144}            # same provider AND model as the cell's executor
+    env = h2.env_for(e, e.cells[0])
+    oc = _json.loads(env["OPENCODE_CONFIG_CONTENT"])
+    assert oc["provider"]["px48"]["models"]["M"]["limit"] == {"context": 65536, "output": 16384}          # the executor keeps its own window
+    ed = oc["provider"]["px48-editor"]
+    assert ed["models"]["M"]["limit"] == {"context": 262144, "output": 32768}
+    assert ed["options"]["baseURL"].split("/")[-3] == "px48"                                                # same proxy route as the executor's backend
+    assert env["HARNESS2_SOLVER_MODEL"] == "px48/M" and env["HARNESS2_IMPROVER_MODEL"] == "px48-editor/M"
+
+
+def test_a_different_editor_provider_keeps_its_plain_name(tmp_path):
+    import json as _json
+    e = make_exp(tmp_path)
+    e.cfg["improver"] = {"provider": "local", "model": "E", "window": 262144}
+    env = h2.env_for(e, e.cells[0])
+    oc = _json.loads(env["OPENCODE_CONFIG_CONTENT"])
+    assert set(oc["provider"]) == {"px48", "local"} and env["HARNESS2_IMPROVER_MODEL"] == "local/E"
+    assert oc["provider"]["local"]["options"]["baseURL"].split("/")[-3] == "local"

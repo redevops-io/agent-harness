@@ -100,10 +100,15 @@ def adapt_dir(exp, cell, task: str) -> Optional[Path]:
 def env_for(exp, cell, runs: Optional[Path] = None) -> Dict[str, str]:
     imp = exp.cfg["improver"]
     max_out = int(exp.cfg.get("max_output_tokens", 16384))
+    # The editor must never overwrite the executor's limits. When both use the same provider (the Mac cell: executor and editor are the
+    # same local model) they would share one OpenCode model entry, and the editor's 262,144-token window silently replaced the
+    # executor's 65,536 (found 2026-10-23: stock and Harness² prompts reached 229k tokens and never compacted). The editor then goes
+    # through an alias with its own limits and the same proxy route.
+    ed_name = imp["provider"] if imp["provider"] != cell.provider else f"{imp['provider']}-editor"
     env = opencode_env(exp.proxy, {cell.provider: {"model": cell.model, "context": cell.window, "output": max_out},
-                                   imp["provider"]: {"model": imp["model"], "context": imp["window"], "output": 32768}},
+                                   ed_name: {"model": imp["model"], "context": imp["window"], "output": 32768, "route": imp["provider"]}},
                        exp.cfg.get("egress_proxy"), labels={cell.provider: cell.label("oc")})
-    env.update({"HARNESS2_SOLVER_MODEL": f"{cell.provider}/{cell.model}", "HARNESS2_IMPROVER_MODEL": f"{imp['provider']}/{imp['model']}",
+    env.update({"HARNESS2_SOLVER_MODEL": f"{cell.provider}/{cell.model}", "HARNESS2_IMPROVER_MODEL": f"{ed_name}/{imp['model']}",
                 "HARNESS2_RUNS_DIR": str(runs or runs_dir(exp, cell))})
     return env
 
