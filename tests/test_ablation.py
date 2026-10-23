@@ -68,3 +68,19 @@ def test_summary_reports_both_metrics_with_spread_and_trace_indicators(tmp_path)
     row = [l for l in md.splitlines() if l.startswith("| ours-cr |")][0]
     assert "| 2 | 2 |" in row and "0.05 ±0.05 [0.00-0.10]" in row and "0.50 ±0.11 [0.39-0.61]" in row     # both metrics, spread over the two repeats
     assert "| 1 |" in row and "7" in row                                                         # one run hit a limit; max rewritten 7
+
+
+def test_the_corrected_h2_arm_uses_the_same_options_as_the_corrected_base_arm(tmp_path):
+    from agent_harness.bench.harnesses import ours_h2_cr
+    from tests.test_harness_ours_h2 import put, trees
+    assert ours_h2_cr.OPTIONS == ours_cr.OPTIONS == {"policy": "v2"}
+    e = make_exp(tmp_path, ["ours-h2-cr", "ours-h2-cr-r2"])
+    put(e, e.cells[0], "a/task1", *trees())
+    got = []
+
+    def run_task(tasks_base, task, out, client, **kw):
+        got.append((out.parts[-3], kw["context"], kw["context_options"], kw["trace"], "extra_system" in kw and bool(kw["extra_system"])))
+        return {"deliverables": ["r.md"], "stop": "done", "archived_items": 0, "retrieval_calls": 0, "seconds": 1.0}
+    for arm in e.arms:
+        harnesses.load(arm).generate(e, e.cells[0], 1, run_task=run_task, client_factory=lambda: SimpleNamespace(model="M"))
+    assert got == [("ours-h2-cr", "context-runtime", {"policy": "v2"}, True, True), ("ours-h2-cr-r2", "context-runtime", {"policy": "v2"}, True, True)]

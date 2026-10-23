@@ -9,7 +9,7 @@ import importlib
 import re
 from types import ModuleType, SimpleNamespace
 
-KNOWN = ("ours", "ours-nocr", "ours-cr", "ours-cr-pin", "ours-h2", "ours-h2-nocr", "opencode", "harness2")
+KNOWN = ("ours", "ours-nocr", "ours-cr", "ours-cr-pin", "ours-h2-cr", "ours-h2", "ours-h2-nocr", "opencode", "harness2")
 PASSIVE = ("h2-base",)      # arms recorded as a by-product of another harness's run; never generated on their own
 
 
