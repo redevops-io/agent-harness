@@ -203,3 +203,131 @@ def test_a_crashing_script_leaves_the_candidates_ungraded_after_the_attempts(bri
     r, calls = brig("crash")
     assert r["x"].status == "ungraded" and "judge process failed" in r["x"].reason or "no readable details" in r["x"].reason
     assert len(calls) == 3
+
+
+# -- integration into the experiment and the validation gate -----------------------------------------------------------------
+def test_calibration_gate_is_per_protocol(tmp_path):
+    from agent_harness.bench.experiment import calibration_ok
+    rep = tmp_path / "r.json"
+    rep.write_text(json.dumps({"judge_model": "m", "judge_reasoning_effort": "default", "checks": [{"name": "judge calibration", "status": "PASS"}]}))
+    assert calibration_ok(rep, "m", "default") and not calibration_ok(rep, "m", "default", "batched")          # an old report does not unlock the new protocol
+    rep.write_text(json.dumps({"judge_model": "m", "judge_reasoning_effort": "default", "protocol": "batched",
+                               "checks": [{"name": "judge calibration", "status": "PASS"}]}))
+    assert calibration_ok(rep, "m", "default", "batched") and not calibration_ok(rep, "m", "default")
+
+
+def make_exp(tmp_path, arms=("a1", "a2")):
+    from agent_harness.bench import experiment as ex
+    (tmp_path / "tasks.txt").write_text("t1/task1\nt2/task1\n")
+    return ex.Experiment({"root": str(tmp_path / "exp"), "tasks_file": str(tmp_path / "tasks.txt"), "tasks_base": str(tmp_path / "base"),
+                          "cells": {"c1": {"provider": "p", "model": "M", "window": 65536}, "c2": {"provider": "p", "model": "M", "window": 65536}},
+                          "arms": list(arms)})
+
+
+def finish_all(e, tasks=("t1/task1", "t2/task1")):
+    from agent_harness.bench.cells import arm_id
+    for c in e.cells:
+        for arm in e.arms:
+            for t in tasks:
+                d = e.root / "out" / arm / c.name / t.split("/")[0]
+                d.mkdir(parents=True, exist_ok=True)
+                (d / "a.md").write_text("x")
+                e.board.mark_generated(arm_id(arm, c.name), t, deliverables=["a.md"], stop="done", dir=str(d))
+
+
+def test_batched_judging_groups_by_task_and_model_and_records_the_protocol(tmp_path, monkeypatch):
+    from agent_harness.bench import experiment as ex
+    from agent_harness.bench.evalkit import JudgeResult
+    e = make_exp(tmp_path)
+    finish_all(e)
+    calls = []
+
+    def fake(task, base, cand, ddir, cfg, *, seed, sleep=None):
+        calls.append((task, seed, sorted(cand)))
+        return {k: JudgeResult("graded", 0.5, 5, 10, 1, 2, criteria_passed=3, criteria_total=4) for k in cand}
+    monkeypatch.setattr(ex, "judge_batch", fake)
+    assert e.judge_pending_batched(object(), "J", tmp_path / "d", parallel=1) == 8
+    assert sorted(c[:2] for c in calls) == [("t1/task1", "t1/task1|c1"), ("t1/task1", "t1/task1|c2"), ("t2/task1", "t2/task1|c1"), ("t2/task1", "t2/task1|c2")]
+    assert all(c[2] == ["a1", "a2"] for c in calls)                                               # one pass per task and model with both harnesses
+    info = e.board.info("a1@c1", "t1/task1")
+    assert info["status"] == "graded" and info["judge_protocol"] == "batched" and info["criteria_passed"] == 3
+    assert e.judge_pending_batched(object(), "J", tmp_path / "d") == 0                           # nothing pending any more
+
+
+def test_batched_judging_with_complete_only_waits_for_every_harness_of_that_model(tmp_path, monkeypatch):
+    from agent_harness.bench import experiment as ex
+    from agent_harness.bench.cells import arm_id
+    from agent_harness.bench.evalkit import JudgeResult
+    e = make_exp(tmp_path)
+    finish_all(e)
+    e.board._append(arm_id("a2", "c2"), "t1/task1", finished=False)                               # one harness has not finished this task on model c2
+    seen = []
+    monkeypatch.setattr(ex, "judge_batch", lambda task, base, cand, ddir, cfg, *, seed, sleep=None: (seen.append(seed), {k: JudgeResult("graded", 1.0, 1, 1) for k in cand})[1])
+    e.judge_pending_batched(object(), "J", tmp_path / "d", complete_only=True, parallel=1)
+    assert "t1/task1|c2" not in seen and "t1/task1|c1" in seen and "t2/task1|c2" in seen
+
+
+def test_a_budget_refusal_stops_batched_judging_and_records_nothing_for_refused_outputs(tmp_path, monkeypatch):
+    from agent_harness.bench import experiment as ex
+    from agent_harness.bench.evalkit import JudgeResult
+    e = make_exp(tmp_path)
+    finish_all(e)
+    monkeypatch.setattr(ex, "judge_batch", lambda task, base, cand, ddir, cfg, *, seed, sleep=None:
+                        {k: JudgeResult("ungraded", budget_exhausted=True) for k in cand})
+    assert e.judge_pending_batched(object(), "J", tmp_path / "d", parallel=1) == 0
+    assert e.board.info("a1@c1", "t1/task1").get("status") is None
+
+
+def test_validation_compares_batched_with_per_output_and_applies_fixed_thresholds(tmp_path):
+    from agent_harness.bench import batch_validation as bv
+    from agent_harness.bench.cells import arm_id
+    from agent_harness.bench.evalkit import JudgeResult, Scoreboard
+    old = tmp_path / "old"
+    board = Scoreboard(old / "scoreboard.jsonl")
+
+    def details(passes, weight=10):
+        crit = [{"index": i, "criterion": f"c{i}", "passed": p, "reasoning": "r"} for i, p in enumerate(passes)]
+        ok = all(passes)
+        return {"total_score": weight if ok else 0, "max_score": weight, "passed_count": int(ok), "total_count": 1,
+                "rubrics": [{"index": 0, "rubric": "r", "weight": weight, "result": {"passed": ok, "score": weight if ok else 0, "criteria_count": len(passes),
+                                                                                    "criteria_passed": sum(passes), "criteria_results": crit, "overall_reasoning": ""}}]}
+    arms = ["a", "b", "c"]
+    plan = {"t1": {"a": [True, True], "b": [True, False], "c": [False, False]}, "t2": {"a": [True, True], "b": [True, True], "c": [True, False]},
+            "t3": {"a": [True, False], "b": [False, False], "c": [True, True]}}
+    for t, per in plan.items():
+        for arm, passes in per.items():
+            a = arm_id(arm, "cell")
+            d = tmp_path / "outs" / arm / t
+            d.mkdir(parents=True, exist_ok=True)
+            board.mark_generated(a, f"{t}/task1", deliverables=["x"], stop="done", dir=str(d))
+            board.record_judgement(a, f"{t}/task1", JudgeResult("graded", 1.0 if all(passes) else 0.0, 10, 10, 1, 1), "J")
+            p = old / "judge_details" / a / f"{t}__task1.json"
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(json.dumps(details(passes)))
+
+    def faithful(task, base, cand, ddir, cfg, *, seed, sleep=None):                         # a batched judge that agrees exactly with the old one
+        t = task.split("/")[0]
+        ddir.mkdir(parents=True, exist_ok=True)
+        for k in cand:
+            (ddir / f"{k}.json").write_text(json.dumps(details(plan[t][k])))
+        return {k: JudgeResult("graded", 1.0 if all(plan[t][k]) else 0.0, 10, 10) for k in cand}
+
+    def noisy(task, base, cand, ddir, cfg, *, seed, sleep=None):                            # a batched judge that disagrees on most things
+        t = task.split("/")[0]
+        ddir.mkdir(parents=True, exist_ok=True)
+        for k in cand:
+            flipped = [not p for p in plan[t][k]]
+            (ddir / f"{k}.json").write_text(json.dumps(details(flipped)))
+        return {k: JudgeResult("graded", 1.0 if all(not p for p in plan[t][k]) else 0.0, 10, 10) for k in cand}
+    cfg = JudgeConfig("py", "s", "judge-m", "http://x")
+    tasks = [f"{t}/task1" for t in plan]
+    good = bv.validate(old, arms, "cell", tasks, tmp_path / "base", cfg, tmp_path / "v1", "J", judge=faithful)
+    assert good["checks"][0]["status"] == "PASS" and good["protocol"] == "batched" and good["validation"]["agreement"]["criteria_agree"] == 18
+    bad = bv.validate(old, arms, "cell", tasks, tmp_path / "base", cfg, tmp_path / "v2", "J", judge=noisy)
+    assert bad["checks"][0]["status"] == "FAIL"
+    rep = tmp_path / "r.json"
+    rep.write_text(json.dumps(good))
+    from agent_harness.bench.experiment import calibration_ok
+    assert calibration_ok(rep, "judge-m", "default", "batched")                                # a passing validation unlocks exactly this protocol
+    rep.write_text(json.dumps(bad))
+    assert not calibration_ok(rep, "judge-m", "default", "batched")

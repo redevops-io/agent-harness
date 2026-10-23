@@ -231,11 +231,11 @@ class Scoreboard:
     def graded(self, arm: str, task: str) -> bool:
         return self._state.get((arm, task), {}).get("status") in ("graded", "no_output")
 
-    def record_judgement(self, arm: str, task: str, r: JudgeResult, judge: str) -> None:
+    def record_judgement(self, arm: str, task: str, r: JudgeResult, judge: str, protocol: str = "per_output") -> None:
         if not self.finished(arm, task):
             raise NotReady(f"{arm}/{task}: no finished rollout recorded")
         self._append(arm, task, status=r.status, score=r.score, judge=judge, failures=r.failures, reason=r.reason,
-                     criteria_passed=r.criteria_passed, criteria_total=r.criteria_total)
+                     criteria_passed=r.criteria_passed, criteria_total=r.criteria_total, judge_protocol=protocol)
 
     def score(self, arm: str, task: str) -> Optional[float]:
         s = self._state.get((arm, task), {})

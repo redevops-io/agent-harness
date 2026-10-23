@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
 from .cells import Cell, arm_id, task_dir_name
-from .evalkit import JudgeConfig, Scoreboard, judge_output
+from .evalkit import JudgeConfig, Scoreboard, judge_batch, judge_output
 from . import harnesses
 
 DEFAULT_ARMS = ("ours", "opencode", "harness2")
@@ -93,6 +93,43 @@ class Experiment:
                 return n
         return n
 
+    def judge_pending_batched(self, jcfg: JudgeConfig, judge_name: str, details_root: Optional[Path] = None, *, sleep=time.sleep,
+                              complete_only: bool = False, parallel: int = 3, limit_tasks: Optional[int] = None) -> int:
+        """Four-answers-per-call judging: for each task, each MODEL (cell) is judged in one shared pass per rubric group over the answers
+        of all its harnesses (blinded, shuffled by task and cell). ``complete_only`` waits until every harness has finished the task in that
+        cell. Cells of a task run in parallel. Stops everything when the provider reports the money is gone."""
+        from concurrent.futures import ThreadPoolExecutor
+        details_root = details_root or self.root / "judge_details_batched"
+        n, stopped = 0, False
+        for ti, t in enumerate(self.tasks):
+            if limit_tasks is not None and ti >= limit_tasks:
+                break
+            jobs = []
+            for c in self.cells:
+                ids = {arm: arm_id(arm, c.name) for arm in self.arms}
+                if complete_only and not all(self.board.finished(a, t) for a in ids.values()):
+                    continue
+                cand = {arm: Path(self.board.info(a, t).get("dir") or "/nonexistent") for arm, a in ids.items() if t in self.board.pending(a, [t])}
+                if cand:
+                    jobs.append((c, ids, cand))
+
+            def one(job):
+                c, ids, cand = job
+                return job, judge_batch(t, self.tasks_base, cand, details_root / c.name / task_dir_name(t), jcfg, seed=f"{t}|{c.name}", sleep=sleep)
+            with ThreadPoolExecutor(max(1, min(parallel, len(jobs) or 1))) as pool:
+                outcomes = list(pool.map(one, jobs))
+            for (c, ids, cand), res in outcomes:
+                for arm, r in res.items():
+                    if r.budget_exhausted:
+                        stopped = True
+                        continue
+                    self.board.record_judgement(ids[arm], t, r, judge_name, protocol="batched")
+                    n += 1
+            if stopped:
+                print("judge money exhausted: stopping the judge step (nothing recorded for refused outputs)", flush=True)
+                return n
+        return n
+
     def cell_pairs(self) -> List[Sequence[str]]:
         names = [c.name for c in self.cells]
         return self.cfg.get("cell_pairs") or ([names[:2]] if len(names) >= 2 else [])
@@ -143,14 +180,16 @@ class Experiment:
         return "\n".join(lines)
 
 
-def calibration_ok(report: Path, judge_model: str, reasoning_effort: str) -> bool:
-    """The judge may be used only if a selfcheck report for THIS judge setting records a passed calibration."""
+def calibration_ok(report: Path, judge_model: str, reasoning_effort: str, protocol: str = "per_output") -> bool:
+    """The judge may be used only if a report for THIS judge setting AND protocol records a passed calibration (or, for the batched
+    protocol, a passed validation against the per-output judge)."""
     try:
         d = json.loads(report.read_text())
     except (OSError, ValueError):
         return False
     return any(c["name"] == "judge calibration" and c["status"] == "PASS" and d.get("judge_model") == judge_model
-               and d.get("judge_reasoning_effort") == reasoning_effort for c in d.get("checks", []))
+               and d.get("judge_reasoning_effort") == reasoning_effort and d.get("protocol", "per_output") == protocol
+               for c in d.get("checks", []))
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -162,6 +201,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     ap.add_argument("--allow-uncalibrated-judge", action="store_true")
     ap.add_argument("--limit", type=int, help="judge at most this many outputs in this call")
     ap.add_argument("--skip-audit", action="store_true", help="generate even if the config audit fails (the run is then not comparable)")
+    ap.add_argument("--protocol", choices=["per_output", "batched"], default="per_output",
+                    help="per_output: one answer per judge call; batched: the answers of all harnesses of one model together")
     ap.add_argument("--complete-only", action="store_true", help="judge a task only once every arm and cell has finished it")
     ap.add_argument("--parallel", type=int, default=1, help="outputs of one task judged at the same time")
     a = ap.parse_args(argv)
@@ -170,13 +211,16 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         ex.generate(a.only, a.cell, skip_audit=a.skip_audit)
     elif a.step == "judge":
         j = ex.cfg["judge"]
-        if not a.allow_uncalibrated_judge and not calibration_ok(Path(ex.cfg["selfcheck_report"]).expanduser(), j["model"], j.get("reasoning_effort", "default")):
+        if not a.allow_uncalibrated_judge and not calibration_ok(Path(ex.cfg["selfcheck_report"]).expanduser(), j["model"], j.get("reasoning_effort", "default"), a.protocol):
             print("REFUSING to judge: no passed calibration for this judge setting in the selfcheck report. "
                   "Run selfcheck with --report, or pass --allow-uncalibrated-judge (results then do not count).")
             return 2
         jc = JudgeConfig(j["python"], j["script"], j["model"], j["base_url"], j.get("reasoning_effort", "default"),
                          workers=j.get("workers", 1), rubric_timeout_s=j.get("rubric_timeout", 3600), timeout_s=j.get("timeout", 10800))
-        print(f"judged {ex.judge_pending(jc, j['model'], limit=a.limit, complete_only=a.complete_only, parallel=a.parallel)} outputs")
+        if a.protocol == "batched":
+            print(f"judged {ex.judge_pending_batched(jc, j['model'], complete_only=a.complete_only, parallel=a.parallel)} outputs (batched)")
+        else:
+            print(f"judged {ex.judge_pending(jc, j['model'], limit=a.limit, complete_only=a.complete_only, parallel=a.parallel)} outputs")
     else:
         print(ex.report_markdown())
     return 0
