@@ -211,7 +211,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         ex.generate(a.only, a.cell, skip_audit=a.skip_audit)
     elif a.step == "judge":
         j = ex.cfg["judge"]
-        if not a.allow_uncalibrated_judge and not calibration_ok(Path(ex.cfg["selfcheck_report"]).expanduser(), j["model"], j.get("reasoning_effort", "default"), a.protocol):
+        report = ex.cfg["batched_validation_report"] if a.protocol == "batched" else ex.cfg["selfcheck_report"]
+        if not a.allow_uncalibrated_judge and not calibration_ok(Path(report).expanduser(), j["model"], j.get("reasoning_effort", "default"), a.protocol):
             print("REFUSING to judge: no passed calibration for this judge setting in the selfcheck report. "
                   "Run selfcheck with --report, or pass --allow-uncalibrated-judge (results then do not count).")
             return 2
