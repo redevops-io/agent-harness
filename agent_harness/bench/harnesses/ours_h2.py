@@ -97,7 +97,7 @@ def generate(exp, cell, workers: int = 1, run_task=None, client_factory=None, *,
             text, files, changed = delta(read_tree(base), read_tree(final))
             s = run_task(exp.tasks_base, task, out, client, max_turns=lim.get("max_turns", 200), max_seconds=lim.get("max_seconds", 3600),
                          max_context_tokens=cell.window, attempts=lim.get("attempts", 2), context=context,
-                         extra_system=text, extra_files=files)
+                         extra_system=text, extra_files=files, trace=bool(exp.cfg.get("trace", False)))
         except Exception as e:             # a crash is NOT finished: neither judged nor scored 0
             exp.board._append(arm, task, generated=False, error=f"{type(e).__name__}: {e}"[:300])
             return

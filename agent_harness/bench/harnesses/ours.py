@@ -41,7 +41,7 @@ def generate(exp, cell, workers: int = 1, run_task=None, client_factory=None, *,
                                                         max_tokens=max_out)))()
         try:
             s = run_task(exp.tasks_base, task, out, client, max_turns=lim.get("max_turns", 200), max_seconds=lim.get("max_seconds", 3600),
-                         max_context_tokens=cell.window, attempts=lim.get("attempts", 2), context=context)
+                         max_context_tokens=cell.window, attempts=lim.get("attempts", 2), context=context, trace=bool(exp.cfg.get("trace", False)))
         except Exception as e:             # a crash is recorded as NOT finished, so it is neither judged nor scored 0
             exp.board._append(arm, task, generated=False, error=f"{type(e).__name__}: {e}"[:300])
             return
