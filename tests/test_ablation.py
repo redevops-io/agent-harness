@@ -84,3 +84,31 @@ def test_the_corrected_h2_arm_uses_the_same_options_as_the_corrected_base_arm(tm
     for arm in e.arms:
         harnesses.load(arm).generate(e, e.cells[0], 1, run_task=run_task, client_factory=lambda: SimpleNamespace(model="M"))
     assert got == [("ours-h2-cr", "context-runtime", {"policy": "v2"}, True, True), ("ours-h2-cr-r2", "context-runtime", {"policy": "v2"}, True, True)]
+
+
+def test_sampling_is_sent_only_when_configured_and_is_recorded(tmp_path, monkeypatch):
+    import io
+    from agent_harness.bench.harnesses import ours
+    sent = []
+
+    class R(io.BytesIO):
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+
+    def fake_urlopen(req, timeout=0):
+        sent.append(json.loads(req.data))
+        return R(json.dumps({"choices": [{"message": {"role": "assistant", "content": "x"}, "finish_reason": "stop"}], "usage": {}}).encode())
+    monkeypatch.setattr("agent_harness.llm._urlreq.urlopen", fake_urlopen)
+    for cfg_extra, expect in (({}, {}), ({"sampling": {"temperature": 0.55, "top_p": 1.0}}, {"temperature": 0.55, "top_p": 1.0})):
+        (tmp_path / str(bool(cfg_extra))).mkdir()
+        e = make_exp(tmp_path / str(bool(cfg_extra)), ["ours-cr"])
+        e.cfg.update(cfg_extra)
+        ours.make_client(e, e.cells[0], 16384).complete([{"role": "user", "content": "hi"}])
+        body = sent[-1]
+        assert {k: body[k] for k in ("temperature", "top_p") if k in body} == expect and body["max_tokens"] == 16384
+    (tmp_path / "rec").mkdir()
+    e = make_exp(tmp_path / "rec", ["ours-cr"])
+    e.cfg["sampling"] = {"temperature": 0.55, "top_p": 1.0}
+    ours.generate(e, e.cells[0], 1, run_task=lambda *a, **k: {"deliverables": ["r"], "stop": "done", "archived_items": 0, "retrieval_calls": 0, "seconds": 1.0},
+                  client_factory=lambda: SimpleNamespace(model="M"), name="ours-cr", context="context-runtime")
+    assert e.board.info("ours-cr@q8", "a/task1")["sampling"] == {"temperature": 0.55, "top_p": 1.0}

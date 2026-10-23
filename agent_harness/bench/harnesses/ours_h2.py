@@ -19,6 +19,7 @@ from typing import Dict, List, Tuple
 from ...h2 import OPENCODE, HarnessSpec, validate
 from ..cells import arm_id, task_dir_name
 from . import harness2 as h2
+from . import ours
 from .ours import diagnostics
 
 NAME = "ours-h2"
@@ -91,8 +92,7 @@ def generate(exp, cell, workers: int = 1, run_task=None, client_factory=None, *,
             print(f"{arm} {task}: no composed harness yet (run the harness2 arm for this cell first); skipped", flush=True)
             return
         out = exp.root / name / cell.name / task_dir_name(task)
-        client = (client_factory or (lambda: ChatClient(f"{exp.proxy}/{cell.provider}/{cell.label('ours')}/v1", cell.model,
-                                                        max_tokens=max_out)))()
+        client = (client_factory or (lambda: ours.make_client(exp, cell, max_out)))()
         try:
             text, files, changed = delta(read_tree(base), read_tree(final))
             s = run_task(exp.tasks_base, task, out, client, max_turns=lim.get("max_turns", 200), max_seconds=lim.get("max_seconds", 3600),
@@ -104,6 +104,6 @@ def generate(exp, cell, workers: int = 1, run_task=None, client_factory=None, *,
             return
         exp.board.mark_generated(arm, task, deliverables=s["deliverables"], stop=s["stop"], dir=str(out / "output"),
                                  archived_items=s.get("archived_items"), retrieval_calls=s.get("retrieval_calls"),
-                                 seconds=s.get("seconds"), context=context, context_options=context_options or None, harness_changed_files=changed, **diagnostics(out))
+                                 seconds=s.get("seconds"), context=context, context_options=context_options or None, sampling=exp.cfg.get("sampling") or None, harness_changed_files=changed, **diagnostics(out))
     with ThreadPoolExecutor(workers) as ex:
         list(ex.map(one, exp.tasks))
