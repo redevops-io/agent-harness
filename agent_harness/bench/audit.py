@@ -94,11 +94,14 @@ def audit_wire(exp, ledger: Path, since: float = 0.0, tolerance: float = 0.0) ->
     if not rows:
         return [Finding("WARN", "wire", "no recorded requests with parameters in this window; nothing to verify")]
     out: List[Finding] = []
+    tolerated: Dict[str, int] = {}
     for key, want in (("temperature", samp.get("temperature")), ("top_p", samp.get("top_p"))):
         if want is None:
             continue
         bad = [r for r in rows if r["params"].get(key) != want]
         share = len(bad) / len(rows)
+        if bad and share <= tolerance:
+            tolerated[key] = len(bad)
         if share > tolerance:
             seen: Dict[str, int] = {}
             for r in bad:
@@ -112,7 +115,8 @@ def audit_wire(exp, ledger: Path, since: float = 0.0, tolerance: float = 0.0) ->
         bad = [r for r in rows if r["params"].get("thinking") is not None and bool(r["params"]["thinking"]) != bool(spec["thinking"])]
         if bad:
             out.append(Finding("FAIL", "wire", f"{len(bad)} requests have thinking != {spec['thinking']}"))
-    return out or [Finding("OK", "wire", f"{len(rows)} requests all match the declared sampling, output ceiling and thinking mode")]
+    note = f"; {tolerated} deviating request(s) tolerated as auxiliary" if tolerated else ""
+    return out or [Finding("OK", "wire", f"{len(rows)} requests match the declared sampling, output ceiling and thinking mode{note}")]
 
 
 def audit_runs(exp) -> List[Finding]:

@@ -141,3 +141,10 @@ def test_the_config_audit_fails_if_the_opencode_model_would_send_no_temperature(
         return env
     monkeypatch.setattr(h2, "env_for", without_flag)
     assert any(f.level == "FAIL" and "temperature" in f.message for f in audit.audit_config(e))
+
+
+def test_tolerated_deviations_are_reported_not_hidden(tmp_path):
+    e = ex.Experiment(cfg(tmp_path))
+    rows = [row("oc", temperature=0.55, top_p=1.0)] * 49 + [row("oc", top_p=1.0)]
+    fs = audit.audit_wire(e, ledger(tmp_path, rows), tolerance=0.05)
+    assert audit.passed(fs) and "tolerated" in fs[0].message and "'temperature': 1" in fs[0].message
