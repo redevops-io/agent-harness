@@ -105,7 +105,8 @@ def env_for(exp, cell, runs: Optional[Path] = None) -> Dict[str, str]:
     # executor's 65,536 (found 2026-10-23: stock and Harness² prompts reached 229k tokens and never compacted). The editor then goes
     # through an alias with its own limits and the same proxy route.
     ed_name = imp["provider"] if imp["provider"] != cell.provider else f"{imp['provider']}-editor"
-    env = opencode_env(exp.proxy, {cell.provider: {"model": cell.model, "context": cell.window, "output": max_out},
+    env = opencode_env(exp.proxy, {cell.provider: {"model": cell.model, "context": cell.window, "output": max_out,
+                                                    "temperature": (exp.cfg.get("sampling") or {}).get("temperature") is not None},
                                    ed_name: {"model": imp["model"], "context": imp["window"], "output": 32768, "route": imp["provider"]}},
                        exp.cfg.get("egress_proxy"), labels={cell.provider: cell.label("oc"), ed_name: "editor"})
     env.update({"HARNESS2_SOLVER_MODEL": f"{cell.provider}/{cell.model}", "HARNESS2_IMPROVER_MODEL": f"{ed_name}/{imp['model']}",

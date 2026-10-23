@@ -64,7 +64,8 @@ def child_command(task: str, label: str, timeout: int) -> List[str]:
 
 def child_env(exp, cell) -> Dict[str, str]:
     max_out = int(exp.cfg.get("max_output_tokens", 16384))
-    env = opencode_env(exp.proxy, {cell.provider: {"model": cell.model, "context": cell.window, "output": max_out}},
+    env = opencode_env(exp.proxy, {cell.provider: {"model": cell.model, "context": cell.window, "output": max_out,
+                                                    "temperature": (exp.cfg.get("sampling") or {}).get("temperature") is not None}},
                        exp.cfg.get("egress_proxy"), labels={cell.provider: cell.label("oc")})
     env.update({"HARNESS2_SOLVER_MODEL": f"{cell.provider}/{cell.model}", "HARNESS2_IMPROVER_MODEL": f"{cell.provider}/{cell.model}",
                 "HARNESS2_RUNS_DIR": str(runs_dir(exp, cell))})

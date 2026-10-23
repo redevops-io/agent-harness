@@ -113,3 +113,31 @@ def test_run_audit_fails_when_any_run_exceeded_the_window(tmp_path):
     e.board.mark_generated("harness2@mac", "a/task1", deliverables=["f"], stop="ok", peak_prompt=229000)         # the Mac cell's first-run bug
     fs = audit.audit_runs(e)
     assert not audit.passed(fs) and "229000" in fs[0].message
+
+
+def test_opencode_arms_declare_the_temperature_capability_only_when_sampling_is_configured(tmp_path):
+    from agent_harness.bench.harnesses import harness2 as h2, opencode as oc
+    e = ex.Experiment(cfg(tmp_path, arms=["harness2"]))
+    for env in (h2.env_for(e, e.cells[0]), oc.child_env(e, e.cells[0])):
+        m = json.loads(env["OPENCODE_CONFIG_CONTENT"])["provider"]["px48"]["models"]["M"]
+        assert m["temperature"] is True                                   # without this flag OpenCode sends NO temperature
+    e2 = ex.Experiment(cfg(tmp_path, arms=["harness2"], sampling=None))
+    e2.cfg.pop("sampling")
+    assert json.loads(h2.env_for(e2, e2.cells[0])["OPENCODE_CONFIG_CONTENT"])["provider"]["px48"]["models"]["M"]["temperature"] is False
+
+
+def test_the_config_audit_fails_if_the_opencode_model_would_send_no_temperature(tmp_path, monkeypatch):
+    from agent_harness.bench.harnesses import harness2 as h2
+    e = ex.Experiment(cfg(tmp_path, arms=["harness2"]))
+    assert audit.passed(audit.audit_config(e))
+    real = h2.env_for
+
+    def without_flag(exp, cell, runs=None):
+        env = real(exp, cell, runs)
+        oc = json.loads(env["OPENCODE_CONFIG_CONTENT"])
+        prov, model = env["HARNESS2_SOLVER_MODEL"].split("/", 1)
+        oc["provider"][prov]["models"][model]["temperature"] = False
+        env["OPENCODE_CONFIG_CONTENT"] = json.dumps(oc)
+        return env
+    monkeypatch.setattr(h2, "env_for", without_flag)
+    assert any(f.level == "FAIL" and "temperature" in f.message for f in audit.audit_config(e))

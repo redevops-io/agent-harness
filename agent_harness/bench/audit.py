@@ -64,7 +64,10 @@ def audit_config(exp) -> List[Finding]:
                 ed = env["HARNESS2_IMPROVER_MODEL"].split("/", 1)[0]
                 if ed == prov:
                     out.append(Finding("FAIL", where, "the editor shares the executor's OpenCode provider entry (limits would collide)"))
-                out.append(Finding("WARN", where, "sampling is OpenCode's own per-model policy; verified only on the wire (audit_wire)"))
+                if samp.get("temperature") is not None and not oc["provider"][prov]["models"][model].get("temperature"):
+                    out.append(Finding("FAIL", where, "spec asks for a temperature but the OpenCode model entry does not declare the temperature "
+                                                      "capability, so OpenCode would send none (the server default would apply)"))
+                out.append(Finding("WARN", where, "the temperature OpenCode sends is its own per-model policy (0.55 for Qwen); verified on the wire (audit_wire)"))
             elif arm.split("-r")[0].startswith("ours"):
                 cl = ours.make_client(exp, c, int(exp.cfg.get("max_output_tokens", 16384)))
                 if samp.get("temperature") is not None and cl.temperature != samp["temperature"]:
