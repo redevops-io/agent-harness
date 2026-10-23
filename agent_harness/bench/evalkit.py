@@ -57,6 +57,8 @@ class JudgeResult:
     attempts: int = 0
     reason: str = ""
     budget_exhausted: bool = False        # the spend proxy refused the calls: stop judging, do not retry
+    criteria_passed: Optional[int] = None  # individual criteria passed (the group score is all-or-nothing per rubric group)
+    criteria_total: Optional[int] = None
 
 
 def has_deliverables(deliver: Path) -> bool:
@@ -116,7 +118,11 @@ def judge_output(task_id: str, tasks_base: Path, deliver: Path, details_file: Pa
             if attempt < cfg.attempts:
                 sleep(cfg.backoff_s * attempt)
             continue
-        return JudgeResult("graded", total / mx, total, mx, d.get("passed_count"), d.get("total_count"), 0, attempt)
+        rubrics = d.get("rubrics") or []
+        cp = sum(int((r.get("result") or {}).get("criteria_passed") or 0) for r in rubrics)
+        ct = sum(int((r.get("result") or {}).get("criteria_count") or 0) for r in rubrics)
+        return JudgeResult("graded", total / mx, total, mx, d.get("passed_count"), d.get("total_count"), 0, attempt,
+                           criteria_passed=cp if ct else None, criteria_total=ct or None)
     return last
 
 
@@ -158,7 +164,8 @@ class Scoreboard:
     def record_judgement(self, arm: str, task: str, r: JudgeResult, judge: str) -> None:
         if not self.finished(arm, task):
             raise NotReady(f"{arm}/{task}: no finished rollout recorded")
-        self._append(arm, task, status=r.status, score=r.score, judge=judge, failures=r.failures, reason=r.reason)
+        self._append(arm, task, status=r.status, score=r.score, judge=judge, failures=r.failures, reason=r.reason,
+                     criteria_passed=r.criteria_passed, criteria_total=r.criteria_total)
 
     def score(self, arm: str, task: str) -> Optional[float]:
         s = self._state.get((arm, task), {})

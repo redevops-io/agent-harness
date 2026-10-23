@@ -8,5 +8,5 @@ NAME = "ours-nocr"
 diagnostics = ours.diagnostics
 
 
-def generate(exp, cell, workers: int = 1, run_task=None, client_factory=None) -> None:
-    ours.generate(exp, cell, workers, run_task, client_factory, name=NAME, context="none")
+def generate(exp, cell, workers: int = 1, run_task=None, client_factory=None, *, name: str = NAME) -> None:
+    ours.generate(exp, cell, workers, run_task, client_factory, name=name, context="none")

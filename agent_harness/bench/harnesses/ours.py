@@ -25,7 +25,7 @@ def diagnostics(out_dir: Path) -> Dict[str, Any]:
 
 
 def generate(exp, cell, workers: int = 1, run_task=None, client_factory=None, *, name: str = NAME,
-             context: str = "context-runtime") -> None:
+             context: str = "context-runtime", context_options: dict = None) -> None:
     from .. import jobbench as jb
     from ...llm import ChatClient
     run_task = run_task or jb.run_task
@@ -41,11 +41,12 @@ def generate(exp, cell, workers: int = 1, run_task=None, client_factory=None, *,
                                                         max_tokens=max_out)))()
         try:
             s = run_task(exp.tasks_base, task, out, client, max_turns=lim.get("max_turns", 200), max_seconds=lim.get("max_seconds", 3600),
-                         max_context_tokens=cell.window, attempts=lim.get("attempts", 2), context=context, trace=bool(exp.cfg.get("trace", False)))
+                         max_context_tokens=cell.window, attempts=lim.get("attempts", 2), context=context, trace=bool(exp.cfg.get("trace", False)),
+                         context_options=context_options)
         except Exception as e:             # a crash is recorded as NOT finished, so it is neither judged nor scored 0
             exp.board._append(arm, task, generated=False, error=f"{type(e).__name__}: {e}"[:300])
             return
-        exp.board.mark_generated(arm, task, deliverables=s["deliverables"], stop=s["stop"], dir=str(out / "output"), context=context,
+        exp.board.mark_generated(arm, task, deliverables=s["deliverables"], stop=s["stop"], dir=str(out / "output"), context=context, context_options=context_options or None,
                                  archived_items=s.get("archived_items"), retrieval_calls=s.get("retrieval_calls"),
                                  seconds=s.get("seconds"), **diagnostics(out))
     with ThreadPoolExecutor(workers) as ex:

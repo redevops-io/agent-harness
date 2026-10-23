@@ -69,7 +69,7 @@ def _count_tool_calls(trajectory: Path, names) -> int:
         return 0
 
 
-def make_context_manager(kind: str, archive_dir: Path, *, rag: bool = False):
+def make_context_manager(kind: str, archive_dir: Path, *, rag: bool = False, **options):
     """``context-runtime`` (default): lossless archive + retrieval, from the context-runtime package; ``basic``:
     agent_harness's dependency-free lossy elision; ``none``: no proactive management at all (last-resort clipping only). A missing package is an error, never a silent downgrade."""
     if kind == "basic":
@@ -84,7 +84,7 @@ def make_context_manager(kind: str, archive_dir: Path, *, rag: bool = False):
     except ImportError as e:
         raise RuntimeError("context manager 'context-runtime' needs the context-runtime package "
                            "(pip install -e <context-runtime checkout>); pass context='basic' to opt out") from e
-    return ContextRuntimeManager(archive_dir, use_redevops_rag=rag)
+    return ContextRuntimeManager(archive_dir, use_redevops_rag=rag, **options)
 
 
 def pin_task_instructions(mgr, task_folder: Path):
@@ -120,7 +120,7 @@ def run_task(tasks_base: Path, task_id: str, out_dir: Path, client: ChatClient, 
              max_turns: int = 200, max_seconds: float = 3600, max_context_tokens: int = 40960, web: bool = True,
              extra_system: str = "", attempts: int = 2, context: str = "context-runtime", rag: bool = False,
              index_inputs: bool = True, extra_files: Optional[Dict[str, str]] = None, trace: bool = False,
-             pin_instructions: bool = True) -> Dict[str, Any]:
+             pin_instructions: bool = True, context_options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """Roll one task. Returns a summary dict; deliverables land in ``out_dir/output``, the trajectory in ``out_dir``.
 
     Like the upstream OpenCode runner, a second attempt (fresh workspace) is made only when the first left no
@@ -142,7 +142,7 @@ def run_task(tasks_base: Path, task_id: str, out_dir: Path, client: ChatClient, 
             for p in [ws, ws / "task_folder", ws / "output", *ws.rglob("*")]:    # container user is uid 1000, not the host user
                 os.chmod(p, 0o777 if p.is_dir() else 0o666)
             blocked: List[str] = []
-            mgr = make_context_manager(context, out_dir / f"archive{attempt}", rag=rag)
+            mgr = make_context_manager(context, out_dir / f"archive{attempt}", rag=rag, **(context_options or {}))
             if hasattr(mgr, "index_files") and index_inputs:
                 mgr.index_files(ws / "task_folder")
             if pin_instructions:
