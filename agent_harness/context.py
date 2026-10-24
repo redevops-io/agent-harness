@@ -15,11 +15,59 @@ up after ``prepare`` (not just below the hard limit), so the loop does not compa
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, List, Protocol, runtime_checkable
+import re
+from typing import Any, Callable, Dict, List, Optional, Protocol, runtime_checkable
 
 from .tools import ToolPlugin
 
 ELIDED = "[earlier tool output removed to save context]"
+
+
+# -- placeholders --------------------------------------------------------------------------------------------------
+# A manager that shortens old content leaves a stub in the history. A model can imitate a stub that looks like a shortened value
+# and emit it as the argument of a NEW action (seen: a write_file whose content was "[archived A0048: ...] ..."). Such text is never
+# real content, so the loop refuses to run an action that contains one.
+_PLACEHOLDER_START = re.compile(r"^\s*(\[archived A\d+|<<ARCHIVED-PLACEHOLDER)")
+_PLACEHOLDER_ANYWHERE = ("chars omitted to save context]", "[earlier tool output removed to save context]")
+
+
+def placeholder_in(value: Any) -> bool:
+    return isinstance(value, str) and bool(_PLACEHOLDER_START.match(value) or any(m in value for m in _PLACEHOLDER_ANYWHERE))
+
+
+def placeholder_arg(args: Dict[str, Any]) -> Optional[str]:
+    """Name of the first string argument that is (or contains) a context placeholder, else None."""
+    for k, v in (args or {}).items():
+        if placeholder_in(v):
+            return str(k)
+    return None
+
+
+def _norm(text: str) -> str:
+    return re.sub(r"\s+", " ", text).strip()
+
+
+class PinSet:
+    """Texts that must stay verbatim in the prompt (for example the task instructions). A tool result that contains the start of a
+    pinned text is never elided or archived by ``prepare``. Matching is on whitespace-normalised text."""
+
+    def __init__(self, key_chars: int = 160):
+        self.key_chars = key_chars
+        self._keys: List[str] = []
+
+    def add(self, text: str) -> None:
+        key = _norm(text)[:self.key_chars]
+        if len(key) >= 20 and key not in self._keys:
+            self._keys.append(key)
+
+    def matches(self, content: Any) -> bool:
+        if not self._keys or not isinstance(content, str):
+            return False
+        head = _norm(content[:self.key_chars * 4 + 4000])
+        return any(k in head for k in self._keys)
+
+    def __bool__(self) -> bool:
+        return bool(self._keys)
 
 
 def clip_text(text: str, limit: int) -> str:
@@ -62,8 +110,10 @@ class ContextManager(Protocol):
         ...
 
 
-def elide_old_tool_outputs(messages: List[Dict[str, Any]], keep_last: int = 4) -> int:
-    idx = [i for i, m in enumerate(messages) if m.get("role") == "tool" and m.get("content") != ELIDED]
+def elide_old_tool_outputs(messages: List[Dict[str, Any]], keep_last: int = 4,
+                           keep_if: Optional[Callable[[str], bool]] = None) -> int:
+    idx = [i for i, m in enumerate(messages) if m.get("role") == "tool" and m.get("content") != ELIDED
+           and not (keep_if and keep_if(m.get("content")))]
     n = 0
     for i in idx[:-keep_last] if keep_last else idx:
         messages[i] = {**messages[i], "content": ELIDED}
@@ -95,13 +145,21 @@ def shrink_tool_call_args(messages: List[Dict[str, Any]], keep_last: int = 2, li
 
 
 class BasicContextManager:
-    """Default manager: lossy elision, no storage, no extra tools."""
+    """Default manager: lossy elision, no storage, no extra tools. ``pin_text`` protects named texts from elision (not from the
+    last-resort clipping at attempt 3, which exists so a run does not die)."""
+
+    def __init__(self, pins: Optional[PinSet] = None):
+        self.pins = pins if pins is not None else PinSet()
+
+    def pin_text(self, text: str) -> None:
+        self.pins.add(text)
 
     def prepare(self, messages, *, target_tokens, estimated_tokens):
-        return shrink_tool_call_args(messages) + elide_old_tool_outputs(messages)
+        return shrink_tool_call_args(messages) + elide_old_tool_outputs(messages, keep_if=self.pins.matches)
 
     def on_context_error(self, messages, attempt):
-        n = elide_old_tool_outputs(messages, keep_last=4 if attempt <= 1 else 1)
+        n = elide_old_tool_outputs(messages, keep_last=4 if attempt <= 1 else 1,
+                                   keep_if=self.pins.matches if attempt <= 2 else None)
         n += shrink_tool_call_args(messages, keep_last=2 if attempt <= 1 else 1)
         if attempt >= 3:
             for i, m in enumerate(messages):

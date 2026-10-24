@@ -84,10 +84,22 @@ def make_context_manager(kind: str, archive_dir: Path, *, rag: bool = False):
     return ContextRuntimeManager(archive_dir, use_redevops_rag=rag)
 
 
+def pin_task_instructions(mgr, task_folder: Path):
+    """The task statement is read from a file, not pinned in the prompt, so compaction could archive it away. Pin its text with the
+    manager (creating the default Basic manager when none was given). Returns the manager to use."""
+    if mgr is None:
+        from ..context import BasicContextManager
+        mgr = BasicContextManager()
+    for f in sorted(Path(task_folder).glob("TASK_INSTRUCTIONS*")):
+        if hasattr(mgr, "pin_text") and f.is_file():
+            mgr.pin_text(f.read_text(errors="ignore"))
+    return mgr
+
+
 def run_task(tasks_base: Path, task_id: str, out_dir: Path, client: ChatClient, system: str = BASE_SYSTEM, *,
              max_turns: int = 200, max_seconds: float = 3600, max_context_tokens: int = 40960, web: bool = True,
              extra_system: str = "", attempts: int = 2, context: str = "context-runtime", rag: bool = False,
-             index_inputs: bool = True) -> Dict[str, Any]:
+             index_inputs: bool = True, trace: bool = False, pin_instructions: bool = True) -> Dict[str, Any]:
     """Roll one task. Returns a summary dict; deliverables land in ``out_dir/output``, the trajectory in ``out_dir``.
 
     Like the upstream OpenCode runner, a second attempt (fresh workspace) is made only when the first left no
@@ -109,13 +121,19 @@ def run_task(tasks_base: Path, task_id: str, out_dir: Path, client: ChatClient, 
                 os.chmod(p, 0o777 if p.is_dir() else 0o666)
             blocked: List[str] = []
             mgr = make_context_manager(context, out_dir / f"archive{attempt}", rag=rag)
-            if mgr is not None and index_inputs:
+            if hasattr(mgr, "index_files") and index_inputs:
                 mgr.index_files(ws / "task_folder")
+            if pin_instructions:
+                mgr = pin_task_instructions(mgr, ws / "task_folder")
+            rec = None
+            if trace:
+                from ..trace import TraceRecorder
+                rec = TraceRecorder(out_dir / f"trace{attempt}")
             with DockerSandbox(ws) as sbx:
                 reg = bench_registry(ws, sbx, blocked_log=blocked, web=web)
                 res: LoopResult = run_loop(client, reg, (system + ("\n\n" + extra_system if extra_system else "")), PROMPT,
                                            max_turns=max_turns, max_seconds=max_seconds,
-                                           max_context_tokens=max_context_tokens, context_manager=mgr,
+                                           max_context_tokens=max_context_tokens, context_manager=mgr, trace=rec,
                                            trajectory=out_dir / f"trajectory{'' if attempt == 1 else f'_attempt{attempt}'}.jsonl")
             deliver = out_dir / "output"
             shutil.rmtree(deliver, ignore_errors=True)
@@ -125,7 +143,7 @@ def run_task(tasks_base: Path, task_id: str, out_dir: Path, client: ChatClient, 
                        "prompt_tokens": res.prompt_tokens, "completion_tokens": res.completion_tokens,
                        "tool_calls": res.tool_calls, "tool_errors": res.tool_errors, "deliverables": files,
                        "blocked_fetches": blocked, "model": client.model, "context_manager": context, "rag": rag,
-                       "archived_items": len(mgr.archive.entries) if mgr is not None else 0,
+                       "archived_items": len(mgr.archive.entries) if hasattr(mgr, "archive") else 0,
                        "retrieval_calls": _count_tool_calls(out_dir / f"trajectory{'' if attempt == 1 else f'_attempt{attempt}'}.jsonl",
                                                             ("search_context", "read_archive"))}
             runs.append({k: summary[k] for k in ("attempt", "stop", "turns", "seconds", "deliverables")})
