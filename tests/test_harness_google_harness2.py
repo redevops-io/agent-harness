@@ -173,3 +173,17 @@ def test_the_judge_settings_upstream_demands_come_from_the_experiment_config(tmp
     env = h2.env_for(e, e.cells[0])
     assert env["HARNESS2_JUDGE_MODEL"] == "judge-m" and env["HARNESS2_JUDGE_BASE_URL"] == "http://127.0.0.1:1/x/v1"
     assert env["HARNESS2_JUDGE_API_KEY"] == "unused-in-generation"                         # never the real key
+
+
+def test_a_run_directory_resumes_with_the_judge_it_was_pinned_with(tmp_path):
+    e = make_exp(tmp_path)
+    e.cfg["judge"] = {"model": "new-judge", "base_url": "http://127.0.0.1:2/new/v1"}
+    runs = h2.runs_dir(e, e.cells[0])
+    assert h2.env_for(e, e.cells[0])["HARNESS2_JUDGE_MODEL"] == "new-judge"                    # fresh directory: the configured judge
+    pin = runs / "jb" / "adapt" / h2.NS / "config.json"
+    pin.parent.mkdir(parents=True)
+    pin.write_text(json.dumps({"judge": "old-judge", "judge_endpoint": "http://127.0.0.1:1/old/v1"}))
+    env = h2.env_for(e, e.cells[0])
+    assert env["HARNESS2_JUDGE_MODEL"] == "old-judge" and env["HARNESS2_JUDGE_BASE_URL"] == "http://127.0.0.1:1/old/v1"   # pinned directory: what it was created with
+    pin.write_text("not json")
+    assert h2.env_for(e, e.cells[0])["HARNESS2_JUDGE_MODEL"] == "new-judge"                    # unreadable pin: fall back, never crash
