@@ -12,6 +12,9 @@ reproduction of any published result.
 * Limits per attempt: turns, wall clock, context window. A second attempt runs only if the first produced no deliverables.
 * Guards: grader files (`RUBRICS.json`, `rubric*.json`, `eval_result`, `*_judge.json`) in the agent's workspace abort the run;
   six consecutive failures of one tool add a note; the same call with the same result three times in a row is not re-run.
+  an action carrying a context-manager placeholder is refused ([context.md](context.md#keeping-actions-and-instructions-intact)).
+* Options of `run_task`: `pin_instructions` (default on) keeps the task statement out of compaction; `trace` (default off) records
+  what the model was shown at every call.
 
 ## Evaluation rules (`bench/evalkit.py`; each exists because the opposite happened)
 * A judge failure (rate limit, 5xx, timeout, unparsable reply) is **ungraded**, never a score of 0; infrastructure failures
