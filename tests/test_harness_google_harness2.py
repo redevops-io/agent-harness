@@ -172,3 +172,4 @@ def test_the_judge_settings_upstream_demands_come_from_the_experiment_config(tmp
     e.cfg["judge"] = {"model": "judge-m", "base_url": "http://127.0.0.1:1/x/v1"}
     env = h2.env_for(e, e.cells[0])
     assert env["HARNESS2_JUDGE_MODEL"] == "judge-m" and env["HARNESS2_JUDGE_BASE_URL"] == "http://127.0.0.1:1/x/v1"
+    assert env["HARNESS2_JUDGE_API_KEY"] == "unused-in-generation"                         # never the real key

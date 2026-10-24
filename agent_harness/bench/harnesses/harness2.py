@@ -115,7 +115,8 @@ def env_for(exp, cell, runs: Optional[Path] = None) -> Dict[str, str]:
     if j.get("model") and j.get("base_url"):
         # Upstream's preflight demands a judge even though generation never calls it (it only records the name). It used to come from a
         # loose .env file in the checkout, which was lost with the /tmp purge; now it comes from the experiment config.
-        env.update({"HARNESS2_JUDGE_MODEL": j["model"], "HARNESS2_JUDGE_BASE_URL": j["base_url"]})
+        # The key is a placeholder on purpose: generation never calls the judge and the real key must not reach this process.
+        env.update({"HARNESS2_JUDGE_MODEL": j["model"], "HARNESS2_JUDGE_BASE_URL": j["base_url"], "HARNESS2_JUDGE_API_KEY": "unused-in-generation"})
     return env
 
 
