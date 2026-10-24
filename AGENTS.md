@@ -2,13 +2,13 @@
 
 > **Note:** this is the original *build brief* that scoped the repo, not current-state documentation. Some deliverables it lists (compose/install scripts, an `agents/` layer, etc.) are intentionally out of scope for this OSS core. For what actually ships, see [README.md](./README.md), [docs/architecture.md](./docs/architecture.md), and [docs/configuration.md](./docs/configuration.md).
 
-This repo is an AGPL-3.0, self-hostable, AGENTIC module. The market+product research is in
-./_brief.md (READ IT FIRST — source of truth: pain->legacy->redevops positioning, the
-open-source core stack, value props, ICP, pricing). Do NOT commit _brief.md (gitignored).
+This repo is an AGPL-3.0, self-hostable, AGENTIC module. The module brief is in
+./_brief.md (READ IT FIRST — source of truth for the problem the module addresses and the
+open-source core stack). Do NOT commit _brief.md (gitignored).
 
 Deliverables (build a credible open-source project, consistent with the brief's stack):
-1. README.md — positioning (pain->legacy->redevops triplet + 3-5 value props from the brief),
-   what it does, architecture (OSS core + agent layer), and a quickstart.
+1. README.md — the problem the module addresses, what it does, architecture (OSS core + agent layer),
+   and a quickstart.
 2. One-command install: docker-compose.yml or install.sh standing up the OSS core named in the
    brief PLUS an agent service.
 3. agents/ — the agentic layer (Python; talks to an OpenAI-compatible LLM endpoint via env
