@@ -75,6 +75,10 @@ def bench_registry(workspace: Path, sandbox, blocked_log: Optional[List[str]] = 
         return ToolResult(text=sandbox.run(str(a["command"]), int(a.get("timeout", bash_timeout))))
 
     def read_file(a):
+        stem = re.sub(r"\.txt$", "", str(a["path"]).replace("\\", "/").rsplit("/", 1)[-1])
+        if re.fullmatch(r"A\d{3,5}", stem):
+            return ToolResult(ok=False, error=(f"'{stem}' is an archive id from earlier in this conversation, not a file. Call "
+                                               f"read_archive with id='{stem}' (and offset to page through it)."))
         p = _confine(ws, _virtual(ws, a["path"]))
         data = p.read_bytes()
         if b"\0" in data[:2000]:

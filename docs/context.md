@@ -25,6 +25,25 @@ The benchmark runner (`python -m agent_harness.bench.jobbench`) uses `ContextRun
 (`--context-manager basic` opts out; `--rag` selects redevops-rag). If context-runtime is not installed the
 runner stops with an error instead of falling back, so a run cannot silently use the lossy manager.
 
+## Keeping actions and instructions intact
+
+* **Placeholder guard.** `run_loop` refuses to run an action whose string argument is, or starts with, text a manager
+  put in the history in place of removed content (`[archived A0007: ...`, `<<ARCHIVED-PLACEHOLDER ...`,
+  `... chars omitted to save context]`, the elision notice). The model receives an error saying nothing was run. A model
+  was seen to copy such a stub into a new `write_file`; the file then held the stub. The markers are defined in
+  `context.py` (`placeholder_in`, `placeholder_arg`), so a manager that adds a new stub format must be added there.
+* **Pins.** `BasicContextManager.pin_text(text)` keeps any tool result that contains the start of `text` (whitespace
+  normalised) out of `prepare`'s elision. The last-resort clipping at `on_context_error` attempt 3 still applies, so a
+  pin cannot make a run fail. The benchmark runner pins the task's `TASK_INSTRUCTIONS*` file (`run_task(pin_instructions=True)`,
+  the default), because the task statement is read from a file and is not part of the pinned prompt.
+* **Archive ids.** The sandbox `read_file` answers an archive-id-shaped path (`A0007`) with an error that names
+  `read_archive`, instead of a missing-file error.
+* **Run trace (opt-in).** `run_loop(..., trace=TraceRecorder(dir))`, or `run_task(trace=True)`, writes `trace.jsonl` and a
+  content-addressed `blobs/` folder: the canonical text of every message as it was appended, the projection sent at
+  each model call (hash and length shown versus canonical, which messages a manager rewrote, which archive ids they
+  name), and the full text of tool results, tool-call arguments and assistant replies. It changes nothing in the run; a
+  write failure disables tracing with one message and never ends the run.
+
 ## Dependency direction
 
 `context-runtime` depends on `agent-harness` (its tool contract and approval gate are re-exported from
@@ -37,4 +56,5 @@ side. That keeps the dependency graph acyclic.
 Unit tests cover losslessness (every archived item is recoverable byte for byte), stub and argument validity,
 recovery through `search_context`, and the loop integration. The redevops-rag backend has an opt-in recall check
 (`CR_TEST_RAG=1` in context-runtime). Whether lossless compaction improves **benchmark scores** has not been
-measured yet.
+measured yet. The guard, pins, archive-id error and trace are covered by `tests/test_context_correctness.py`
+(including that a traced run produces the same conversation as an untraced one).

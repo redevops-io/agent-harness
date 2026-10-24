@@ -16,7 +16,8 @@ from typing import Any, Callable, Dict, List, Optional
 from .guardrails import LoopGuard
 from .llm import ChatClient, ChatError
 from .context import (ELIDED, BasicContextManager, ContextManager, clip_text as _clip, elide_old_tool_outputs,  # noqa: F401
-                      estimate_tokens, messages_chars, shrink_tool_call_args)
+                      estimate_tokens, messages_chars, placeholder_arg, shrink_tool_call_args)
+from .trace import TraceRecorder
 from .tools import ToolRegistry
 
 @dataclass
@@ -56,11 +57,15 @@ def run_loop(client: ChatClient, registry: ToolRegistry, system: str, task: str,
              max_seconds: float = 3600, max_context_tokens: int = 40960, compact_at: float = 0.7,
              max_tool_chars: Optional[int] = None, trajectory: Optional[Path] = None,
              on_turn: Optional[Callable[[int, Dict[str, Any]], None]] = None,
-             context_manager: Optional[ContextManager] = None, compact_to: float = 0.5) -> LoopResult:
+             context_manager: Optional[ContextManager] = None, compact_to: float = 0.5,
+             trace: Optional[TraceRecorder] = None) -> LoopResult:
     if max_tool_chars is None:
         max_tool_chars = min(12000, int(0.2 * max_context_tokens))
     messages: List[Dict[str, Any]] = [{"role": "system", "content": system}, {"role": "user", "content": task}]
     res = LoopResult(stop="done", messages=messages)
+    if trace:
+        trace.add(0, messages[0])
+        trace.add(1, messages[1])
     guard = LoopGuard(max_turns)
     t0 = time.time()
     cm = context_manager or BasicContextManager()
@@ -95,6 +100,8 @@ def run_loop(client: ChatClient, registry: ToolRegistry, system: str, task: str,
                 elif last_prompt > 0.95 * max_context_tokens and cm.on_context_error(messages, 3) == 0:
                     res.stop = "context_overflow"
                     break
+            if trace:
+                trace.projection(res.turns + 1, messages, est, last_prompt)
             out, attempt = None, 0
             while out is None:
                 try:
@@ -119,6 +126,9 @@ def run_loop(client: ChatClient, registry: ToolRegistry, system: str, task: str,
             keep["role"] = "assistant"
             keep["content"] = msg.get("content") or ""
             messages.append(keep)
+            if trace:
+                trace.add(len(messages) - 1, keep)
+                trace.assistant(res.turns, keep, usage, out.get("finish_reason"))
             sent_len = len(messages)
             emit("assistant", turn=res.turns, content=(keep["content"] or "")[:2000], usage=usage,
                  finish=out.get("finish_reason"), tool_calls=[(c["function"]["name"], c["function"]["arguments"][:300])
@@ -131,14 +141,21 @@ def run_loop(client: ChatClient, registry: ToolRegistry, system: str, task: str,
                 break
             for c in calls:
                 name = c["function"]["name"]
+                args: Dict[str, Any] = {}
                 try:
                     args = json.loads(c["function"]["arguments"] or "{}")
                     if not isinstance(args, dict):
                         raise ValueError("arguments must be an object")
                     bad = missing_args(registry, name, args)
                     sig = name + json.dumps(args, sort_keys=True)
+                    ph = None if bad else placeholder_arg(args)
                     if bad:
                         text, res.tool_errors = f"ERROR: {bad}", res.tool_errors + 1
+                    elif ph:
+                        text, res.tool_errors = (f"ERROR: argument '{ph}' is a context placeholder, not real content (older content was "
+                                                 f"shortened in your history to save space). Nothing was run. Write the real content, or "
+                                                 f"get the original text back first (read_archive / re-read the source file)."), res.tool_errors + 1
+                        emit("placeholder_blocked", name=name, arg=ph)
                     elif seen.get(sig, [None, 0])[1] >= 2:
                         seen[sig][1] += 1
                         text = (f"[repeat] You have made this exact {name} call {seen[sig][1]} times and it returned the same result "
@@ -160,11 +177,17 @@ def run_loop(client: ChatClient, registry: ToolRegistry, system: str, task: str,
                 if fails[name] >= 6 and text.startswith("ERROR:"):
                     text += (f"\n[note: {name} has failed {fails[name]} times in a row. Stop retrying it; work with the "
                              f"information and files you already have and finish the task.]")
-                messages.append({"role": "tool", "tool_call_id": c["id"], "content": cm.admit(name, text, max_tool_chars)})
+                admitted = cm.admit(name, text, max_tool_chars)
+                messages.append({"role": "tool", "tool_call_id": c["id"], "content": admitted})
+                if trace:
+                    trace.add(len(messages) - 1, messages[-1])
+                    trace.tool_result(res.turns, name, args, text, admitted)
                 emit("tool", name=name, ok=not text.startswith("ERROR:"), out=text[:400])
     finally:
         res.seconds = round(time.time() - t0, 1)
         emit("end", stop=res.stop, turns=res.turns, seconds=res.seconds)
         if log:
             log.close()
+        if trace:
+            trace.close()
     return res
