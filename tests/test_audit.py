@@ -148,3 +148,17 @@ def test_tolerated_deviations_are_reported_not_hidden(tmp_path):
     rows = [row("oc", temperature=0.55, top_p=1.0)] * 49 + [row("oc", top_p=1.0)]
     fs = audit.audit_wire(e, ledger(tmp_path, rows), tolerance=0.05)
     assert audit.passed(fs) and "tolerated" in fs[0].message and "'temperature': 1" in fs[0].message
+
+
+def test_a_small_window_overshoot_is_a_warning_and_a_large_one_a_failure(tmp_path):
+    e = ex.Experiment(cfg(tmp_path))
+    e.board.mark_generated("ours-cr@q8", "a/task1", deliverables=["f"], stop="done", peak_prompt=66992)          # +2.2%: OpenCode's after-the-step check
+    fs = audit.audit_runs(e)
+    assert audit.passed(fs) and fs[0].level == "WARN" and "66992" in fs[0].message
+    e.board.mark_generated("harness2@mac", "a/task1", deliverables=["f"], stop="ok", peak_prompt=229000)
+    fs = audit.audit_runs(e)
+    assert not audit.passed(fs) and any(f.level == "FAIL" and "229000" in f.message for f in fs)
+    strict = ex.Experiment(cfg(tmp_path, root=str(tmp_path / "strict")))
+    strict.cfg["spec"]["window_tolerance"] = 0.0
+    strict.board.mark_generated("ours-cr@q8", "a/task1", deliverables=["f"], stop="done", peak_prompt=66992)
+    assert not audit.passed(audit.audit_runs(strict))                                                        # with no tolerance the same run fails
