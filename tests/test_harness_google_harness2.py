@@ -164,3 +164,11 @@ def test_a_different_editor_provider_keeps_its_plain_name(tmp_path):
     oc = _json.loads(env["OPENCODE_CONFIG_CONTENT"])
     assert set(oc["provider"]) == {"px48", "local"} and env["HARNESS2_IMPROVER_MODEL"] == "local/E"
     assert oc["provider"]["local"]["options"]["baseURL"].split("/")[-3] == "local"
+
+
+def test_the_judge_settings_upstream_demands_come_from_the_experiment_config(tmp_path):
+    e = make_exp(tmp_path)
+    assert "HARNESS2_JUDGE_MODEL" not in h2.env_for(e, e.cells[0])                       # no judge configured: nothing invented
+    e.cfg["judge"] = {"model": "judge-m", "base_url": "http://127.0.0.1:1/x/v1"}
+    env = h2.env_for(e, e.cells[0])
+    assert env["HARNESS2_JUDGE_MODEL"] == "judge-m" and env["HARNESS2_JUDGE_BASE_URL"] == "http://127.0.0.1:1/x/v1"

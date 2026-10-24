@@ -111,6 +111,11 @@ def env_for(exp, cell, runs: Optional[Path] = None) -> Dict[str, str]:
                        exp.cfg.get("egress_proxy"), labels={cell.provider: cell.label("oc"), ed_name: "editor"})
     env.update({"HARNESS2_SOLVER_MODEL": f"{cell.provider}/{cell.model}", "HARNESS2_IMPROVER_MODEL": f"{ed_name}/{imp['model']}",
                 "HARNESS2_RUNS_DIR": str(runs or runs_dir(exp, cell))})
+    j = exp.cfg.get("judge") or {}
+    if j.get("model") and j.get("base_url"):
+        # Upstream's preflight demands a judge even though generation never calls it (it only records the name). It used to come from a
+        # loose .env file in the checkout, which was lost with the /tmp purge; now it comes from the experiment config.
+        env.update({"HARNESS2_JUDGE_MODEL": j["model"], "HARNESS2_JUDGE_BASE_URL": j["base_url"]})
     return env
 
 
