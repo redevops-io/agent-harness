@@ -114,7 +114,7 @@ def test_main_judge_step_refuses_an_uncalibrated_judge_before_judging_anything(t
     cfg = make_cfg(tmp_path, judge={"python": "x", "script": "y", "model": "J", "base_url": "u", "reasoning_effort": "high"},
                    selfcheck_report=str(tmp_path / "missing.json"))
     (tmp_path / "c.json").write_text(json.dumps(cfg))
-    assert ex.main(["judge", "--config", str(tmp_path / "c.json")]) == 2
+    assert ex.main(["judge", "--config", str(tmp_path / "c.json"), "--skip-matrix-audit"]) == 2
     assert "REFUSING" in capsys.readouterr().out
 
 
