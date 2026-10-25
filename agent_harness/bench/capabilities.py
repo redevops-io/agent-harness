@@ -13,7 +13,7 @@ from typing import List, Optional, Sequence
 from ..progress import Capability, RecoveryPolicy
 
 DELIVERABLE_EXTS = (".xlsx", ".xls", ".docx", ".doc", ".pptx", ".pdf", ".csv", ".ods", ".odt", ".odp", ".md", ".txt", ".json", ".zip")
-PROBES = ("tesseract", "pdftotext", "pandoc", "libreoffice", "soffice", "convert")
+PROBES = ("tesseract", "pdftotext", "pandoc", "libreoffice", "soffice", "convert", "curl", "wget")
 
 
 def probe_environment(sandbox, run_timeout: int = 20) -> List[str]:
@@ -29,28 +29,36 @@ def probe_environment(sandbox, run_timeout: int = 20) -> List[str]:
     return found
 
 
-def environment_note(found: Sequence[str], *, web_paging: bool, web_downloads: bool) -> str:
-    lines = ["Environment facts:",
-             "- bash has no network access; web content is reachable only through the web tools.",
+def environment_note(found: Sequence[str], *, web_paging: bool, web_downloads: bool, network: str = "none", edit: bool = False) -> str:
+    net = ("- bash reaches the network only through a filtering proxy (HTTP and HTTPS); blocked destinations answer 403; direct sockets do not work."
+           if network == "egress" else "- bash has no network access; web content is reachable only through the web tools.")
+    lines = ["Environment facts:", net,
              "- You cannot look at images yourself; image and scan content has to be processed with code or tools that exist in the sandbox.",
-             "- Command-line tools found in the sandbox: " + (", ".join(found) if found else "none of tesseract, pdftotext, pandoc, libreoffice") + "."]
+             "- Command-line tools found in the sandbox: " + (", ".join(found) if found else "none of tesseract, pdftotext, pandoc, libreoffice, curl, wget") + "."]
     if web_paging:
-        lines.append("- web_fetch returns 15,000 characters at a time; use its offset argument to read further.")
+        lines.append("- web_fetch returns 12,000 characters at a time; use its offset argument to read further.")
     if web_downloads:
-        lines.append("- web_download saves a URL's file into /work so bash can read it (data files up to 25 MB).")
+        lines.append("- web_download saves a URL's file into /work so bash can read it (data files up to 50 MB).")
+    if edit:
+        lines.append("- edit_file changes part of an existing file in place; write_file replaces a whole file.")
     lines.append("- Deliverables must be written into /work/output. Files elsewhere are not collected.")
     return "\n".join(lines)
 
 
-def capabilities(*, web_paging: bool, web_downloads: bool) -> List[Capability]:
-    net = "bash has no network access. Web content is available only through web_fetch"
-    if web_paging:
-        net += " (read long pages with its offset argument)"
-    if web_downloads:
-        net += " and web_download (saves a file into /work for bash to read)"
-    return [Capability("network", (r"Temporary failure in name resolution", r"Network is unreachable", r"Name or service not known", r"No address associated"), net + "."),
-            Capability("image", (r"does not support image", r"cannot read images?", r"image input"),
-                       "The model cannot view images. Use code or sandbox tools to process image content.")]
+def capabilities(*, web_paging: bool, web_downloads: bool, network: str = "none") -> List[Capability]:
+    if network == "egress":
+        net = Capability("network", (r"Tunnel connection failed", r"403 Forbidden", r"Network is unreachable", r"Temporary failure in name resolution"),
+                         "That destination or connection is not allowed: only public http(s) addresses are reachable (private, local and metadata addresses, unlisted ports "
+                         "and some answer-hosting sites are blocked) and direct sockets do not work. Try another source.")
+    else:
+        text = "bash has no network access. Web content is available only through web_fetch"
+        if web_paging:
+            text += " (read long pages with its offset argument)"
+        if web_downloads:
+            text += " and web_download (saves a file into /work for bash to read)"
+        net = Capability("network", (r"Temporary failure in name resolution", r"Network is unreachable", r"Name or service not known", r"No address associated"), text + ".")
+    return [net, Capability("image", (r"does not support image", r"cannot read images?", r"image input"),
+                            "The model cannot view images. Use code or sandbox tools to process image content.")]
 
 
 def workspace_fingerprint(root: Path, skip: Sequence[str] = ("task_folder",)) -> str:
@@ -81,6 +89,6 @@ def stray_deliverables(workspace: Path, output_dir: Optional[Path] = None) -> Li
     return sorted(found)
 
 
-def recovery_policy(ws: Path, *, web_paging: bool = False, web_downloads: bool = False, with_capabilities: bool = True, **overrides) -> RecoveryPolicy:
-    return RecoveryPolicy(capabilities=tuple(capabilities(web_paging=web_paging, web_downloads=web_downloads)) if with_capabilities else (),
+def recovery_policy(ws: Path, *, web_paging: bool = False, web_downloads: bool = False, with_capabilities: bool = True, network: str = "none", **overrides) -> RecoveryPolicy:
+    return RecoveryPolicy(capabilities=tuple(capabilities(web_paging=web_paging, web_downloads=web_downloads, network=network)) if with_capabilities else (),
                           progress_probe=lambda: workspace_fingerprint(ws), **overrides)

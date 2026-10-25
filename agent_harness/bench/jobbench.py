@@ -121,7 +121,8 @@ def run_task(tasks_base: Path, task_id: str, out_dir: Path, client: ChatClient, 
              extra_system: str = "", attempts: int = 2, context: str = "context-runtime", rag: bool = False,
              index_inputs: bool = True, extra_files: Optional[Dict[str, str]] = None, trace: bool = False,
              pin_instructions: bool = True, context_options: Optional[Dict[str, Any]] = None,
-             recovery: bool = False, capability_notes: bool = False, web_paging: bool = False, web_downloads: bool = False) -> Dict[str, Any]:
+             recovery: bool = False, capability_notes: bool = False, web_paging: bool = False, web_downloads: bool = False,
+             tools: str = "legacy", network: str = "none") -> Dict[str, Any]:
     """Roll one task. Returns a summary dict; deliverables land in ``out_dir/output``, the trajectory in ``out_dir``.
 
     Like the upstream OpenCode runner, a second attempt (fresh workspace) is made only when the first left no
@@ -152,21 +153,41 @@ def run_task(tasks_base: Path, task_id: str, out_dir: Path, client: ChatClient, 
             if trace:
                 from ..trace import TraceRecorder
                 rec = TraceRecorder(out_dir / f"trace{attempt}")
-            with DockerSandbox(ws) as sbx:
-                reg = bench_registry(ws, sbx, blocked_log=blocked, web=web, web_paging=web_paging, web_downloads=web_downloads)
+            parity = tools == "parity"
+            if tools not in ("legacy", "parity"):
+                raise ValueError(f"unknown tool set {tools!r}")
+            with DockerSandbox(ws, network=network) as sbx:
+                found: list = []
+                if parity or capability_notes:
+                    from .capabilities import probe_environment
+                    found = probe_environment(sbx)
+                if parity:
+                    from .tools_parity import parity_registry
+                    reg = parity_registry(ws, sbx, web=web, network=network, found=found, blocked_log=blocked)
+                else:
+                    reg = bench_registry(ws, sbx, blocked_log=blocked, web=web, web_paging=web_paging, web_downloads=web_downloads)
                 notes = ""
                 if capability_notes:
-                    from .capabilities import environment_note, probe_environment
-                    notes = environment_note(probe_environment(sbx), web_paging=web_paging and web, web_downloads=web_downloads and web)
+                    from .capabilities import environment_note
+                    notes = environment_note(found, web_paging=(web_paging or parity) and web, web_downloads=(web_downloads or parity) and web,
+                                             network=network, edit=parity)
                 policy = None
                 if recovery:
                     from .capabilities import recovery_policy
-                    policy = recovery_policy(ws, web_paging=web_paging, web_downloads=web_downloads, with_capabilities=True)
+                    policy = recovery_policy(ws, web_paging=web_paging or parity, web_downloads=web_downloads or parity, with_capabilities=True, network=network)
                 extra = "\n\n".join(x for x in (extra_system, notes) if x)
+                schemas = [sp["function"] if isinstance(sp, dict) and "function" in sp else sp for sp in reg.specs()]    # the exact schemas the model is shown
+                (out_dir / f"tool_schemas{'' if attempt == 1 else f'_attempt{attempt}'}.json").write_text(json.dumps(
+                    {"tools": tools, "network": network, "sandbox_tools_found": found, "schemas": schemas}, indent=1))
                 res: LoopResult = run_loop(client, reg, (system + ("\n\n" + extra if extra else "")), PROMPT, recovery=policy,
                                            max_turns=max_turns, max_seconds=max_seconds,
                                            max_context_tokens=max_context_tokens, context_manager=mgr, trace=rec,
                                            trajectory=out_dir / f"trajectory{'' if attempt == 1 else f'_attempt{attempt}'}.jsonl")
+            for sub in (".downloads", ".artifacts", ".tool_output"):          # persist the audit trail before the workspace is removed
+                if (ws / sub).is_dir():
+                    dst = out_dir / f"{sub.strip('.')}{attempt}"
+                    shutil.rmtree(dst, ignore_errors=True)
+                    shutil.copytree(ws / sub, dst)
             deliver = out_dir / "output"
             shutil.rmtree(deliver, ignore_errors=True)
             shutil.copytree(ws / "output", deliver)
@@ -180,7 +201,10 @@ def run_task(tasks_base: Path, task_id: str, out_dir: Path, client: ChatClient, 
                        "archived_items": len(mgr.archive.entries) if hasattr(mgr, "archive") else 0,
                        "retrieval_calls": _count_tool_calls(out_dir / f"trajectory{'' if attempt == 1 else f'_attempt{attempt}'}.jsonl",
                                                             ("search_context", "read_archive"))}
-            runs.append({k: summary[k] for k in ("attempt", "stop", "turns", "seconds", "deliverables")})
+            from .failure_class import classify
+            summary["failure"] = classify(out_dir / f"trajectory{'' if attempt == 1 else f'_attempt{attempt}'}.jsonl", summary)
+            summary["run_options"] = {"tools": tools, "network": network, "recovery": recovery, "capability_notes": capability_notes}
+            runs.append({k: summary[k] for k in ("attempt", "stop", "turns", "seconds", "deliverables")} | {"failure": summary["failure"]["class"]})
         finally:
             shutil.rmtree(ws, ignore_errors=True)
         if summary["deliverables"]:
