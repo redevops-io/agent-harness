@@ -122,7 +122,7 @@ def run_task(tasks_base: Path, task_id: str, out_dir: Path, client: ChatClient, 
              index_inputs: bool = True, extra_files: Optional[Dict[str, str]] = None, trace: bool = False,
              pin_instructions: bool = True, context_options: Optional[Dict[str, Any]] = None,
              recovery: bool = False, capability_notes: bool = False, web_paging: bool = False, web_downloads: bool = False,
-             tools: str = "legacy", network: str = "none") -> Dict[str, Any]:
+             tools: str = "legacy", network: str = "none", recovery_hard_stop: bool = True) -> Dict[str, Any]:
     """Roll one task. Returns a summary dict; deliverables land in ``out_dir/output``, the trajectory in ``out_dir``.
 
     Like the upstream OpenCode runner, a second attempt (fresh workspace) is made only when the first left no
@@ -174,7 +174,8 @@ def run_task(tasks_base: Path, task_id: str, out_dir: Path, client: ChatClient, 
                 policy = None
                 if recovery:
                     from .capabilities import recovery_policy
-                    policy = recovery_policy(ws, web_paging=web_paging or parity, web_downloads=web_downloads or parity, with_capabilities=True, network=network)
+                    policy = recovery_policy(ws, web_paging=web_paging or parity, web_downloads=web_downloads or parity, with_capabilities=True, network=network,
+                                             **({} if recovery_hard_stop else {"budget": None}))
                 extra = "\n\n".join(x for x in (extra_system, notes) if x)
                 schemas = [sp["function"] if isinstance(sp, dict) and "function" in sp else sp for sp in reg.specs()]    # the exact schemas the model is shown
                 (out_dir / f"tool_schemas{'' if attempt == 1 else f'_attempt{attempt}'}.json").write_text(json.dumps(
@@ -203,7 +204,9 @@ def run_task(tasks_base: Path, task_id: str, out_dir: Path, client: ChatClient, 
                                                             ("search_context", "read_archive"))}
             from .failure_class import classify
             summary["failure"] = classify(out_dir / f"trajectory{'' if attempt == 1 else f'_attempt{attempt}'}.jsonl", summary)
-            summary["run_options"] = {"tools": tools, "network": network, "recovery": recovery, "capability_notes": capability_notes}
+            from .edit_stats import edit_stats, load as load_edits
+            summary["edit_stats"] = edit_stats(load_edits(ws / ".artifacts" / "edits.jsonl"))
+            summary["run_options"] = {"tools": tools, "network": network, "recovery": recovery, "recovery_hard_stop": recovery_hard_stop if recovery else None, "capability_notes": capability_notes}
             runs.append({k: summary[k] for k in ("attempt", "stop", "turns", "seconds", "deliverables")} | {"failure": summary["failure"]["class"]})
         finally:
             shutil.rmtree(ws, ignore_errors=True)

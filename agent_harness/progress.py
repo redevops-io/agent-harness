@@ -68,7 +68,7 @@ class RecoveryPolicy:
     error_after: int = 3              # identical error this many times in a row -> the call is not retried unchanged
     poll_limit: int = 30              # identical call with changing results, per call
     checkpoint_after: int = 8         # no-progress steps in a row at which the one-time checkpoint note is added
-    budget: int = 20                  # no-progress steps in a row after which the run ends as 'blocked'
+    budget: Optional[int] = 20        # no-progress steps in a row after which the run ends as 'blocked'; None disables the hard stop (guidance, classification and telemetry stay)
     capabilities: Sequence[Capability] = ()
     progress_probe: Optional[Callable[[], str]] = None   # returns a fingerprint of the workspace; a change counts as progress
 
@@ -92,6 +92,7 @@ class ProgressTracker:
         self.epoch = 0
         self._probe = policy.progress_probe() if policy.progress_probe else None
         self.streak = 0               # consecutive steps without progress
+        self.max_streak = 0
         self.total_blocked = 0
         self.checkpointed = False
         self.noted: set = set()
@@ -130,6 +131,7 @@ class ProgressTracker:
         self.counts[kind] += 1
         self.total_blocked += 1
         self.streak += 1
+        self.max_streak = max(self.max_streak, self.streak)
         self._blocker(kind, name, key, st)
         msg = {"redundant": f"[no progress] {name} was already run with these exact arguments {st.same} times and returned the same result each time; "
                             f"nothing in the workspace has changed since. It was not run again.",
@@ -173,6 +175,7 @@ class ProgressTracker:
             self.streak = 0
         elif redundant_exec:
             self.streak += 1
+            self.max_streak = max(self.max_streak, self.streak)
         out = text
         for c in self.p.capabilities:
             if re.search("|".join(c.patterns), text or "", re.I):
@@ -198,8 +201,9 @@ class ProgressTracker:
 
     @property
     def exhausted(self) -> bool:
-        return self.streak >= self.p.budget
+        return self.p.budget is not None and self.streak >= self.p.budget
 
     def report(self) -> Dict[str, Any]:
-        return {"counts": dict(self.counts), "streak": self.streak, "blocked_calls": self.total_blocked, "exhausted": self.exhausted,
+        return {"counts": dict(self.counts), "streak": self.streak, "max_streak": self.max_streak, "hard_stop": self.p.budget is not None,
+                "blocked_calls": self.total_blocked, "exhausted": self.exhausted,
                 "blockers": list(self.blockers)}

@@ -19,7 +19,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from collections import Counter
 from typing import Iterable, List, Optional
 
-from .netpolicy import DEFAULT_ALLOW, DEFAULT_DENY, NetPolicy, host_denied   # noqa: F401  (re-exported: callers import them from here)
+from .netpolicy import DEFAULT_ALLOW, DEFAULT_DENY, NetPolicy, default_policy, host_denied   # noqa: F401  (re-exported: callers import them from here)
 
 
 class EgressProxy:
@@ -165,7 +165,7 @@ def main(argv=None) -> int:
     ap.add_argument("--host", default="127.0.0.1", help="listen address (0.0.0.0 only inside the egress sidecar container)")
     ap.add_argument("--strict", action="store_true", help="also refuse private/metadata addresses and unlisted ports (connect by checked address)")
     a = ap.parse_args(argv)
-    proxy = EgressProxy(DEFAULT_DENY + tuple(a.deny), policy=NetPolicy(DEFAULT_DENY + tuple(a.deny)) if a.strict else None)
+    proxy = EgressProxy(DEFAULT_DENY + tuple(a.deny), policy=default_policy(a.deny) if a.strict else None)
     srv = serve(proxy, a.host, a.port)
     print(f"egress proxy on {a.host}:{srv.server_address[1]} strict={a.strict} deny={proxy.deny} allow={proxy.allow}", flush=True)
     try:

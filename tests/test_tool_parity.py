@@ -758,3 +758,54 @@ def test_live_end_to_end_parity_run_with_a_scripted_model(tmp_path):
     assert "edited report.md" in outs[3] and "not found" in outs[4]
     schemas = json.loads((tmp_path / "out" / "tool_schemas.json").read_text())
     assert schemas["network"] == "egress" and "tesseract" in " ".join(schemas["sandbox_tools_found"] + ["tesseract"]) and s["failure"]["class"] == "delivered"
+
+
+# ---- one policy for the gateway and the host-side tools -------------------------------------------------------------------------------
+def test_gateway_and_host_side_tools_build_the_policy_from_the_same_factory(tmp_path):
+    from agent_harness.netpolicy import DEFAULT_ALLOW, DEFAULT_DENY, DEFAULT_PORTS, default_policy
+    p = default_policy()
+    assert (tuple(p.deny_hosts), tuple(p.allow_hosts), tuple(p.ports)) == (DEFAULT_DENY, DEFAULT_ALLOW, DEFAULT_PORTS)
+    assert default_policy(("x.example",)).deny_hosts == DEFAULT_DENY + ("x.example",)
+    captured = []
+
+    def spy(url, policy, **kw):
+        captured.append(policy)
+        return FetchResult(False, "stop", chain=[url])
+    reg = parity_registry(tmp_path, FakeSbx(RunResult("", "", 0)), fetch=spy)
+    reg.run("web_fetch", {"url": "https://x.org/"})
+    assert (tuple(captured[0].deny_hosts), tuple(captured[0].allow_hosts), tuple(captured[0].ports)) == (DEFAULT_DENY, DEFAULT_ALLOW, DEFAULT_PORTS)
+    import inspect
+    assert "default_policy(a.deny)" in inspect.getsource(ep.main)                   # the proxy's strict mode uses the same factory
+
+
+def test_host_and_gateway_verdicts_agree_on_every_destination_class_that_needs_no_dns():
+    host = default_policy_check = None
+    from agent_harness.netpolicy import default_policy
+    cases = [("127.0.0.1", 80), ("10.1.2.3", 443), ("169.254.169.254", 80), ("localhost", 80), ("a.internal", 443), ("github.com", 443), ("huggingface.co", 443),
+             ("gist.github.com", 443), ("93.184.216.34", 443), ("93.184.216.34", 22), ("::1", 80)]
+    pol = default_policy(); pol.resolver = resolver({})
+    proxy_pol = EgressProxy(policy=default_policy()).policy
+    proxy_pol.resolver = resolver({})
+    assert [pol.check(h, p).ok for h, p in cases] == [proxy_pol.check(h, p).ok for h, p in cases]
+
+
+# ---- edit failure categories and retry outcomes ----------------------------------------------------------------------------------------
+def test_edit_failure_categories_and_retry_outcomes_are_logged(tmp_path):
+    from agent_harness.bench.edit_stats import edit_stats, load
+    (tmp_path / "a.txt").write_text("x = 1\nx = 1\ny = 2\n")
+    (tmp_path / "b.txt").write_text("hello\n")
+    (tmp_path / "c.txt").write_text("keep\n")
+    reg = reg_for(tmp_path, FakeSbx(RunResult("", "", 0)))
+    run = lambda p, o, n: reg.run("edit_file", {"path": p, "old_string": o, "new_string": n})     # noqa: E731
+    run("/work/a.txt", "x = 1", "x = 2")              # ambiguous
+    run("/work/a.txt", "x = 1\nx = 1", "x = 3")       # retried ok
+    run("/work/b.txt", "bye", "x")                    # not found, then a rewrite
+    reg.run("write_file", {"path": "/work/b.txt", "content": "bye\n"})
+    run("/work/c.txt", "keep", "keep")                # identical, then nothing
+    run("/work/missing.txt", "a", "b")                # no_file, abandoned
+    run("/work/b.txt", "zzz", "q")                    # not found
+    run("/work/b.txt", "yyy", "q")                    # not found again (retried_failed for the previous one)
+    st = edit_stats(load(tmp_path / ".artifacts" / "edits.jsonl"))
+    assert st["edit_calls"] == 7 and st["edit_ok"] == 1 and st["edit_failed"] == 6
+    assert st["failure_categories"] == {"ambiguous": 1, "not_found": 3, "identical": 1, "no_file": 1}
+    assert st["failure_outcomes"] == {"retried_ok": 1, "rewritten": 1, "retried_failed": 1, "abandoned": 3} and st["write_file_calls"] == 1

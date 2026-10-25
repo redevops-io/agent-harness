@@ -37,16 +37,16 @@ def test_b_and_c_differ_from_the_baseline_only_in_the_tool_and_recovery_options(
     common = {k: v for k, v in b.items() if k not in ("tools", "network")}
     assert common == base                                                 # same context, sampling-relevant limits, window, attempts, trace
     assert b["tools"] == "parity" and b["network"] == "egress" and "recovery" not in b
-    assert c == {**b, "recovery": True}
+    assert c == {**b, "recovery": True, "recovery_hard_stop": False}
     for arm in e.arms:
         assert e.board.finished(arm_id(arm, "q8"), "a/task1")
     info = e.board.info(arm_id("ours-cr-tools-rec", "q8"), "a/task1")
-    assert info["run_options"] == {"tools": "parity", "network": "egress", "recovery": True} and info["failure"] == "delivered"
+    assert info["run_options"] == {"tools": "parity", "network": "egress", "recovery": True, "recovery_hard_stop": False} and info["failure"] == "delivered"
 
 
 def test_arm_options_are_declared_once_and_repeatable():
     assert ours_cr_tools.RUN_OPTIONS == {"tools": "parity", "network": "egress"}
-    assert ours_cr_tools_rec.RUN_OPTIONS == {**ours_cr_tools.RUN_OPTIONS, "recovery": True}
+    assert ours_cr_tools_rec.RUN_OPTIONS == {**ours_cr_tools.RUN_OPTIONS, "recovery": True, "recovery_hard_stop": False}
     assert harnesses.load("ours-cr-tools-r2").NAME == "ours-cr-tools-r2"
     assert ours_cr_tools.OPTIONS == ours_cr.OPTIONS if hasattr(ours_cr_tools, "OPTIONS") else True
 

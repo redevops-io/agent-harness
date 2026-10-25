@@ -18,20 +18,26 @@ def _line_of(text: str, index: int) -> int:
 
 
 def edit_text(path: Path, old: str, new: str, replace_all: bool = False) -> Tuple[bool, str]:
+    ok, msg, _ = edit_text_ex(path, old, new, replace_all)
+    return ok, msg
+
+
+def edit_text_ex(path: Path, old: str, new: str, replace_all: bool = False) -> Tuple[bool, str, str]:
+    """As ``edit_text`` plus a category: ok | no_file | empty_old | identical | binary | non_utf8 | not_found | ambiguous | write_error."""
     p = Path(path)
     if not p.is_file():
-        return False, f"no such file: {p.name}. Use write_file to create a new file."
+        return False, f"no such file: {p.name}. Use write_file to create a new file.", "no_file"
     if old == "":
-        return False, "old_string is empty. To create or overwrite a whole file use write_file; edit_file replaces existing text."
+        return False, "old_string is empty. To create or overwrite a whole file use write_file; edit_file replaces existing text.", "empty_old"
     if old == new:
-        return False, "old_string and new_string are identical; nothing to change."
+        return False, "old_string and new_string are identical; nothing to change.", "identical"
     data = p.read_bytes()
     if b"\0" in data[:4000]:
-        return False, "binary file: edit_file only edits text files."
+        return False, "binary file: edit_file only edits text files.", "binary"
     try:
         text = data.decode("utf-8")
     except UnicodeDecodeError:
-        return False, "the file is not valid UTF-8; edit_file only edits UTF-8 text."
+        return False, "the file is not valid UTF-8; edit_file only edits UTF-8 text.", "non_utf8"
     if "\r\n" in text and "\r\n" not in old:         # a CRLF file edited with LF text: match and write in the file's own line endings (still exact otherwise)
         old, new = old.replace("\n", "\r\n"), new.replace("\n", "\r\n")
     n = text.count(old)
@@ -44,14 +50,14 @@ def edit_text(path: Path, old: str, new: str, replace_all: bool = False) -> Tupl
             if close:
                 at = next(i for i, l in enumerate(lines) if l.strip() == close[0]) + 1
                 hint = f" The closest line is {at}: {lines[at - 1].strip()[:120]!r}. Check whitespace, indentation and line endings; read the file again before editing."
-        return False, "old_string was not found in the file; nothing was changed." + hint
+        return False, "old_string was not found in the file; nothing was changed." + hint, "not_found"
     if n > 1 and not replace_all:
         at = []
         i = -1
         while len(at) < 5 and (i := text.find(old, i + 1)) != -1:
             at.append(_line_of(text, i))
         return False, (f"old_string occurs {n} times (lines {', '.join(map(str, at))}{'...' if n > 5 else ''}); nothing was changed. Include more surrounding "
-                       f"lines to make it unique, or pass replace_all=true to change every occurrence.")
+                       f"lines to make it unique, or pass replace_all=true to change every occurrence."), "ambiguous"
     out = text.replace(old, new) if replace_all else text.replace(old, new, 1)
     st = p.stat()
     fd, tmp = tempfile.mkstemp(dir=str(p.parent), prefix=f".{p.name}.", suffix=".tmp")
@@ -67,5 +73,5 @@ def edit_text(path: Path, old: str, new: str, replace_all: bool = False) -> Tupl
             os.unlink(tmp)
         except OSError:
             pass
-        return False, f"could not write the edit ({type(e).__name__}: {e}); the original file is unchanged."
-    return True, f"edited {p.name}: replaced {n if replace_all else 1} occurrence{'s' if replace_all and n != 1 else ''} ({len(old)} -> {len(new)} chars)."
+        return False, f"could not write the edit ({type(e).__name__}: {e}); the original file is unchanged.", "write_error"
+    return True, f"edited {p.name}: replaced {n if replace_all else 1} occurrence{'s' if replace_all and n != 1 else ''} ({len(old)} -> {len(new)} chars).", "ok"

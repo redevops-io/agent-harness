@@ -345,3 +345,34 @@ def test_run_task_defaults_leave_behaviour_unchanged(tmp_path, monkeypatch):
     monkeypatch.setattr(jb, "run_loop", lambda c, r, system, t, **kw: (seen.update(kw, system=system), LoopResult(stop="done"))[1])
     jb.run_task(base, "x/task1", tmp_path / "out", client=type("C", (), {"model": "m"})(), attempts=1, context="basic")
     assert seen["recovery"] is None and "Environment facts" not in seen["system"]
+
+
+# ---- hard stop disabled (arm C): guidance, classification and telemetry stay ---------------------------------------------------------
+def test_without_a_hard_stop_the_run_is_never_ended_by_recovery_but_the_turn_limit_still_applies():
+    pol = RecoveryPolicy(budget=None, checkpoint_after=3, progress_probe=lambda: 0)
+    c = Script([call("probe", q="same")])
+    res = run_loop(c, registry([]), "s", "t", max_turns=40, recovery=pol)
+    assert res.stop == "max_turns" and res.turns == 40                               # only the overall limit ends it
+    rep = res.recovery
+    assert rep["hard_stop"] is False and rep["exhausted"] is False and rep["blocked_calls"] > 30 and rep["max_streak"] > 30
+    assert rep["blockers"][0]["kind"] == "redundant"
+    shown = [m["content"] for m in c.seen[-1] if m.get("role") == "tool"]
+    assert any("[no progress]" in m for m in shown) and sum("[checkpoint]" in m for m in shown) == 1     # guidance continues, once-only checkpoint
+
+
+def test_the_default_policy_still_has_the_hard_stop():
+    assert RecoveryPolicy().budget == 20
+
+
+def test_run_task_passes_no_budget_when_the_hard_stop_is_disabled(tmp_path, monkeypatch):
+    import agent_harness.bench.jobbench as jb
+    from agent_harness.loop import LoopResult
+    base = _task(tmp_path)
+    monkeypatch.setattr(jb, "DockerSandbox", _Sbx)
+    seen = []
+    monkeypatch.setattr(jb, "run_loop", lambda c, r, s, t, **kw: (seen.append(kw["recovery"]), LoopResult(stop="done"))[1])
+    for stop in (True, False):
+        jb.run_task(base, "x/task1", tmp_path / f"o{stop}", client=type("C", (), {"model": "m"})(), attempts=1, context="basic", recovery=True, recovery_hard_stop=stop)
+    assert seen[0].budget == 20 and seen[1].budget is None
+    summ = json.loads((tmp_path / "oFalse" / "summary.json").read_text())
+    assert summ["run_options"]["recovery_hard_stop"] is False

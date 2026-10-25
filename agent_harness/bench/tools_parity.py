@@ -24,7 +24,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence
 
 from ..netpolicy import NetPolicy, safe_fetch
 from ..tools import ApprovalPolicy, ToolRegistry, ToolResult, function_tool
-from .edit import edit_text
+from .edit import edit_text_ex
 from .outputs import FileLedger, OutputStore, STORE_DIR
 from .tools import _confine, _virtual, html_to_text
 
@@ -41,7 +41,7 @@ def describe_bash(network: str, found: Sequence[str]) -> str:
         clients = [c for c in ("curl", "wget") if c in found]
         net = ("Network: HTTP and HTTPS only, through a filtering proxy that is already configured (HTTP_PROXY/HTTPS_PROXY); direct sockets and your own DNS lookups do "
                "not work; private, local and cloud-metadata addresses and some answer-hosting sites are blocked; redirects are re-checked. "
-               + (f"Command-line clients: {', '.join(clients)}. " if clients else "curl and wget are not installed; use python (urllib or requests honour the proxy) or the web_download tool. "))
+               + (f"Command-line clients: {', '.join(clients)}. " if clients else "curl and wget are not installed; python3 urllib honours the proxy (the requests package is not installed), or use the web_download tool. "))
     else:
         net = "Network: none. Use the web_fetch and web_download tools for web content. "
     ocr = "OCR: tesseract is installed. " if "tesseract" in found else "OCR: no OCR program is installed. "
@@ -103,6 +103,19 @@ def parity_registry(workspace: Path, sandbox, *, policy: Optional[NetPolicy] = N
         more = len(text) - off - len(part)
         return ToolResult(text=part + (f"\n[... {more} more characters; call read_file with offset={off + len(part)} for the next page]" if more > 0 else ""))
 
+    edit_seq = [0]
+
+    def log_edit(tool: str, path: str, ok: bool, category: str):
+        edit_seq[0] += 1
+        d = ws / ".artifacts"
+        d.mkdir(parents=True, exist_ok=True)
+        os.chmod(d, 0o777)
+        with open(d / "edits.jsonl", "a", encoding="utf-8") as f:
+            f.write(json.dumps({"seq": edit_seq[0], "t": round(time.time(), 1), "tool": tool, "path": str(a_path_norm(path)), "ok": ok, "category": category}) + "\n")
+
+    def a_path_norm(path: str) -> str:
+        return "/work/" + str(conf(path).relative_to(ws)) if str(path).strip() else str(path)
+
     def write_file(a):
         p = conf(a["path"])
         if p.is_dir():
@@ -114,11 +127,13 @@ def parity_registry(workspace: Path, sandbox, *, policy: Optional[NetPolicy] = N
         os.chmod(tmp, 0o666)
         os.replace(tmp, p)
         ledger.record("write_file", only=p)
+        log_edit("write_file", a["path"], True, "ok")
         return ToolResult(text=f"wrote {len(str(a['content']))} chars to {a['path']}")
 
     def edit_file(a):
         p = conf(a["path"])
-        ok, msg = edit_text(p, str(a["old_string"]), str(a["new_string"]), bool(a.get("replace_all", False)))
+        ok, msg, category = edit_text_ex(p, str(a["old_string"]), str(a["new_string"]), bool(a.get("replace_all", False)))
+        log_edit("edit_file", a["path"], ok, category)
         if ok:
             ledger.record("edit_file", only=p)
         return ToolResult(ok=ok, text=msg, error=None if ok else msg)

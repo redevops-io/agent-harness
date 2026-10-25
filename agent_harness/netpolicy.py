@@ -96,6 +96,11 @@ class NetPolicy:
         return Verdict(bool(ips), "" if ips else "unresolvable", ips)
 
 
+def default_policy(extra_deny: Sequence[str] = ()) -> NetPolicy:
+    """THE benchmark policy. The egress gateway (``egress_proxy --strict``) and the host-side web tools both build it here, so the rules cannot differ."""
+    return NetPolicy(tuple(DEFAULT_DENY) + tuple(extra_deny), DEFAULT_ALLOW, DEFAULT_PORTS)
+
+
 # ---- connections to a checked address ------------------------------------------------------------------------------------
 class _PinnedHTTPSConnection(http.client.HTTPSConnection):
     """Connects to ``ip`` but verifies the certificate and sends SNI for ``server_name``."""
