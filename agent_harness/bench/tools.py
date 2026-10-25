@@ -41,7 +41,33 @@ class NoRedirectToDenied(urllib.request.HTTPRedirectHandler):
 
 
 def web_fetch(url: str, max_chars: int = 15000, timeout: int = 30,
-              deny=DEFAULT_DENY, allow=DEFAULT_ALLOW, blocked_log: Optional[List[str]] = None) -> str:
+              deny=DEFAULT_DENY, allow=DEFAULT_ALLOW, blocked_log: Optional[List[str]] = None, offset: int = 0, paged: bool = False) -> str:
+    """Fetch a page as text. Legacy mode returns the first ``max_chars`` characters; ``paged=True`` honours ``offset`` and says where the next part starts."""
+    text = _fetch(url, deny, allow, blocked_log, timeout, as_text=True)
+    if text.startswith("ERROR:"):
+        return text
+    if not paged:
+        return text[:max_chars] + (f"\n[... truncated, {len(text) - max_chars} more chars]" if len(text) > max_chars else "")
+    offset = max(0, int(offset or 0))
+    part = text[offset:offset + max_chars]
+    if offset >= len(text):
+        return f"[offset {offset} is past the end: the page has {len(text)} characters]"
+    more = len(text) - offset - len(part)
+    return part + (f"\n[... truncated, {more} more chars; call web_fetch with offset={offset + len(part)} for the next part, or web_download to save the file]" if more > 0 else "")
+
+
+def web_download(url: str, dest: Path, max_bytes: int = 25_000_000, timeout: int = 60,
+                 deny=DEFAULT_DENY, allow=DEFAULT_ALLOW, blocked_log: Optional[List[str]] = None) -> str:
+    """Save a URL's bytes to ``dest`` (already confined by the caller). Same egress policy as web_fetch."""
+    raw = _fetch(url, deny, allow, blocked_log, timeout, as_text=False, limit=max_bytes)
+    if isinstance(raw, str):
+        return raw
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(raw)
+    return f"saved {len(raw)} bytes to {dest.name}" + (" (stopped at the size limit; the file is incomplete)" if len(raw) >= max_bytes else "")
+
+
+def _fetch(url: str, deny, allow, blocked_log, timeout: int, *, as_text: bool, limit: int = 2_000_000):
     u = urllib.parse.urlsplit(url.strip())
     if u.scheme in ("http", "https") and u.hostname:    # percent-encode non-ASCII (models paste URLs with an ellipsis etc.)
         url = urllib.parse.urlunsplit((u.scheme, u.netloc.encode("idna").decode("ascii"), urllib.parse.quote(u.path, safe="/%:@!$&'()*+,;=~-._"),
@@ -56,18 +82,21 @@ def web_fetch(url: str, max_chars: int = 15000, timeout: int = 30,
     opener = urllib.request.build_opener(NoRedirectToDenied)
     try:
         with opener.open(urllib.request.Request(url, headers={"User-Agent": "agent-harness-bench/1"}), timeout=timeout) as r:
-            raw = r.read(2_000_000).decode(r.headers.get_content_charset() or "utf-8", errors="replace")
+            data = r.read(limit)
             ctype = r.headers.get("Content-Type", "")
+            charset = r.headers.get_content_charset() or "utf-8"
     except (urllib.error.URLError, OSError, ValueError) as e:
         return f"ERROR: fetch failed: {e}"
-    text = html_to_text(raw) if "html" in ctype else raw
-    return text[:max_chars] + (f"\n[... truncated, {len(text) - max_chars} more chars]" if len(text) > max_chars else "")
+    if not as_text:
+        return data
+    raw = data.decode(charset, errors="replace")
+    return html_to_text(raw) if "html" in ctype else raw
 
 
 def bench_registry(workspace: Path, sandbox, blocked_log: Optional[List[str]] = None,
-                   web: bool = True, bash_timeout: int = 180) -> ToolRegistry:
+                   web: bool = True, bash_timeout: int = 180, web_paging: bool = False, web_downloads: bool = False) -> ToolRegistry:
     ws = Path(workspace).resolve()
-    reg = ToolRegistry(ApprovalPolicy("allowlist", allow=["bash", "write_file"]))
+    reg = ToolRegistry(ApprovalPolicy("allowlist", allow=["bash", "write_file", "web_download"]))
     obj = lambda **props: {"type": "object", "properties": props, "required": list(props)}   # noqa: E731
     s = {"type": "string"}
 
@@ -103,7 +132,20 @@ def bench_registry(workspace: Path, sandbox, blocked_log: Optional[List[str]] = 
                                side_effecting=True))
     reg.register(function_tool("list_dir", list_dir, "List a directory under /work.", obj(path=s)))
     if web:
-        reg.register(function_tool("web_fetch", lambda a: (lambda t: ToolResult(ok=not t.startswith("ERROR:"), text=t,
-                                   error=t if t.startswith("ERROR:") else None))(web_fetch(str(a["url"]), blocked_log=blocked_log)),
-                                   "Fetch a web page as text (some hosts are blocked).", obj(url=s)))
+        def fetch(a):
+            t = web_fetch(str(a["url"]), blocked_log=blocked_log, offset=a.get("offset", 0), paged=web_paging)
+            return ToolResult(ok=not t.startswith("ERROR:"), text=t, error=t if t.startswith("ERROR:") else None)
+        if web_paging:
+            reg.register(function_tool("web_fetch", fetch, "Fetch a web page as text, 15,000 characters at a time (some hosts are blocked). "
+                                       "Use offset to read further into a long page.",
+                                       {"type": "object", "properties": {"url": s, "offset": {"type": "integer", "description": "first character to return"}},
+                                        "required": ["url"]}))
+        else:
+            reg.register(function_tool("web_fetch", fetch, "Fetch a web page as text (some hosts are blocked).", obj(url=s)))
+        if web_downloads:
+            def download(a):
+                t = web_download(str(a["url"]), _confine(ws, _virtual(ws, a["path"])), blocked_log=blocked_log)
+                return ToolResult(ok=not t.startswith("ERROR:"), text=t, error=t if t.startswith("ERROR:") else None)
+            reg.register(function_tool("web_download", download, "Download a URL (data file, up to 25 MB) into /work, to be read with bash. "
+                                       "Same blocked hosts as web_fetch.", obj(url=s, path=s), side_effecting=True))
     return reg

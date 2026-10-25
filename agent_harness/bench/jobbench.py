@@ -120,7 +120,8 @@ def run_task(tasks_base: Path, task_id: str, out_dir: Path, client: ChatClient, 
              max_turns: int = 200, max_seconds: float = 3600, max_context_tokens: int = 40960, web: bool = True,
              extra_system: str = "", attempts: int = 2, context: str = "context-runtime", rag: bool = False,
              index_inputs: bool = True, extra_files: Optional[Dict[str, str]] = None, trace: bool = False,
-             pin_instructions: bool = True, context_options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+             pin_instructions: bool = True, context_options: Optional[Dict[str, Any]] = None,
+             recovery: bool = False, capability_notes: bool = False, web_paging: bool = False, web_downloads: bool = False) -> Dict[str, Any]:
     """Roll one task. Returns a summary dict; deliverables land in ``out_dir/output``, the trajectory in ``out_dir``.
 
     Like the upstream OpenCode runner, a second attempt (fresh workspace) is made only when the first left no
@@ -152,19 +153,30 @@ def run_task(tasks_base: Path, task_id: str, out_dir: Path, client: ChatClient, 
                 from ..trace import TraceRecorder
                 rec = TraceRecorder(out_dir / f"trace{attempt}")
             with DockerSandbox(ws) as sbx:
-                reg = bench_registry(ws, sbx, blocked_log=blocked, web=web)
-                res: LoopResult = run_loop(client, reg, (system + ("\n\n" + extra_system if extra_system else "")), PROMPT,
+                reg = bench_registry(ws, sbx, blocked_log=blocked, web=web, web_paging=web_paging, web_downloads=web_downloads)
+                notes = ""
+                if capability_notes:
+                    from .capabilities import environment_note, probe_environment
+                    notes = environment_note(probe_environment(sbx), web_paging=web_paging and web, web_downloads=web_downloads and web)
+                policy = None
+                if recovery:
+                    from .capabilities import recovery_policy
+                    policy = recovery_policy(ws, web_paging=web_paging, web_downloads=web_downloads, with_capabilities=True)
+                extra = "\n\n".join(x for x in (extra_system, notes) if x)
+                res: LoopResult = run_loop(client, reg, (system + ("\n\n" + extra if extra else "")), PROMPT, recovery=policy,
                                            max_turns=max_turns, max_seconds=max_seconds,
                                            max_context_tokens=max_context_tokens, context_manager=mgr, trace=rec,
                                            trajectory=out_dir / f"trajectory{'' if attempt == 1 else f'_attempt{attempt}'}.jsonl")
             deliver = out_dir / "output"
             shutil.rmtree(deliver, ignore_errors=True)
             shutil.copytree(ws / "output", deliver)
+            from .capabilities import stray_deliverables
+            outside = stray_deliverables(ws)
             files = sorted(str(p.relative_to(deliver)) for p in deliver.rglob("*") if p.is_file())
             summary = {"task": task_id, "attempt": attempt, "stop": res.stop, "turns": res.turns, "seconds": res.seconds,
                        "prompt_tokens": res.prompt_tokens, "completion_tokens": res.completion_tokens,
                        "tool_calls": res.tool_calls, "tool_errors": res.tool_errors, "deliverables": files,
-                       "blocked_fetches": blocked, "model": client.model, "context_manager": context, "rag": rag,
+                       "blocked_fetches": blocked, "outside_output": outside, "recovery": res.recovery, "model": client.model, "context_manager": context, "rag": rag,
                        "archived_items": len(mgr.archive.entries) if hasattr(mgr, "archive") else 0,
                        "retrieval_calls": _count_tool_calls(out_dir / f"trajectory{'' if attempt == 1 else f'_attempt{attempt}'}.jsonl",
                                                             ("search_context", "read_archive"))}

@@ -17,12 +17,13 @@ from .guardrails import LoopGuard
 from .llm import ChatClient, ChatError
 from .context import (ELIDED, BasicContextManager, ContextManager, clip_text as _clip, elide_old_tool_outputs,  # noqa: F401
                       estimate_tokens, messages_chars, placeholder_arg, shrink_tool_call_args)
+from .progress import ProgressTracker, RecoveryPolicy
 from .trace import TraceRecorder
 from .tools import ToolRegistry
 
 @dataclass
 class LoopResult:
-    stop: str                     # done | max_turns | max_seconds | model_error | context_overflow
+    stop: str                     # done | max_turns | max_seconds | model_error | context_overflow | blocked
     turns: int = 0
     seconds: float = 0.0
     final_text: str = ""
@@ -31,6 +32,7 @@ class LoopResult:
     tool_calls: int = 0
     tool_errors: int = 0
     messages: List[Dict[str, Any]] = field(default_factory=list)
+    recovery: Optional[Dict[str, Any]] = None     # ProgressTracker.report() when a RecoveryPolicy was given
 
 
 def is_context_error(text: str) -> bool:
@@ -58,7 +60,7 @@ def run_loop(client: ChatClient, registry: ToolRegistry, system: str, task: str,
              max_tool_chars: Optional[int] = None, trajectory: Optional[Path] = None,
              on_turn: Optional[Callable[[int, Dict[str, Any]], None]] = None,
              context_manager: Optional[ContextManager] = None, compact_to: float = 0.5,
-             trace: Optional[TraceRecorder] = None) -> LoopResult:
+             trace: Optional[TraceRecorder] = None, recovery: Optional[RecoveryPolicy] = None) -> LoopResult:
     if max_tool_chars is None:
         max_tool_chars = min(12000, int(0.2 * max_context_tokens))
     messages: List[Dict[str, Any]] = [{"role": "system", "content": system}, {"role": "user", "content": task}]
@@ -67,6 +69,7 @@ def run_loop(client: ChatClient, registry: ToolRegistry, system: str, task: str,
         trace.add(0, messages[0])
         trace.add(1, messages[1])
     guard = LoopGuard(max_turns)
+    tracker = ProgressTracker(recovery) if recovery else None      # opt-in; without it the legacy repeat guard below applies unchanged
     t0 = time.time()
     cm = context_manager or BasicContextManager()
     for extra in cm.tools():            # e.g. a retrieval tool over content the manager compacted away
@@ -156,7 +159,10 @@ def run_loop(client: ChatClient, registry: ToolRegistry, system: str, task: str,
                                                  f"shortened in your history to save space). Nothing was run. Write the real content, or "
                                                  f"get the original text back first (read_archive / re-read the source file)."), res.tool_errors + 1
                         emit("placeholder_blocked", name=name, arg=ph)
-                    elif seen.get(sig, [None, 0])[1] >= 2:
+                    elif tracker and (blocked := tracker.before(name, args)):
+                        text, res.tool_errors = blocked, res.tool_errors + 1
+                        emit("recovery", name=name, blocked=True, streak=tracker.streak)
+                    elif not tracker and seen.get(sig, [None, 0])[1] >= 2:
                         seen[sig][1] += 1
                         text = (f"[repeat] You have made this exact {name} call {seen[sig][1]} times and it returned the same result "
                                 f"each time. It will not change. Use what you already have, or change the arguments (for "
@@ -167,6 +173,8 @@ def run_loop(client: ChatClient, registry: ToolRegistry, system: str, task: str,
                         err = (r.error or "").removeprefix("ERROR: ").removeprefix("ERROR:").strip()
                         text = r.text if r.ok else f"ERROR: {err}"
                         res.tool_errors += 0 if r.ok else 1
+                        if tracker:
+                            text = tracker.after(name, args, text, r.ok)
                         h = hash(text)
                         prev = seen.get(sig)
                         seen[sig] = [h, prev[1] + 1 if prev and prev[0] == h else 1]
@@ -183,7 +191,13 @@ def run_loop(client: ChatClient, registry: ToolRegistry, system: str, task: str,
                     trace.add(len(messages) - 1, messages[-1])
                     trace.tool_result(res.turns, name, args, text, admitted)
                 emit("tool", name=name, ok=not text.startswith("ERROR:"), out=text[:400])
+            if tracker and tracker.exhausted:
+                res.stop = "blocked"
+                emit("recovery", final=True, **tracker.report())
+                break
     finally:
+        if tracker:
+            res.recovery = tracker.report()
         res.seconds = round(time.time() - t0, 1)
         emit("end", stop=res.stop, turns=res.turns, seconds=res.seconds)
         if log:
