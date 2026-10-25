@@ -75,6 +75,16 @@ def delta(base: Dict[str, str], final: Dict[str, str]) -> Tuple[str, Dict[str, s
     return text, files, changed
 
 
+def tree_hash(final: Dict[str, str], changed: List[str]) -> str:
+    """Content hash of the composed edits a run used (the changed files only), recorded so a later audit can tell whether the harness on disk
+    is still the one the run used."""
+    import hashlib
+    h = hashlib.sha256()
+    for p in sorted(changed):
+        h.update(p.encode() + b"\0" + final[p].encode("utf-8", "replace") + b"\0")
+    return h.hexdigest()[:16]
+
+
 def generate(exp, cell, workers: int = 1, run_task=None, client_factory=None, *, name: str = NAME,
              context: str = "context-runtime", context_options: dict = None) -> None:
     from .. import jobbench as jb
@@ -94,7 +104,8 @@ def generate(exp, cell, workers: int = 1, run_task=None, client_factory=None, *,
         out = exp.root / name / cell.name / task_dir_name(task)
         client = (client_factory or (lambda: ours.make_client(exp, cell, max_out)))()
         try:
-            text, files, changed = delta(read_tree(base), read_tree(final))
+            final_tree = read_tree(final)
+            text, files, changed = delta(read_tree(base), final_tree)
             s = run_task(exp.tasks_base, task, out, client, max_turns=lim.get("max_turns", 200), max_seconds=lim.get("max_seconds", 3600),
                          max_context_tokens=cell.window, attempts=lim.get("attempts", 2), context=context,
                          extra_system=text, extra_files=files, trace=bool(exp.cfg.get("trace", False)),
@@ -104,6 +115,6 @@ def generate(exp, cell, workers: int = 1, run_task=None, client_factory=None, *,
             return
         exp.board.mark_generated(arm, task, deliverables=s["deliverables"], stop=s["stop"], dir=str(out / "output"),
                                  archived_items=s.get("archived_items"), retrieval_calls=s.get("retrieval_calls"),
-                                 seconds=s.get("seconds"), context=context, context_options=context_options or None, sampling=exp.cfg.get("sampling") or None, harness_changed_files=changed, **diagnostics(out))
+                                 seconds=s.get("seconds"), context=context, context_options=context_options or None, sampling=exp.cfg.get("sampling") or None, harness_changed_files=changed, harness_tree_hash=tree_hash(final_tree, changed), **diagnostics(out))
     with ThreadPoolExecutor(workers) as ex:
         list(ex.map(one, exp.tasks))

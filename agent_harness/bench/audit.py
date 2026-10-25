@@ -169,8 +169,14 @@ def audit_matrix(exp, stable_since: float = 0.0, accepted: Sequence[str] = ()) -
                     try:
                         base, final = ours_h2.tree_dir(exp, c, t, "base"), ours_h2.tree_dir(exp, c, t, "agg1")
                         _, _, changed = ours_h2.delta(ours_h2.read_tree(base), ours_h2.read_tree(final))
+                        final_tree = ours_h2.read_tree(final)
                         if sorted(changed) != sorted(info.get("harness_changed_files") or []):
                             out.append(Finding("FAIL", key, "ran on a composed harness that differs from the one on disk now (pipeline re-run since)"))
+                        elif info.get("harness_tree_hash") and info["harness_tree_hash"] != ours_h2.tree_hash(final_tree, changed):
+                            out.append(Finding("FAIL", key, "the composed harness on disk has different content from the one this run used (hash)"))
+                        elif not info.get("harness_tree_hash") and info.get("dir") and os.path.exists(info["dir"]) \
+                                and os.path.getmtime(info["dir"]) < os.path.getmtime(final):
+                            out.append(Finding("FAIL", key, "ran before the composed harness on disk was (re)built (no content hash recorded; timestamps)"))
                     except Exception as e:                    # noqa: BLE001
                         out.append(Finding("FAIL", key, f"composed harness unreadable: {type(e).__name__}"))
                 if arm in ("harness2", "h2-base") and info.get("stop") in ("partial", "base-failed"):

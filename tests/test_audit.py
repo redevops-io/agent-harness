@@ -191,3 +191,31 @@ def test_the_matrix_audit_catches_missing_cells_pre_repair_failures_and_mismatch
     assert audit.passed(audit.audit_matrix(e, stable_since=2000, accepted=["harness2@q8|a/task1"]))        # a looked-at genuine outcome can be accepted explicitly
     os.utime(summ, (5000, 5000))
     assert audit.passed(audit.audit_matrix(e, stable_since=2000))                                          # produced after the repair: a genuine outcome
+
+
+def test_the_matrix_audit_uses_a_content_hash_when_recorded_and_timestamps_otherwise(tmp_path):
+    import os
+    from agent_harness.bench.harnesses import ours_h2
+    from tests.test_harness_ours_h2 import put, trees
+    c = cfg(tmp_path, arms=["ours-h2-cr"], cells={"q8": {"provider": "px48", "model": "M", "window": 65536}})
+    e = ex.Experiment(c)
+    cell = e.cells[0]
+    base, final = trees()
+    put(e, cell, "a/task1", base, final)
+    d = ours_h2.tree_dir(e, cell, "a/task1", "agg1")
+    ft = ours_h2.read_tree(d)
+    _, _, changed = ours_h2.delta(ours_h2.read_tree(ours_h2.tree_dir(e, cell, "a/task1", "base")), ft)
+    out = tmp_path / "out"
+    out.mkdir()
+    # content hash recorded and equal -> fine; the same file names with different content -> caught
+    e.board.mark_generated("ours-h2-cr@q8", "a/task1", deliverables=["f"], stop="done", dir=str(out), harness_changed_files=changed,
+                           harness_tree_hash=ours_h2.tree_hash(ft, changed))
+    assert audit.passed(audit.audit_matrix(e))
+    (d / "guardrails.md").write_text(final["guardrails.md"] + "\nAn extra rule added when the pipeline was re-run.\n")
+    assert "different content" in " ".join(str(f) for f in audit.audit_matrix(e))
+    # no hash recorded (older runs): the run output must not be older than the tree
+    e.board.mark_generated("ours-h2-cr@q8", "a/task1", deliverables=["f"], stop="done", dir=str(out), harness_changed_files=changed, harness_tree_hash=None)
+    os.utime(out, (1000, 1000))
+    assert "ran before the composed harness" in " ".join(str(f) for f in audit.audit_matrix(e))
+    os.utime(out, (os.path.getmtime(d) + 100,) * 2)
+    assert audit.passed(audit.audit_matrix(e))
