@@ -210,6 +210,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     ap.add_argument("--skip-audit", action="store_true", help="generate even if the config audit fails (the run is then not comparable)")
     ap.add_argument("--protocol", choices=["per_output", "batched"], default="per_output",
                     help="per_output: one answer per judge call; batched: the answers of all harnesses of one model together")
+    ap.add_argument("--skip-matrix-audit", action="store_true", help="judge even if the matrix audit fails (the results then do not count)")
     ap.add_argument("--complete-only", action="store_true", help="judge a task only once every arm and cell has finished it")
     ap.add_argument("--parallel", type=int, default=1, help="outputs of one task judged at the same time")
     a = ap.parse_args(argv)
@@ -217,6 +218,18 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if a.step == "generate":
         ex.generate(a.only, a.cell, skip_audit=a.skip_audit)
     elif a.step == "judge":
+        if not a.skip_matrix_audit:                # never judge a matrix nobody has verified (stale failures, mismatched composed harnesses)
+            import time
+            from . import audit
+            spec = audit.spec_of(ex.cfg) or {}
+            since = time.mktime(time.strptime(spec["stable_since"], "%Y-%m-%d %H:%M")) if spec.get("stable_since") else 0.0
+            fs = audit.audit_matrix(ex, since, spec.get("accepted_gaps", []))
+            if not audit.passed(fs):
+                for f in fs:
+                    print(f)
+                print("REFUSING to judge: the results matrix failed its audit (list above). Fix it, accept a looked-at genuine gap in "
+                      "spec.accepted_gaps, or pass --skip-matrix-audit (results then do not count).")
+                return 3
         j = ex.cfg["judge"]
         report = ex.cfg["batched_validation_report"] if a.protocol == "batched" else ex.cfg["selfcheck_report"]
         if not a.allow_uncalibrated_judge and not calibration_ok(Path(report).expanduser(), j["model"], j.get("reasoning_effort", "default"), a.protocol):

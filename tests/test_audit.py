@@ -219,3 +219,17 @@ def test_the_matrix_audit_uses_a_content_hash_when_recorded_and_timestamps_other
     assert "ran before the composed harness" in " ".join(str(f) for f in audit.audit_matrix(e))
     os.utime(out, (os.path.getmtime(d) + 100,) * 2)
     assert audit.passed(audit.audit_matrix(e))
+
+
+def test_the_judge_step_refuses_an_unaudited_matrix_and_accepts_listed_gaps(tmp_path, monkeypatch, capsys):
+    import json as _json
+    (tmp_path / "tasks.txt").write_text("a/task1\n")
+    c = cfg(tmp_path, arms=["h2-base"], cells={"q8": {"provider": "px48", "model": "M", "window": 65536}})
+    c["judge"] = {"python": "p", "script": "s", "model": "m", "base_url": "http://x"}
+    c["selfcheck_report"] = str(tmp_path / "none.json")
+    path = tmp_path / "c.json"
+    path.write_text(_json.dumps(c))
+    assert ex.main(["judge", "--config", str(path)]) == 3 and "REFUSING to judge: the results matrix failed its audit" in capsys.readouterr().out
+    c["spec"]["accepted_gaps"] = ["h2-base@q8|a/task1"]                        # a genuine gap someone looked at
+    path.write_text(_json.dumps(c))
+    assert ex.main(["judge", "--config", str(path)]) == 2                      # past the matrix gate; now stopped by the (absent) calibration report
