@@ -162,3 +162,32 @@ def test_a_small_window_overshoot_is_a_warning_and_a_large_one_a_failure(tmp_pat
     strict.cfg["spec"]["window_tolerance"] = 0.0
     strict.board.mark_generated("ours-cr@q8", "a/task1", deliverables=["f"], stop="done", peak_prompt=66992)
     assert not audit.passed(audit.audit_runs(strict))                                                        # with no tolerance the same run fails
+
+
+def test_the_matrix_audit_catches_missing_cells_pre_repair_failures_and_mismatched_composed_harnesses(tmp_path):
+    import os
+    from agent_harness.bench.harnesses import harness2 as h2, ours_h2
+    from tests.test_harness_ours_h2 import put, trees
+    c = cfg(tmp_path, arms=["h2-base", "harness2", "ours-h2-cr"], cells={"q8": {"provider": "px48", "model": "M", "window": 65536}})
+    e = ex.Experiment(c)
+    cell = e.cells[0]
+    msgs = lambda fs: " | ".join(str(f) for f in fs)
+    assert "no finished rollout" in msgs(audit.audit_matrix(e))                                         # nothing finished yet
+    base, final = trees()
+    put(e, cell, "a/task1", base, final)                                                                  # a composed harness on disk
+    _, _, changed = ours_h2.delta(ours_h2.read_tree(ours_h2.tree_dir(e, cell, "a/task1", "base")), ours_h2.read_tree(ours_h2.tree_dir(e, cell, "a/task1", "agg1")))
+    for arm in e.arms:
+        e.board.mark_generated(f"{arm}@q8", "a/task1", deliverables=["f"], stop="ok", harness_changed_files=changed if arm == "ours-h2-cr" else None)
+    assert audit.passed(audit.audit_matrix(e)) and audit.audit_matrix(e)[0].level == "OK"
+    e.board.mark_generated("ours-h2-cr@q8", "a/task1", deliverables=["f"], stop="done", harness_changed_files=["guardrails.md"])   # ran on a different tree
+    assert "differs from the one on disk" in msgs(audit.audit_matrix(e))
+    e.board.mark_generated("ours-h2-cr@q8", "a/task1", deliverables=["f"], stop="done", harness_changed_files=changed)
+    summ = h2.runs_dir(e, cell) / "jb" / "adapt" / h2.NS / "a__task1" / "summary.json"                   # a partial result with an old summary
+    summ.parent.mkdir(parents=True, exist_ok=True)
+    summ.write_text("{}")
+    os.utime(summ, (1000, 1000))
+    e.board.mark_generated("harness2@q8", "a/task1", deliverables=[], stop="partial")
+    assert "predates the infrastructure repair" in msgs(audit.audit_matrix(e, stable_since=2000))
+    assert audit.passed(audit.audit_matrix(e, stable_since=2000, accepted=["harness2@q8|a/task1"]))        # a looked-at genuine outcome can be accepted explicitly
+    os.utime(summ, (5000, 5000))
+    assert audit.passed(audit.audit_matrix(e, stable_since=2000))                                          # produced after the repair: a genuine outcome

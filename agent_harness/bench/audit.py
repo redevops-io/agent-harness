@@ -141,6 +141,45 @@ def audit_runs(exp) -> List[Finding]:
     return out or [Finding("OK", "runs", f"no finished run exceeded the {spec['window']}-token window")]
 
 
+def audit_matrix(exp, stable_since: float = 0.0, accepted: Sequence[str] = ()) -> List[Finding]:
+    """The completeness and provenance of the WHOLE results matrix, to be passed before anything is judged.
+
+    * every arm x cell x task has a finished rollout, unless listed in ``accepted`` (``arm@cell|task``, a genuine outcome someone looked at);
+    * an ``ours-h2*`` run used the composed harness that is on disk now (the changed-file list recorded at run time equals the one computed
+      from the current tree), so it pairs with the Harness² result built from the same pipeline run;
+    * a ``harness2`` / ``h2-base`` result that is partial or base-failed was produced after ``stable_since`` (older ones may be
+      infrastructure failures that upstream's resume never retried).
+    """
+    import glob
+    import os
+    from .cells import task_dir_name
+    from .harnesses import harness2 as h2, ours_h2
+    accepted = set(accepted)
+    out: List[Finding] = []
+    for c in exp.cells:
+        for t in exp.tasks:
+            for arm in exp.arms:
+                key, info = f"{arm}@{c.name}|{t}", exp.board.info(f"{arm}@{c.name}", t)
+                if key in accepted:
+                    continue
+                if not info.get("finished"):
+                    out.append(Finding("FAIL", key, "no finished rollout"))
+                    continue
+                if arm.startswith("ours-h2"):
+                    try:
+                        base, final = ours_h2.tree_dir(exp, c, t, "base"), ours_h2.tree_dir(exp, c, t, "agg1")
+                        _, _, changed = ours_h2.delta(ours_h2.read_tree(base), ours_h2.read_tree(final))
+                        if sorted(changed) != sorted(info.get("harness_changed_files") or []):
+                            out.append(Finding("FAIL", key, "ran on a composed harness that differs from the one on disk now (pipeline re-run since)"))
+                    except Exception as e:                    # noqa: BLE001
+                        out.append(Finding("FAIL", key, f"composed harness unreadable: {type(e).__name__}"))
+                if arm in ("harness2", "h2-base") and info.get("stop") in ("partial", "base-failed"):
+                    fs = glob.glob(str(h2.runs_dir(exp, c)) + f"/**/adapt/{h2.NS}/{task_dir_name(t)}/summary.json", recursive=True)
+                    if not fs or max(os.path.getmtime(f) for f in fs) < stable_since:
+                        out.append(Finding("FAIL", key, f"{info.get('stop')} predates the infrastructure repair (never retried?)"))
+    return out or [Finding("OK", "matrix", "every cell finished, ours-h2 runs match their composed harnesses, no pre-repair failures remain")]
+
+
 def passed(findings: Sequence[Finding]) -> bool:
     return not any(f.level == "FAIL" for f in findings)
 
@@ -151,10 +190,17 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     ap.add_argument("--config", required=True)
     ap.add_argument("--ledger", help="spend proxy ledger to audit on the wire")
     ap.add_argument("--since", type=float, default=0.0, help="unix time; only requests after it are checked")
+    ap.add_argument("--matrix", action="store_true", help="also audit the completeness and provenance of the whole results matrix")
+    ap.add_argument("--stable-since", help="local time 'YYYY-MM-DD HH:MM' from which the infrastructure is considered sound")
+    ap.add_argument("--accept", action="append", default=[], help="arm@cell|task of a genuine incomplete outcome (repeatable)")
     ap.add_argument("--wire-tolerance", type=float, default=0.0, help="share of requests allowed to deviate (OpenCode auxiliary calls)")
     a = ap.parse_args(argv)
     ex = Experiment(json.loads(Path(a.config).expanduser().read_text()))
     fs = audit_config(ex) + audit_runs(ex)
+    if a.matrix:
+        import time
+        since = time.mktime(time.strptime(a.stable_since, "%Y-%m-%d %H:%M")) if a.stable_since else 0.0
+        fs += audit_matrix(ex, since, a.accept)
     if a.ledger:
         fs += audit_wire(ex, Path(a.ledger).expanduser(), a.since, a.wire_tolerance)
     for f in fs:
