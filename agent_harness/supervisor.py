@@ -62,6 +62,8 @@ class SupervisorConfig:
     reserve_blocks: Tuple[str, ...] = ("web_fetch", "web_download", "search_context")   # exploration the reserve for building and checking deliverables may not be spent on
     notice_fractions: Tuple[float, ...] = (0.5, 0.8)
     checkpoint_pushes: int = 2
+    stall_checkpoint: bool = False             # opt-in (not used by any pinned run): after ``stall_checkpoint_ignored`` refusals of one operation in a row, while no valid deliverable exists, say what is missing and start delivery mode now
+    stall_checkpoint_ignored: int = 3
     min_turns_for_push: int = 3
     min_seconds_for_push: float = 120.0
     verified_idle_notice: int = 6
@@ -145,6 +147,7 @@ class Supervisor:
         self.exhausted = False
         self.exhausted_family: Optional[int] = None
         self.pushes = 0
+        self.stall_checkpoint_turn: Optional[int] = None
         self._noticed: Set[str] = set()
         self._report_cache: Tuple[str, Optional[DeliverableReport]] = ("", None)
         self.counts: Dict[str, int] = {"suppressed": 0, "pointers": 0, "watch_notes": 0, "probes": 0, "executed": 0, "budget_notices": 0, "pushes": 0}
@@ -224,7 +227,7 @@ class Supervisor:
     @property
     def delivery_mode(self) -> bool:
         rt = max(self.cfg.reserve_turns, int(self.cfg.reserve_fraction * self.max_turns))
-        return self.remaining_turns <= rt or self.remaining_seconds <= self.cfg.reserve_seconds
+        return self.stall_checkpoint_turn is not None or self.remaining_turns <= rt or self.remaining_seconds <= self.cfg.reserve_seconds
 
     def _thresholds(self) -> Tuple[int, int]:
         f = self.cfg.delivery_stall_factor if self.delivery_mode else 1.0
@@ -330,6 +333,21 @@ class Supervisor:
         fam.ttl_until = self.turn + fam.ttl
         self._event("suppress", family=fam.id, tool=fam.tool, why=why, ttl=fam.ttl, example=fam.example[:120])
 
+    def _stall_checkpoint(self, fam: _Family) -> None:
+        """One structured message when a refused operation is requested again and again and nothing deliverable exists: what stalled, what is missing, what is now unavailable, what to do. It also starts
+        delivery mode (exploration tools in ``reserve_blocks`` are refused) instead of waiting for the end-of-budget reserve."""
+        rep = self.deliverable_report()
+        if rep is None or rep.ok:
+            return
+        self.stall_checkpoint_turn = self.turn
+        self.counts["stall_checkpoints"] = self.counts.get("stall_checkpoints", 0) + 1
+        missing = ", ".join(rep.unmatched_names or [("." + e) for e in rep.missing_exts]) or rep.issues()
+        text = (f"[checkpoint] Stalled at turn {self.turn} of {self.max_turns}: `{fam.example[:100]}` has run {fam.execs} times with an unchanged result and is refused from now on. "
+                f"Still missing: {missing} ({rep.issues()}). Unavailable now: {', '.join(self.cfg.reserve_blocks)} (the remaining {self.remaining_turns} turns / {int(self.remaining_seconds // 60)} min are for "
+                f"building files). Next: write one script that builds every file you can from the data you already have (a partial file is better than none), run it, and check what it wrote.")
+        self.pending.append(text)
+        self._event("stall_checkpoint", family=fam.id, missing=missing[:200], remaining_turns=self.remaining_turns)
+
     def _lift(self, fam: _Family, why: str) -> None:
         fam.state, fam.stall, fam.identical, fam.watched, fam.ttl, fam.probing, fam.ignored = "normal", 0, 0, False, 0, False, 0
         self._event("lift", family=fam.id, why=why)
@@ -341,6 +359,8 @@ class Supervisor:
         fam.ignored += 1
         fam.suppressed_total += 1
         self.counts["suppressed"] += 1
+        if self.cfg.stall_checkpoint and self.stall_checkpoint_turn is None and fam.ignored >= self.cfg.stall_checkpoint_ignored:
+            self._stall_checkpoint(fam)
         idle = self.turn - self.last_progress_turn
         if self.delivery_mode:
             idle *= 2                                                      # the reserve for delivering is being used up: patience halves
