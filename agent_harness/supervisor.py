@@ -64,6 +64,7 @@ class SupervisorConfig:
     checkpoint_pushes: int = 2
     stall_checkpoint: bool = False             # opt-in (not used by any pinned run): after ``stall_checkpoint_ignored`` refusals of one operation in a row, while no valid deliverable exists, say what is missing and start delivery mode now
     stall_checkpoint_ignored: int = 3
+    reread_check: bool = False                 # opt-in: once per run, before the first write into the output directory (and once before a finish), if an input file's earlier read has left the context and was not repeated, ask for a re-read
     min_turns_for_push: int = 3
     min_seconds_for_push: float = 120.0
     verified_idle_notice: int = 6
@@ -127,7 +128,8 @@ def _norm_url(u: str) -> str:
 class Supervisor:
     def __init__(self, cfg: Optional[SupervisorConfig] = None, *, max_turns: int = 200, max_seconds: float = 3600.0, context: Any = None,
                  probe: Optional[Callable[[], Snapshot]] = None, checker: Optional[Callable[[], DeliverableReport]] = None,
-                 specs: Optional[Dict[str, Dict[str, Any]]] = None, emit: Optional[Callable[..., None]] = None, clock: Callable[[], float] = time.time):
+                 specs: Optional[Dict[str, Dict[str, Any]]] = None, emit: Optional[Callable[..., None]] = None, clock: Callable[[], float] = time.time,
+                 inputs: Sequence[str] = ()):
         self.cfg = cfg or SupervisorConfig()
         self.max_turns, self.max_seconds, self.cm, self.probe, self.checker = max_turns, max_seconds, context, probe, checker
         self.specs, self._emit_cb, self.clock = specs or {}, emit, clock
@@ -148,6 +150,13 @@ class Supervisor:
         self.exhausted_family: Optional[int] = None
         self.pushes = 0
         self.stall_checkpoint_turn: Optional[int] = None
+        self.inputs = {n.lower(): n for n in (inputs or ()) if not str(n).upper().startswith("TASK_INSTRUCTIONS")}
+        self._reads: Dict[str, Tuple[str, int, int]] = {}       # input file (lower case) -> (call id, turn, sequence number) of the newest executed call that named it
+        self._write_stale: Tuple[int, List[str]] = (0, [])       # (sequence number, stale input files) at the newest write into the output directory
+        self._msgs: Optional[List[Dict[str, Any]]] = None
+        self._reread_gated = False
+        self._reread_pushed = False
+        self._archive_files: Dict[str, Set[str]] = {}          # archive id handed out in a pointer -> input files that call had named
         self._noticed: Set[str] = set()
         self._report_cache: Tuple[str, Optional[DeliverableReport]] = ("", None)
         self.counts: Dict[str, int] = {"suppressed": 0, "pointers": 0, "watch_notes": 0, "probes": 0, "executed": 0, "budget_notices": 0, "pushes": 0}
@@ -269,7 +278,46 @@ class Supervisor:
         return f"[budget] {lead}: {self.remaining_turns} turns and {int(self.remaining_seconds // 60)} min left; {status}.{tail} (This check is structural only.)"
 
     # ---- call level -------------------------------------------------------------------------------------------------------------
+    _OUT_WRITE = re.compile(r"(>>?\s*['\"]?\S*output/|\.save\(|to_excel|to_csv|to_json|savefig|open\([^)]*['\"][wax]b?['\"]|\.write(?:text|bytes)?\(|sqlite3|shutil\.(?:copy|move)|\bcp\b|\bmv\b|\btee\b)")
+
+    @classmethod
+    def _writes_output(cls, name: str, args: Dict[str, Any]) -> bool:
+        if name in ("write_file", "edit_file"):
+            return "output/" in str((args or {}).get("path", ""))
+        if name in ("bash", "python"):
+            cmd = str((args or {}).get("command", ""))
+            return "output/" in cmd and bool(cls._OUT_WRITE.search(cmd))
+        return False
+
+    def _stale_sources(self) -> List[str]:
+        """Input files whose newest read is no longer visible to the model (archived or gone) and that no later call named. Needs a context manager that can say what is visible."""
+        if not self._reads or self._msgs is None:
+            return []
+        out = []
+        for low, (cid, _t, _q) in sorted(self._reads.items(), key=lambda kv: kv[1][1]):
+            v = self._view(self._msgs, cid)
+            if v is not None and getattr(v, "state", "visible") in ("archived", "unavailable"):      # a clipped result is partly visible (and a read-back slice looks clipped): not stale
+                out.append(self.inputs.get(low, low))
+        return out
+
+    def _reread_text(self, stale: List[str], gate: bool) -> str:
+        files = ", ".join(stale[:8]) + (f" (+{len(stale) - 8} more)" if len(stale) > 8 else "")
+        lead = "Not run yet: " if gate else "Before you finish: "
+        return (f"[check] {lead}the content you read from {files} earlier has since been moved out of your context, so what you remember of it may be incomplete or wrong. "
+                f"Re-read {'them' if len(stale) > 1 else 'it'} now (read_file or a short script) and write the deliverables from the files, so that every name, ID, date and amount in them matches the source. "
+                f"{'This call was not run; repeat it after re-reading.' if gate else 'Then compare your deliverables with the sources and fix any difference.'}")
+
     def before(self, call_id: str, name: str, args: Dict[str, Any], messages: List[Dict[str, Any]]) -> Decision:
+        self._msgs = messages
+        if self.cfg.reread_check and not self._reread_gated and self.inputs and not self.delivery_mode and self._writes_output(name, args):
+            stale = self._stale_sources()
+            if stale:
+                self._reread_gated = True
+                self.counts["reread_gates"] = self.counts.get("reread_gates", 0) + 1
+                self._event("reread_gate", files=stale[:8], tool=name)
+                return Decision(False, self._reread_text(stale, True), "reread")
+        if self.cfg.reread_check and self.inputs and self._writes_output(name, args):
+            self._write_stale = (self.seq, self._stale_sources())          # what the model could see of its sources when it wrote
         if name in self.cfg.reserve_blocks and self.delivery_mode:
             rep = self.deliverable_report()
             if rep is not None and not rep.ok:
@@ -303,6 +351,7 @@ class Supervisor:
             if view and view.state in ("archived", "clipped") and getattr(view, "archive_id", None) and fam.pointers < self.cfg.pointer_answers:
                 fam.pointers += 1
                 fam.stall += 1
+                self._archive_files[view.archive_id] = set(fam.refs) & set(self.inputs)
                 self.counts["pointers"] += 1
                 self._event("pointer", family=fam.id, archive=view.archive_id)
                 return Decision(False, self._pointer_text(name, entry, view), "pointer")
@@ -388,6 +437,12 @@ class Supervisor:
         fam = self._assign(name, args)
         self.seq += 1
         self.counts["executed"] += 1
+        if ok and self.inputs:
+            refs = self._refs(name, args) & set(self.inputs)
+            if name == "read_archive":                                # reading back an archived input counts as reading that input again
+                refs |= set().union(*(self._archive_files.get(str(v), set()) for v in (args or {}).values() if isinstance(v, str)))
+            for ref in refs:
+                self._reads[ref] = (call_id, self.turn, self.seq)
         fp = fingerprint(text)
         is_err = (not ok) or bool(_ERROR.search(text or ""))
         pre = self._snap
@@ -459,6 +514,14 @@ class Supervisor:
     # ---- ending ---------------------------------------------------------------------------------------------------------------
     def on_finish_attempt(self) -> FinishDecision:
         """The model replied without a tool call. Accept, or send it back (bounded) when the deliverables are missing or invalid and there is budget."""
+        if self.cfg.reread_check and not self._reread_pushed and self.remaining_turns >= self.cfg.min_turns_for_push and self.remaining_seconds >= self.cfg.min_seconds_for_push:
+            wseq, wstale = self._write_stale
+            stale = [f for f in wstale if self._reads.get(f.lower(), ("", 0, 0))[2] <= wseq]      # still not read again after the write that was made without them in view
+            if stale:
+                self._reread_pushed = True
+                self.counts["reread_pushes"] = self.counts.get("reread_pushes", 0) + 1
+                self._event("reread_push", files=stale[:8])
+                return FinishDecision("push", self._reread_text(stale, False))
         rep = self.deliverable_report()
         if rep is None or rep.ok:
             return FinishDecision("accept")

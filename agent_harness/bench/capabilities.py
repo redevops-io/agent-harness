@@ -111,4 +111,4 @@ def supervision_for(ws: Path, task_text: str = "", input_names=(), cfg=None):
     from ..supervisor import SupervisorConfig
     ws = Path(ws)
     return Supervision(cfg or SupervisorConfig(), probe=lambda: workspace_snapshot(ws),
-                       checker=lambda: check_deliverables(ws / "output", task_text, input_names))
+                       checker=lambda: check_deliverables(ws / "output", task_text, input_names), inputs=tuple(input_names))

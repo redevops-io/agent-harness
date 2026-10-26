@@ -14,7 +14,7 @@ import json
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Set, Any, Callable, Dict, List, Optional
+from typing import Sequence, Set, Any, Callable, Dict, List, Optional
 
 from .guardrails import LoopGuard
 from .llm import ChatClient, ChatError
@@ -33,6 +33,7 @@ class Supervision:
     cfg: SupervisorConfig = field(default_factory=SupervisorConfig)
     probe: Optional[Callable[[], Dict[str, str]]] = None
     checker: Optional[Callable[[], Any]] = None
+    inputs: Sequence[str] = ()                  # names of the task's input files (for the opt-in re-read check)
 
 
 @dataclass
@@ -125,7 +126,7 @@ def run_loop(client: ChatClient, registry: ToolRegistry, system: str, task: str,
     if supervision is not None:
         tool_params = {(sp.get("function") or sp).get("name"): (sp.get("function") or sp).get("parameters") or {} for sp in specs}
         sup = Supervisor(supervision.cfg, max_turns=max_turns, max_seconds=max_seconds, context=cm, probe=supervision.probe, checker=supervision.checker,
-                         specs=tool_params, emit=emit)
+                         specs=tool_params, emit=emit, inputs=supervision.inputs)
     is_ph = getattr(cm, "is_placeholder", None)
     last_prompt, sent_len = 0, 0
     refused: Set[str] = set()                       # call ids the supervisor refused (their old arguments are shrunk, see shrink_refused_calls)

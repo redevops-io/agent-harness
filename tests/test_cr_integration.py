@@ -191,3 +191,24 @@ def test_the_trace_keeps_the_canonical_history_while_compaction_and_supervision_
     assert first == BIG                                                                   # the full original of the archived result is in the trace
     proj = [x for x in rows if x["kind"] == "projection"]
     assert proj[-1]["rewritten"] > 0 and proj[0]["rewritten"] == 0                        # the model saw rewrites; the canonical copies are untouched
+
+
+# ---- opt-in re-read check with the real compactor -----------------------------------------------------------------------------------------------------
+def test_with_the_real_compactor_a_write_after_the_source_was_archived_is_held_until_it_is_read_back(tmp_path):
+    n = {}
+    mgr = ContextRuntimeManager(tmp_path / "arch", policy="v2")
+    path_schema = {"type": "object", "properties": {"path": {"type": "string"}, "q": {"type": "string"}, "content": {"type": "string"}, "id": {"type": "string"}}}
+    src = {"path": "/work/task_folder/rules.csv"}
+    follow = lambda msgs: ("read_archive", {"id": archive_id_in(msgs)})
+    acts = [("read_file", src)] + [("filler", {"q": str(i)}) for i in range(8)] + [("write_file", {"path": "/work/output/r.xlsx", "content": "x"}), ("read_file", src), follow,
+                                                                                    ("write_file", {"path": "/work/output/r.xlsx", "content": "x"}), "finished"]
+    r = reg(n, schema=path_schema, read_file=lambda a: BIG, filler=lambda a: "F" * 700 + a["q"], write_file=lambda a: "wrote", read_archive=lambda a: "x")
+    c = Script(acts)
+    res = run_loop(c, r, "s", "t", max_turns=60, max_context_tokens=3000, context_manager=mgr, check_integrity=True,
+                   supervision=Supervision(SupervisorConfig(reread_check=True), inputs=["rules.csv"]))
+    counts = res.supervisor["counts"]
+    assert res.stop == "done" and counts["reread_gates"] == 1 and counts["pointers"] == 1 and counts.get("reread_pushes", 0) == 0
+    assert n["write_file"] == 1                                                   # the first write was held, the second ran after the read-back
+    assert any(e["kind"] == "reread_gate" and "rules.csv" in e["files"] for e in res.supervisor["events"])
+    first = next(m["content"] for req in c.seen for m in req if m["role"] == "tool" and m["content"].startswith("[check]"))        # as the model first saw it
+    assert "rules.csv" in first and "This call was not run" in first
