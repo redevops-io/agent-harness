@@ -7,7 +7,7 @@ import pytest
 from agent_harness.bench import experiment as ex, harnesses
 from agent_harness.bench.cells import arm_id
 from agent_harness.bench.failure_class import classify
-from agent_harness.bench.harnesses import ours_cr, ours_cr_tools, ours_cr_tools_rec
+from agent_harness.bench.harnesses import ours_cr, ours_cr_tools, ours_cr_v2
 
 
 def make_exp(tmp_path, arms):
@@ -28,27 +28,26 @@ def run_arms(tmp_path, arms):
     return e, seen
 
 
-def test_b_and_c_differ_from_the_baseline_only_in_the_tool_and_recovery_options(tmp_path):
-    e, seen = run_arms(tmp_path, ["ours-cr", "ours-cr-tools", "ours-cr-tools-rec"])
+def test_b_and_v2_differ_from_the_baseline_only_in_the_declared_options(tmp_path):
+    e, seen = run_arms(tmp_path, ["ours-cr", "ours-cr-tools", "ours-cr-v2"])
     base = seen["ours-cr"]
-    for k in ("tools", "network", "recovery"):
+    for k in ("tools", "network", "supervise", "vision", "check_integrity"):
         assert k not in base                                              # the baseline is called exactly as before
-    b, c = seen["ours-cr-tools"], seen["ours-cr-tools-rec"]
-    common = {k: v for k, v in b.items() if k not in ("tools", "network")}
-    assert common == base                                                 # same context, sampling-relevant limits, window, attempts, trace
-    assert b["tools"] == "parity" and b["network"] == "egress" and "recovery" not in b
-    assert c == {**b, "recovery": True, "recovery_hard_stop": False}
+    b, v2 = seen["ours-cr-tools"], seen["ours-cr-v2"]
+    assert {k: v for k, v in b.items() if k not in ("tools", "network")} == base       # same context, limits, window, attempts, trace
+    assert b["tools"] == "parity" and b["network"] == "egress" and "supervise" not in b
+    assert v2 == {**b, "supervise": True, "vision": "probe", "check_integrity": True}
     for arm in e.arms:
         assert e.board.finished(arm_id(arm, "q8"), "a/task1")
-    info = e.board.info(arm_id("ours-cr-tools-rec", "q8"), "a/task1")
-    assert info["run_options"] == {"tools": "parity", "network": "egress", "recovery": True, "recovery_hard_stop": False} and info["failure"] == "delivered"
+    info = e.board.info(arm_id("ours-cr-v2", "q8"), "a/task1")
+    assert info["run_options"] == {"tools": "parity", "network": "egress", "supervise": True, "vision": "probe", "check_integrity": True} and info["failure"] == "delivered"
 
 
 def test_arm_options_are_declared_once_and_repeatable():
     assert ours_cr_tools.RUN_OPTIONS == {"tools": "parity", "network": "egress"}
-    assert ours_cr_tools_rec.RUN_OPTIONS == {**ours_cr_tools.RUN_OPTIONS, "recovery": True, "recovery_hard_stop": False}
-    assert harnesses.load("ours-cr-tools-r2").NAME == "ours-cr-tools-r2"
-    assert ours_cr_tools.OPTIONS == ours_cr.OPTIONS if hasattr(ours_cr_tools, "OPTIONS") else True
+    assert ours_cr_v2.RUN_OPTIONS == {**ours_cr_tools.RUN_OPTIONS, "supervise": True, "vision": "probe", "check_integrity": True}
+    assert harnesses.load("ours-cr-v2-r2").NAME == "ours-cr-v2-r2"
+    assert ours_cr_v2.OPTIONS == ours_cr.OPTIONS
 
 
 def traj(tmp_path, rows):
@@ -64,8 +63,9 @@ def asst(n):
 @pytest.mark.parametrize("rows,summary,expected", [
     (asst(10), {"deliverables": ["a.xlsx"], "stop": "done"}, "delivered"),
     (asst(30) + [{"kind": "end", "stop": "blocked"}], {"deliverables": [], "stop": "blocked"}, "blocked"),
-    (asst(30) + [{"kind": "repeat"}] * 12 + [{"kind": "end", "stop": "max_turns"}], {"deliverables": [], "stop": "max_turns"}, "identical_call_loop"),
-    (asst(30) + [{"kind": "recovery", "blocked": True}] * 8, {"deliverables": [], "stop": "max_turns"}, "identical_call_loop"),
+    (asst(30) + [{"kind": "supervisor", "action": "suppressed"}] * 8, {"deliverables": [], "stop": "max_turns"}, "identical_call_loop"),
+    (asst(10), {"deliverables": ["a.xlsx"], "stop": "done", "completion": {"status": "invalid"}}, "invalid_deliverable"),
+    (asst(10), {"deliverables": ["a.xlsx"], "stop": "verified_complete", "completion": {"status": "structurally_valid"}}, "delivered"),
     (asst(30) + [{"kind": "end", "stop": "max_seconds"}], {"deliverables": [], "stop": "max_seconds"}, "time_limit"),
     (asst(30) + [{"kind": "end", "stop": "max_turns"}], {"deliverables": [], "stop": "max_turns"}, "turn_limit"),
     (asst(3) + [{"kind": "end", "stop": "model_error"}], {"deliverables": [], "stop": "model_error"}, "model_error"),
@@ -81,9 +81,9 @@ def test_failure_flags_count_network_errors_placeholders_stray_files_and_notes(t
                        {"kind": "tool", "name": "web_fetch", "out": "ERROR: fetch failed: Tunnel connection failed: 403 Forbidden\n[environment: not allowed]"},
                        {"kind": "placeholder_blocked"}, {"kind": "end", "stop": "max_turns"}]
     r = classify(traj(tmp_path, rows), {"deliverables": [], "stop": "max_turns", "outside_output": ["scratch/draft.docx"],
-                                         "recovery": {"blockers": [{"kind": "capability"}, {"kind": "redundant"}]}})
+                                         "supervisor": {"events": [{"kind": "suppress"}, {"kind": "watch"}]}})
     assert r["class"] == "turn_limit" and r["network_errors"] == 2 and r["placeholder_blocked"] == 1 and r["capability_notes"] == 1
-    assert r["files_outside_output"] == ["scratch/draft.docx"] and r["recovery_blockers"] == ["capability", "redundant"]
+    assert r["files_outside_output"] == ["scratch/draft.docx"] and r["supervisor_events"] == ["suppress", "watch"]
 
 
 def test_a_missing_trajectory_still_classifies_from_the_summary(tmp_path):

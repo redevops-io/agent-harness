@@ -24,18 +24,19 @@ from typing import Any, Callable, Dict, List, Optional, Sequence
 
 from ..netpolicy import NetPolicy, safe_fetch
 from ..tools import ApprovalPolicy, ToolRegistry, ToolResult, function_tool
+from ..multimodal import load_image
 from .edit import edit_text_ex
 from .outputs import FileLedger, OutputStore, STORE_DIR
 from .tools import _confine, _virtual, html_to_text
 
-PAGE = 12000                       # characters returned per read or fetch page (the loop admits at most 12,000 per tool result)
-BASH_STDOUT, BASH_STDERR = 10000, 4000
+DEFAULT_BUDGET = 12000             # model-visible characters per tool result: the loop's max_tool_chars, passed in by the caller so tools and admission agree
+HINT_RESERVE = 800                 # room kept for a continuation hint or a clip note, so a full page plus its metadata still fits the budget
 MAX_FETCH_BYTES = 5_000_000
 MAX_DOWNLOAD_BYTES = 50_000_000
 MAX_TIMEOUT = 600
 
 
-def describe_bash(network: str, found: Sequence[str]) -> str:
+def describe_bash(network: str, found: Sequence[str], stdout_chars: int = 7800, vision: bool = False) -> str:
     base = "Run a shell command in a sandbox (Python 3 with pandas, openpyxl, python-docx, python-pptx, pdfplumber; pandoc; pdftotext). Working dir /work. "
     if network == "egress":
         clients = [c for c in ("curl", "wget") if c in found]
@@ -45,15 +46,22 @@ def describe_bash(network: str, found: Sequence[str]) -> str:
     else:
         net = "Network: none. Use the web_fetch and web_download tools for web content. "
     ocr = "OCR: tesseract is installed. " if "tesseract" in found else "OCR: no OCR program is installed. "
-    return (base + net + ocr + "You cannot view images yourself. "
-            f"Output longer than {BASH_STDOUT} characters is shortened in the reply, but the full text is saved in /work/{STORE_DIR}/ and can be read with read_file "
+    sight = ("To look at an image file use the view_image tool (OCR programs, where installed, are an alternative). " if vision
+             else "You cannot view images yourself. ")
+    return (base + net + ocr + sight +
+            f"Output longer than {stdout_chars} characters is shortened in the reply, but the full text is saved in /work/{STORE_DIR}/ and can be read with read_file "
             f"(path, offset, limit) or searched with grep. The reply ends with [exit code N] when the command failed, or a timed-out notice. Optional timeout in seconds "
             f"(default 180, at most {MAX_TIMEOUT}); on timeout the command and its child processes are killed.")
 
 
 def parity_registry(workspace: Path, sandbox, *, policy: Optional[NetPolicy] = None, web: bool = True, bash_timeout: int = 180,
                     network: str = "egress", found: Sequence[str] = (), blocked_log: Optional[List[str]] = None,
-                    fetch: Callable[..., Any] = safe_fetch, store: Optional[OutputStore] = None, ledger: Optional[FileLedger] = None) -> ToolRegistry:
+                    fetch: Callable[..., Any] = safe_fetch, store: Optional[OutputStore] = None, ledger: Optional[FileLedger] = None,
+                    output_budget: int = DEFAULT_BUDGET, vision: bool = False) -> ToolRegistry:
+    """``output_budget`` is the number of characters the caller will admit per tool result (the loop's ``max_tool_chars``). Every tool here returns at most that,
+    so the context manager's admission clip is only a safety net and never cuts a page or its continuation hint. ``vision`` adds ``view_image``."""
+    PAGE = max(500, output_budget - HINT_RESERVE)
+    BASH_STDOUT, BASH_STDERR = int(output_budget * 0.65), int(output_budget * 0.22)
     ws = Path(workspace).resolve()
     policy = policy or NetPolicy()
     store = store or OutputStore(ws)
@@ -144,7 +152,7 @@ def parity_registry(workspace: Path, sandbox, *, policy: Optional[NetPolicy] = N
             return ToolResult(ok=False, error=f"not a directory: {a.get('path')}")
         return ToolResult(text="\n".join(sorted(f"{c.name}{'/' if c.is_dir() else ''}" for c in p.iterdir() if not c.name.startswith("."))) or "[empty]")
 
-    reg.register(function_tool("bash", bash, describe_bash(network, found),
+    reg.register(function_tool("bash", bash, describe_bash(network, found, BASH_STDOUT, vision),
                                {"type": "object", "properties": {"command": s, "timeout": i("seconds, default 180")}, "required": ["command"]}, side_effecting=True))
     reg.register(function_tool("read_file", read_file, f"Read a UTF-8 text file under /work, {PAGE} characters per call; offset and limit page through longer files.",
                                {"type": "object", "properties": {"path": s, "offset": i("first character"), "limit": i(f"characters, at most {PAGE}")}, "required": ["path"]}))
@@ -155,6 +163,19 @@ def parity_registry(workspace: Path, sandbox, *, policy: Optional[NetPolicy] = N
                                "replace_all is true. The edit is atomic; on any failure the file is unchanged and the reply says why.",
                                {"type": "object", "properties": {"path": s, "old_string": s, "new_string": s, "replace_all": {"type": "boolean"}},
                                 "required": ["path", "old_string", "new_string"]}, side_effecting=True))
+    def view_image(a):
+        att, why = load_image(conf(a["path"]), str(a["path"]))
+        if att is None:
+            informational = "single flat colour" in why or "almost no visible contrast" in why      # nothing to read is a finding, not a tool failure
+            return ToolResult(ok=informational, text=why, error=None if informational else why)
+        return ToolResult(text=f"Image attached in the next message: {att.path} ({att.info.width}x{att.info.height}, {att.info.mime}). Report only what is legible; "
+                               f"mark anything unclear as unreadable instead of guessing.", attachments=[att])
+
+    if vision:
+        reg.register(function_tool("view_image", view_image,
+                                   "Look at an image file under /work (PNG, JPEG, GIF or WebP, up to 5 MB): the image is shown to you in the next message. A blank or unreadable image "
+                                   "is reported as such and not shown; never guess values you cannot read.",
+                                   {"type": "object", "properties": {"path": s}, "required": ["path"]}))
     reg.register(function_tool("list_dir", list_dir, "List a directory under /work.", {"type": "object", "properties": {"path": s}, "required": ["path"]}))
 
     # ---- web -------------------------------------------------------------------------------------------------------------

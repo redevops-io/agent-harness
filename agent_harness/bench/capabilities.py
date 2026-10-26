@@ -1,7 +1,7 @@
 """What the benchmark environment can and cannot do, stated to the model from facts (probed in the sandbox, or true by construction).
 
-Used with the progress-aware recovery policy (``agent_harness.progress``): the policy is generic, this module is the benchmark's honest statement of its
-environment. Nothing here names a task, and no workaround is hardcoded: the model is told what exists and chooses.
+This module is the benchmark's honest statement of its environment (what tools exist, what the network allows) and the workspace observation the supervisor
+(``agent_harness.supervisor``) needs. Nothing here names a task, and no workaround is hardcoded: the model is told what exists and chooses.
 """
 from __future__ import annotations
 
@@ -10,7 +10,6 @@ import os
 from pathlib import Path
 from typing import List, Optional, Sequence
 
-from ..progress import Capability, RecoveryPolicy
 
 DELIVERABLE_EXTS = (".xlsx", ".xls", ".docx", ".doc", ".pptx", ".pdf", ".csv", ".ods", ".odt", ".odp", ".md", ".txt", ".json", ".zip")
 PROBES = ("tesseract", "pdftotext", "pandoc", "libreoffice", "soffice", "convert", "curl", "wget")
@@ -45,22 +44,6 @@ def environment_note(found: Sequence[str], *, web_paging: bool, web_downloads: b
     return "\n".join(lines)
 
 
-def capabilities(*, web_paging: bool, web_downloads: bool, network: str = "none") -> List[Capability]:
-    if network == "egress":
-        net = Capability("network", (r"Tunnel connection failed", r"403 Forbidden", r"Network is unreachable", r"Temporary failure in name resolution"),
-                         "That destination or connection is not allowed: only public http(s) addresses are reachable (private, local and metadata addresses, unlisted ports "
-                         "and some answer-hosting sites are blocked) and direct sockets do not work. Try another source.")
-    else:
-        text = "bash has no network access. Web content is available only through web_fetch"
-        if web_paging:
-            text += " (read long pages with its offset argument)"
-        if web_downloads:
-            text += " and web_download (saves a file into /work for bash to read)"
-        net = Capability("network", (r"Temporary failure in name resolution", r"Network is unreachable", r"Name or service not known", r"No address associated"), text + ".")
-    return [net, Capability("image", (r"does not support image", r"cannot read images?", r"image input"),
-                            "The model cannot view images. Use code or sandbox tools to process image content.")]
-
-
 def workspace_fingerprint(root: Path, skip: Sequence[str] = ("task_folder",)) -> str:
     """Hash of (relative path, size, mtime) of every file under ``root`` except the static inputs. A change means the workspace moved."""
     h = hashlib.sha1()
@@ -89,6 +72,43 @@ def stray_deliverables(workspace: Path, output_dir: Optional[Path] = None) -> Li
     return sorted(found)
 
 
-def recovery_policy(ws: Path, *, web_paging: bool = False, web_downloads: bool = False, with_capabilities: bool = True, network: str = "none", **overrides) -> RecoveryPolicy:
-    return RecoveryPolicy(capabilities=tuple(capabilities(web_paging=web_paging, web_downloads=web_downloads, network=network)) if with_capabilities else (),
-                          progress_probe=lambda: workspace_fingerprint(ws), **overrides)
+def workspace_snapshot(root: Path, max_hash_bytes: int = 4_000_000) -> dict:
+    """{relative path: content digest} of every file under ``root``. Files above ``max_hash_bytes`` are identified by size and mtime (a rewrite of identical
+    bytes cannot be told from a change there). Digests are cached by (size, mtime) so repeated snapshots are cheap."""
+    out = {}
+    root = Path(root)
+    for dirpath, dirs, files in os.walk(root):
+        dirs[:] = sorted(d for d in dirs if not d.startswith("."))
+        for f in sorted(files):
+            full = os.path.join(dirpath, f)
+            try:
+                st = os.stat(full)
+            except OSError:
+                continue
+            rel = os.path.relpath(full, root)
+            key = (full, st.st_size, st.st_mtime_ns)
+            d = _DIGESTS.get(key)
+            if d is None:
+                if st.st_size > max_hash_bytes:
+                    d = f"big:{st.st_size}:{st.st_mtime_ns}"
+                else:
+                    try:
+                        d = hashlib.sha1(open(full, "rb").read()).hexdigest()[:16]
+                    except OSError:
+                        continue
+                _DIGESTS[key] = d
+            out[rel] = d
+    return out
+
+
+_DIGESTS: dict = {}
+
+
+def supervision_for(ws: Path, task_text: str = "", input_names=(), cfg=None):
+    """Supervision for a benchmark workspace: content-based workspace observation and, when the task text names its outputs, the deliverable check."""
+    from ..completion import check_deliverables
+    from ..loop import Supervision
+    from ..supervisor import SupervisorConfig
+    ws = Path(ws)
+    return Supervision(cfg or SupervisorConfig(), probe=lambda: workspace_snapshot(ws),
+                       checker=lambda: check_deliverables(ws / "output", task_text, input_names))

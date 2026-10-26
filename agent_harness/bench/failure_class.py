@@ -1,6 +1,6 @@
 """Deterministic failure classification of one attempt, from its trajectory and summary (no model, no judge).
 
-Classes (first match wins): ``delivered``; ``blocked`` (the recovery budget ended the run); ``identical_call_loop`` (at least a fifth of the turns were refused or
+Classes (first match wins): ``delivered`` (files present and structurally valid); ``invalid_deliverable`` (files present but empty, unreadable, draft-only or incomplete); ``blocked`` (the supervisor's recovery was exhausted); ``verified_complete`` is a ``delivered`` run the supervisor ended; ``identical_call_loop`` (at least a fifth of the turns were refused or
 repeated identical calls); ``time_limit``; ``turn_limit``; ``model_error``; ``context_overflow``; ``finished_without_deliverable``. Flags are independent signals:
 ``files_outside_output``, ``network_errors``, ``placeholder_blocked``, ``capability_notes`` and the recovery blockers.
 """
@@ -25,9 +25,7 @@ def classify(trajectory: Path, summary: Dict[str, Any]) -> Dict[str, Any]:
         k = r.get("kind")
         if k == "assistant":
             turns += 1
-        elif k == "repeat":
-            repeats += 1
-        elif k == "recovery" and r.get("blocked"):
+        elif k == "supervisor" and r.get("action") in ("suppressed", "pointer"):
             recovery_blocked += 1
         elif k == "placeholder_blocked":
             placeholder += 1
@@ -40,9 +38,13 @@ def classify(trajectory: Path, summary: Dict[str, Any]) -> Dict[str, Any]:
     loop = repeats + recovery_blocked
     flags = {"files_outside_output": list(summary.get("outside_output") or []), "network_errors": net, "placeholder_blocked": placeholder,
              "capability_notes": notes, "refused_or_repeated_calls": loop, "turns": turns,
-             "recovery_blockers": [b.get("kind") for b in ((summary.get("recovery") or {}).get("blockers") or [])]}
-    if summary.get("deliverables"):
+             "supervisor_events": [e.get("kind") for e in ((summary.get("supervisor") or {}).get("events") or [])][:20]}
+    comp = (summary.get("completion") or {}).get("status")
+    flags["completion_status"] = comp
+    if summary.get("deliverables") and comp in (None, "structurally_valid"):
         cls = "delivered"
+    elif summary.get("deliverables"):
+        cls = "invalid_deliverable"
     elif stop == "blocked":
         cls = "blocked"
     elif turns and loop >= max(5, turns // 5):

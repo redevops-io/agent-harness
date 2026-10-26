@@ -14,15 +14,17 @@ import pytest
 
 import agent_harness.egress_proxy as ep
 from agent_harness.bench import sandbox as sbmod
-from agent_harness.bench.capabilities import capabilities, environment_note, probe_environment
+from agent_harness.bench.capabilities import environment_note, probe_environment
 from agent_harness.bench.edit import edit_text
 from agent_harness.bench.outputs import FileLedger, OutputStore
 from agent_harness.bench.sandbox import DockerSandbox, RunResult
 from agent_harness.bench.tools import bench_registry
-from agent_harness.bench.tools_parity import MAX_DOWNLOAD_BYTES, PAGE, describe_bash, parity_registry
+from agent_harness.bench.tools_parity import DEFAULT_BUDGET, HINT_RESERVE, MAX_DOWNLOAD_BYTES, describe_bash, parity_registry
 from agent_harness.egress_proxy import EgressProxy, serve
 from agent_harness.netpolicy import FetchResult, NetPolicy, ip_blocked, safe_fetch
-from agent_harness.progress import ProgressTracker, RecoveryPolicy
+from agent_harness.supervisor import Supervisor, SupervisorConfig
+
+PAGE = DEFAULT_BUDGET - HINT_RESERVE
 
 
 # ---- fakes ------------------------------------------------------------------------------------------------------------------
@@ -313,7 +315,7 @@ def test_read_file_pages_and_refuses_binary_and_missing(tmp_path):
     (tmp_path / "b.bin").write_bytes(b"\x00\x01\x02")
     reg = reg_for(tmp_path, FakeSbx(RunResult("", "", 0)))
     first = reg.run("read_file", {"path": "/work/t.txt"}).text
-    assert "offset=12000" in first and len(first) < 12200
+    assert f"offset={PAGE}" in first and len(first) <= DEFAULT_BUDGET
     assert reg.run("read_file", {"path": "/work/t.txt", "offset": 29990}).text == "0123456789"
     assert "past the end" in reg.run("read_file", {"path": "/work/t.txt", "offset": 99999}).text
     assert not reg.run("read_file", {"path": "/work/b.bin"}).ok and not reg.run("read_file", {"path": "/work/missing"}).ok
@@ -442,8 +444,8 @@ def test_web_fetch_pages_a_long_page_and_saves_the_full_text(tmp_path):
     f = fake_fetch({"https://x.org/p": FetchResult(True, 200, content_type="text/plain", data=text.encode(), size=len(text), chain=["https://x.org/p"])})
     reg = reg_for(tmp_path, FakeSbx(RunResult("", "", 0)), fetch=f)
     p1 = reg.run("web_fetch", {"url": "https://x.org/p"}).text
-    assert p1.startswith("0123456789") and "offset=12000" in p1 and "/work/.tool_output/web-0001.txt" in p1
-    p2 = reg.run("web_fetch", {"url": "https://x.org/p", "offset": 12000}).text
+    assert p1.startswith("0123456789") and f"offset={PAGE}" in p1 and "/work/.tool_output/web-0001.txt" in p1
+    p2 = reg.run("web_fetch", {"url": "https://x.org/p", "offset": PAGE}).text
     assert p2.startswith("0123456789") and len(f.calls) == 1                     # second page came from the cache
     assert (tmp_path / ".tool_output" / "web-0001.txt").read_text() == text
 
@@ -500,19 +502,19 @@ def test_registered_schemas_carry_the_descriptions_and_the_new_tools(tmp_path):
 def test_environment_note_and_capabilities_follow_the_network_mode():
     assert "filtering proxy" in environment_note(["curl"], web_paging=True, web_downloads=True, network="egress", edit=True) and "edit_file" in environment_note([], web_paging=False, web_downloads=False, network="egress", edit=True)
     assert "no network access" in environment_note([], web_paging=False, web_downloads=False)
-    assert any("Tunnel connection failed" in "|".join(c.patterns) for c in capabilities(web_paging=True, web_downloads=True, network="egress"))
 
 
 # ---- repeated network failures are reported correctly ------------------------------------------------------------------------------
-def test_repeated_blocked_destination_is_noted_once_then_not_retried_unchanged():
-    cap = capabilities(web_paging=True, web_downloads=True, network="egress")
-    tr = ProgressTracker(RecoveryPolicy(capabilities=cap, progress_probe=lambda: 0, error_after=3))
+def test_repeated_blocked_destination_is_not_retried_unchanged_and_the_report_says_why():
+    sup = Supervisor(SupervisorConfig(), max_turns=50)
     err = "ERROR: fetch failed: Tunnel connection failed: 403 Forbidden"
-    seen = [tr.after("web_fetch", {"url": "https://blocked.example/a"}, err, False) for _ in range(3)]
-    assert "[environment: That destination or connection is not allowed" in seen[0] and "[environment" not in seen[1]
-    msg = tr.before("web_fetch", {"url": "https://blocked.example/a"})
-    assert msg and "failed 3 times" in msg and "not allowed" in msg
-    assert tr.report()["counts"]["repeated_error"] == 1 and tr.blockers[0]["kind"] == "capability"
+    args = {"url": "https://blocked.example/a"}
+    for i in range(2):
+        assert sup.before(f"c{i}", "web_fetch", args, []).run
+        sup.after(f"c{i}", "web_fetch", args, err, False)
+    d = sup.before("c2", "web_fetch", args, [])
+    assert not d.run and "Not run" in d.text and sup.counts["suppressed"] == 1
+    assert sup.before("c3", "web_fetch", {"url": "https://other.example/b"}, []).run            # a different destination is not blocked
 
 
 # ---- sandbox and gateway wiring (Docker faked) -------------------------------------------------------------------------------------
@@ -746,7 +748,7 @@ def test_live_end_to_end_parity_run_with_a_scripted_model(tmp_path):
              ("edit_file", {"path": "/work/output/report.md", "old_string": "draft", "new_string": "final"}),
              ("edit_file", {"path": "/work/output/report.md", "old_string": "nothing like this", "new_string": "x"}),
              "done"]
-    s = jb.run_task(tmp_path / "base", "x/task1", tmp_path / "out", Scripted(steps), attempts=1, context="basic", tools="parity", network="egress", recovery=True)
+    s = jb.run_task(tmp_path / "base", "x/task1", tmp_path / "out", Scripted(steps), attempts=1, context="basic", tools="parity", network="egress", supervise=True)
     assert s["deliverables"] == ["report.md"] and (tmp_path / "out" / "output" / "report.md").read_text() == "status: final\n"
     man = [json.loads(l) for l in (tmp_path / "out" / "downloads1" / "manifest.jsonl").read_text().splitlines()]
     assert len(man) == 1 and len(man[0]["sha256"]) == 64 and man[0]["path"] == "/work/data/page.html"

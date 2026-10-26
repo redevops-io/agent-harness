@@ -2,6 +2,7 @@ import json
 
 import pytest
 
+from agent_harness.context import BasicContextManager, ContextAware, ContextManager
 from agent_harness.llm import ChatError
 from agent_harness.loop import ELIDED, elide_old_tool_outputs, run_loop
 from agent_harness.tools import ApprovalPolicy, ToolRegistry, ToolResult, function_tool
@@ -66,14 +67,14 @@ def test_limits():
 
 def test_old_tool_outputs_are_elided_when_context_is_high_and_overflow_is_detected():
     c = Script([call("echo", x="a")] * 8 + [{"role": "assistant", "content": "end"}], prompt_tokens=900)
-    res = run_loop(c, reg(), "s", "t", max_context_tokens=1000, compact_at=0.7)
+    res = run_loop(c, reg(), "s", "t", max_context_tokens=1000, compact_at=0.7, supervision=None)
     assert res.stop == "done"
     last = c.seen[-1]
     tools = [m["content"] for m in last if m["role"] == "tool"]
     assert tools.count(ELIDED) == len(tools) - 4          # keeps the 4 most recent
     # nothing left to elide and still above 95% -> stop instead of sending an oversized prompt
     c2 = Script([call("echo", x="a")] * 3, prompt_tokens=990)
-    assert run_loop(c2, reg(), "s", "t", max_context_tokens=1000).stop == "context_overflow"
+    assert run_loop(c2, reg(), "s", "t", max_context_tokens=1000, supervision=None).stop == "context_overflow"
 
 
 def test_elide_helper_keeps_recent():
@@ -130,11 +131,11 @@ def test_missing_required_arguments_get_an_actionable_message():
     assert tool_msg.startswith("ERROR: missing required argument(s): content") and res.tool_errors == 1
 
 
-def test_error_prefix_is_not_doubled_and_repeated_failures_get_a_nudge():
+def test_error_prefix_is_not_doubled_and_varied_failures_are_not_a_loop():
     c = Script([call("flaky", i=i) for i in range(7)] + [{"role": "assistant", "content": "end"}])   # varied args: not a repeat
-    run_loop(c, reg_req(), "s", "t")
+    res = run_loop(c, reg_req(), "s", "t")
     outs = [[m["content"] for m in seen if m["role"] == "tool"] for seen in c.seen][-1]
-    assert outs[0] == "ERROR: nope" and "note:" not in outs[4] and "failed 6 times in a row" in outs[5]
+    assert outs[0] == "ERROR: nope" and all(o == "ERROR: nope" for o in outs) and res.stop == "done"      # no extra nudge text, nothing suppressed
 
 
 def test_shrink_keeps_json_valid_and_recent_calls_intact():
@@ -175,6 +176,7 @@ class FakeManager:
 
 def test_custom_manager_is_asked_to_prepare_and_its_tools_are_offered():
     assert isinstance(BasicContextManager(), ContextManager) and isinstance(FakeManager(), ContextManager)
+    assert isinstance(BasicContextManager(), ContextAware) and not isinstance(FakeManager(), ContextAware)     # the extension is optional
     fm = FakeManager()
     seen_tools = []
 
@@ -213,17 +215,20 @@ def test_every_tool_result_goes_through_the_managers_admit_hook():
     assert len(tool) < 1000 and "omitted" in tool
 
 
-def test_identical_calls_with_identical_results_are_short_circuited_after_two():
+def test_identical_calls_with_identical_results_are_not_run_a_third_time():
     calls = {"n": 0}
     r = reg()
     r.register(function_tool("peek", lambda a: (calls.__setitem__("n", calls["n"] + 1), ToolResult(text="same"))[1],
                              parameters={"type": "object", "properties": {"k": {"type": "integer"}}, "required": ["k"]}))
     c = Script([call("peek", k=1)] * 5 + [call("peek", k=2), {"role": "assistant", "content": "ok"}])
-    run_loop(c, r, "s", "t")
+    res = run_loop(c, r, "s", "t")
     outs = [m["content"] for m in c.seen[-1] if m["role"] == "tool"]
-    assert outs[:2] == ["same", "same"] and outs[2].startswith("[repeat]") and "3 times" in outs[2] and "5 times" in outs[4]
+    assert outs[:2] == ["same", "same"] and outs[2].startswith("[supervisor] Not run")
+    assert outs[3].startswith("[supervisor] Not run")                                        # the first two answers of a family are informative
+    assert outs[4].startswith("[supervisor] not run (repeat #3") and len(outs[4]) < 80      # later answers are one-line stubs, not new paragraphs
     assert outs[5] == "same"                       # different arguments are a different call
     assert calls["n"] == 3                         # peek(k=1) executed twice, peek(k=2) once; the repeats never ran
+    assert res.supervisor["counts"]["suppressed"] == 3
 
 
 def test_a_repeated_call_whose_result_changes_is_not_blocked():

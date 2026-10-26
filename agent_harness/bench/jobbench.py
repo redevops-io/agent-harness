@@ -116,17 +116,44 @@ def _write_extra_files(ws: Path, files: Optional[Dict[str, str]]) -> None:
         dest.write_text(text, encoding="utf-8")
 
 
+def _preserve_incomplete(ws: Path, dest: Path, max_files: int = 200, max_bytes: int = 50_000_000) -> str:
+    """Copy what an unfinished run leaves outside ``output/`` (scripts, drafts, intermediate data) so the evidence survives the workspace. Never scored, never
+    moved out of the workspace listing of ``outside_output``. Returns the destination name or ''."""
+    n = total = 0
+    for dirpath, dirs, files in os.walk(ws):
+        rel_dir = Path(dirpath).relative_to(ws)
+        dirs[:] = [d for d in dirs if not d.startswith(".") and not (rel_dir == Path(".") and d in ("task_folder", "output"))]
+        for f in files:
+            src = Path(dirpath) / f
+            try:
+                size = src.stat().st_size
+            except OSError:
+                continue
+            if n >= max_files or total + size > max_bytes:
+                return dest.name if n else ""
+            tgt = dest / rel_dir / f
+            tgt.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, tgt)
+            n, total = n + 1, total + size
+    return dest.name if n else ""
+
+
 def run_task(tasks_base: Path, task_id: str, out_dir: Path, client: ChatClient, system: str = BASE_SYSTEM, *,
              max_turns: int = 200, max_seconds: float = 3600, max_context_tokens: int = 40960, web: bool = True,
              extra_system: str = "", attempts: int = 2, context: str = "context-runtime", rag: bool = False,
              index_inputs: bool = True, extra_files: Optional[Dict[str, str]] = None, trace: bool = False,
              pin_instructions: bool = True, context_options: Optional[Dict[str, Any]] = None,
-             recovery: bool = False, capability_notes: bool = False, web_paging: bool = False, web_downloads: bool = False,
-             tools: str = "legacy", network: str = "none", recovery_hard_stop: bool = True) -> Dict[str, Any]:
+             capability_notes: bool = False, web_paging: bool = False, web_downloads: bool = False,
+             tools: str = "legacy", network: str = "none", supervise: bool = False, supervisor_config: Optional[Dict[str, Any]] = None,
+             vision: str = "off", vision_evidence: str = "", check_integrity: bool = False, preserve_incomplete: bool = True) -> Dict[str, Any]:
     """Roll one task. Returns a summary dict; deliverables land in ``out_dir/output``, the trajectory in ``out_dir``.
 
     Like the upstream OpenCode runner, a second attempt (fresh workspace) is made only when the first left no
-    deliverables. ``max_seconds`` applies per attempt."""
+    deliverables. ``max_seconds`` applies per attempt.
+
+    ``supervise`` runs the loop under the execution supervisor (repeat/stall recovery, budget notices, deliverable checkpoint); the default keeps arm definitions
+    that predate it as a bare loop (the old ``[repeat]`` guard no longer exists). ``vision``: ``off`` | ``on`` (verified configuration; give ``vision_evidence``) |
+    ``probe`` (two known images are sent to the endpoint first); ``view_image`` is registered only when vision is supported and tools are ``parity``."""
     src = Path(tasks_base) / task_id / "task_folder"
     if not src.is_dir():
         raise FileNotFoundError(src)
@@ -161,9 +188,18 @@ def run_task(tasks_base: Path, task_id: str, out_dir: Path, client: ChatClient, 
                 if parity or capability_notes:
                     from .capabilities import probe_environment
                     found = probe_environment(sbx)
+                from ..multimodal import VisionCapability, probe_vision
+                cap = VisionCapability()
+                if vision == "on":
+                    cap = VisionCapability(True, "configuration", {"evidence": vision_evidence})
+                elif vision == "probe":
+                    cap = probe_vision(lambda m: (client.complete(m, None)["message"].get("content") or ""))
+                elif vision != "off":
+                    raise ValueError(f"unknown vision mode {vision!r}")
+                budget = min(12000, int(0.2 * max_context_tokens))
                 if parity:
                     from .tools_parity import parity_registry
-                    reg = parity_registry(ws, sbx, web=web, network=network, found=found, blocked_log=blocked)
+                    reg = parity_registry(ws, sbx, web=web, network=network, found=found, blocked_log=blocked, output_budget=budget, vision=cap.supported)
                 else:
                     reg = bench_registry(ws, sbx, blocked_log=blocked, web=web, web_paging=web_paging, web_downloads=web_downloads)
                 notes = ""
@@ -171,16 +207,19 @@ def run_task(tasks_base: Path, task_id: str, out_dir: Path, client: ChatClient, 
                     from .capabilities import environment_note
                     notes = environment_note(found, web_paging=(web_paging or parity) and web, web_downloads=(web_downloads or parity) and web,
                                              network=network, edit=parity)
-                policy = None
-                if recovery:
-                    from .capabilities import recovery_policy
-                    policy = recovery_policy(ws, web_paging=web_paging or parity, web_downloads=web_downloads or parity, with_capabilities=True, network=network,
-                                             **({} if recovery_hard_stop else {"budget": None}))
+                supervision = None
+                if supervise:
+                    from .capabilities import supervision_for
+                    from ..supervisor import SupervisorConfig
+                    instr = "\n".join(f.read_text(errors="ignore") for f in sorted((ws / "task_folder").glob("TASK_INSTRUCTIONS*")) if f.is_file())
+                    inputs = [p.name for p in (ws / "task_folder").rglob("*") if p.is_file()]
+                    supervision = supervision_for(ws, instr, inputs, SupervisorConfig(**(supervisor_config or {})))
                 extra = "\n\n".join(x for x in (extra_system, notes) if x)
                 schemas = [sp["function"] if isinstance(sp, dict) and "function" in sp else sp for sp in reg.specs()]    # the exact schemas the model is shown
                 (out_dir / f"tool_schemas{'' if attempt == 1 else f'_attempt{attempt}'}.json").write_text(json.dumps(
-                    {"tools": tools, "network": network, "sandbox_tools_found": found, "schemas": schemas}, indent=1))
-                res: LoopResult = run_loop(client, reg, (system + ("\n\n" + extra if extra else "")), PROMPT, recovery=policy,
+                    {"tools": tools, "network": network, "sandbox_tools_found": found, "vision": {"supported": cap.supported, "source": cap.source, "evidence": cap.evidence},
+                     "output_budget": budget, "schemas": schemas}, indent=1))
+                res: LoopResult = run_loop(client, reg, (system + ("\n\n" + extra if extra else "")), PROMPT, supervision=supervision, check_integrity=check_integrity,
                                            max_turns=max_turns, max_seconds=max_seconds,
                                            max_context_tokens=max_context_tokens, context_manager=mgr, trace=rec,
                                            trajectory=out_dir / f"trajectory{'' if attempt == 1 else f'_attempt{attempt}'}.jsonl")
@@ -193,12 +232,18 @@ def run_task(tasks_base: Path, task_id: str, out_dir: Path, client: ChatClient, 
             shutil.rmtree(deliver, ignore_errors=True)
             shutil.copytree(ws / "output", deliver)
             from .capabilities import stray_deliverables
+            from ..completion import check_deliverables
             outside = stray_deliverables(ws)
+            instr_text = "\n".join(f.read_text(errors="ignore") for f in sorted((ws / "task_folder").glob("TASK_INSTRUCTIONS*")) if f.is_file())
+            completion = check_deliverables(ws / "output", instr_text, [p.name for p in (ws / "task_folder").rglob("*") if p.is_file()])
+            kept = ""
+            if preserve_incomplete and (res.stop not in ("done", "verified_complete") or not completion.ok):
+                kept = _preserve_incomplete(ws, out_dir / f"incomplete{attempt}")
             files = sorted(str(p.relative_to(deliver)) for p in deliver.rglob("*") if p.is_file())
             summary = {"task": task_id, "attempt": attempt, "stop": res.stop, "turns": res.turns, "seconds": res.seconds,
                        "prompt_tokens": res.prompt_tokens, "completion_tokens": res.completion_tokens,
                        "tool_calls": res.tool_calls, "tool_errors": res.tool_errors, "deliverables": files,
-                       "blocked_fetches": blocked, "outside_output": outside, "recovery": res.recovery, "model": client.model, "context_manager": context, "rag": rag,
+                       "blocked_fetches": blocked, "outside_output": outside, "supervisor": res.supervisor, "completion": completion.to_dict(), "incomplete_preserved": kept, "model": client.model, "context_manager": context, "rag": rag,
                        "archived_items": len(mgr.archive.entries) if hasattr(mgr, "archive") else 0,
                        "retrieval_calls": _count_tool_calls(out_dir / f"trajectory{'' if attempt == 1 else f'_attempt{attempt}'}.jsonl",
                                                             ("search_context", "read_archive"))}
@@ -206,7 +251,7 @@ def run_task(tasks_base: Path, task_id: str, out_dir: Path, client: ChatClient, 
             summary["failure"] = classify(out_dir / f"trajectory{'' if attempt == 1 else f'_attempt{attempt}'}.jsonl", summary)
             from .edit_stats import edit_stats, load as load_edits
             summary["edit_stats"] = edit_stats(load_edits(ws / ".artifacts" / "edits.jsonl"))
-            summary["run_options"] = {"tools": tools, "network": network, "recovery": recovery, "recovery_hard_stop": recovery_hard_stop if recovery else None, "capability_notes": capability_notes}
+            summary["run_options"] = {"tools": tools, "network": network, "supervise": supervise, "supervisor_config": supervisor_config, "vision": vision, "vision_supported": cap.supported, "capability_notes": capability_notes, "check_integrity": check_integrity}
             runs.append({k: summary[k] for k in ("attempt", "stop", "turns", "seconds", "deliverables")} | {"failure": summary["failure"]["class"]})
         finally:
             shutil.rmtree(ws, ignore_errors=True)
