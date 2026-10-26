@@ -84,7 +84,11 @@ def make_context_manager(kind: str, archive_dir: Path, *, rag: bool = False, **o
     except ImportError as e:
         raise RuntimeError("context manager 'context-runtime' needs the context-runtime package "
                            "(pip install -e <context-runtime checkout>); pass context='basic' to opt out") from e
-    return ContextRuntimeManager(archive_dir, use_redevops_rag=rag, **options)
+    mgr = ContextRuntimeManager(archive_dir, use_redevops_rag=rag, **options)
+    if not (hasattr(mgr, "is_placeholder") and hasattr(mgr, "visibility")):
+        raise RuntimeError("the installed context-runtime predates the transcript contract (is_placeholder, visibility): the loop could no longer recognise its stubs. "
+                           "Use a context-runtime that has context_runtime/compression/contract.py (branch feat/execution-contract, e6599d0 or later).")
+    return mgr
 
 
 def pin_task_instructions(mgr, task_folder: Path):
