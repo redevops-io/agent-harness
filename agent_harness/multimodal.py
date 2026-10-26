@@ -125,11 +125,13 @@ def image_label(a: ImageAttachment) -> str:
     return f"[image: {a.path} ({a.info.width}x{a.info.height}) sha256:{a.info.sha256[:12]}]"
 
 
-def image_message(attachments: List[ImageAttachment]) -> Dict[str, Any]:
+def image_message(attachments: List[ImageAttachment], cap: Optional[int] = None) -> Dict[str, Any]:
     """The user message that delivers images after a turn's tool results. Each image is preceded by a text label (path, size, hash) that stays in the history
-    if the image itself is later dropped."""
+    if the image itself is later dropped. With a per-prompt limit ``cap`` the text also says that older images drop out of view and asks for a written record."""
+    keep = (f" Only the newest {cap} images stay visible: older ones drop out of view as you look at more. Before you view more images, write down every value you read "
+            f"from these (a notes file under /work, written with write_file, is the safest record); your own notes are the only record that remains.") if cap else ""
     parts: List[Dict[str, Any]] = [{"type": "text", "text": "Image(s) from your view_image call(s): " + "; ".join(
-        f"{a.path} ({a.info.width}x{a.info.height})" for a in attachments) + ". Report only what is actually legible; mark anything unclear as unreadable."}]
+        f"{a.path} ({a.info.width}x{a.info.height})" for a in attachments) + ". Report only what is actually legible; mark anything unclear as unreadable." + keep}]
     for a in attachments:
         parts += [{"type": "text", "text": image_label(a)}, a.part()]
     return {"role": "user", "content": parts}
@@ -141,6 +143,18 @@ def _is_image_part(x: Any) -> bool:
 
 def is_image_message(m: Dict[str, Any]) -> bool:
     return m.get("role") == "user" and isinstance(m.get("content"), list) and any(_is_image_part(x) for x in m["content"])
+
+
+def image_is_visible(messages: List[Dict[str, Any]], path: str) -> bool:
+    """True if the image shown for ``path`` is still attached in the history (its label is followed by an image part, not by a removal note)."""
+    tag = f"[image: {path} ("
+    for m in messages:
+        c = m.get("content")
+        if m.get("role") == "user" and isinstance(c, list):
+            for j, x in enumerate(c[:-1]):
+                if isinstance(x, dict) and x.get("type") == "text" and str(x.get("text", "")).startswith(tag) and _is_image_part(c[j + 1]):
+                    return True
+    return False
 
 
 def count_images(messages: List[Dict[str, Any]]) -> int:

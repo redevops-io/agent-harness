@@ -34,6 +34,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple
 
 from .completion import DeliverableReport
+from .multimodal import image_is_visible
 
 _DIGITS = re.compile(r"\d+")
 _WS = re.compile(r"\s+")
@@ -276,6 +277,11 @@ class Supervisor:
                                         f"Build and save the files from what you already have."), "reserve")
         fam = self._assign(name, args)
         key = _canon(args)
+        if name == "view_image" and isinstance(args.get("path"), str) and not image_is_visible(messages, args["path"]):
+            fam.identical = 0                                         # the earlier image is no longer in view: looking again is the only way to see it, not a repeat
+            if fam.state == "suppressed":
+                self._lift(fam, "image no longer in view")
+            return Decision(True)
         if fam.state == "suppressed":
             if self._relevant_change_since(fam):
                 self._lift(fam, "relevant change")

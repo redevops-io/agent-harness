@@ -10,7 +10,7 @@ from agent_harness.bench.failure_class import classify
 from agent_harness.bench.sandbox import RunResult
 from agent_harness.bench.tools_parity import parity_registry
 from agent_harness.llm import ChatError
-from agent_harness.loop import run_loop
+from agent_harness.loop import Supervision, run_loop
 from agent_harness.multimodal import ImageCapError, count_images, enforce_image_cap, image_message, is_image_message, parse_image_limit, sniff_image
 
 PIL = pytest.importorskip("PIL.Image")
@@ -191,3 +191,34 @@ def test_the_view_image_description_states_the_limit_only_when_there_is_one(tmp_
     desc = lambda cap: next(s["function"]["description"] for s in parity_registry(ws, FakeSbx(), vision=True, max_images=cap).specs() if s["function"]["name"] == "view_image")
     assert "At most 5 images can be shown at once" in desc(5) and "write down what you read" in desc(5)
     assert "at once" not in desc(None)
+
+
+# ---- recording and re-viewing -----------------------------------------------------------------------------------------------------------------
+def test_viewing_a_dropped_image_again_is_not_a_repeat(tmp_path):
+    ws = workspace(tmp_path, 4)
+    acts = [view(0), view(1), view(2), view(0), view(1), view(2), view(0), view(1), view(2), view(0), "done"]
+    ep = StrictEndpoint(acts, limit=2)
+    res = run_loop(ep, parity_registry(ws, FakeSbx(), vision=True, max_images=2), "s", "t", max_turns=200, max_context_tokens=65536, supervision=Supervision(), max_images=2)
+    assert res.stop == "done" and ep.rejected == 0
+    tool_texts = [m["content"] for _, msgs in ep.seen[-1:] for m in msgs if m.get("role") == "tool"]
+    assert not any("[supervisor]" in t for t in tool_texts) and res.supervisor["counts"]["suppressed"] == 0
+
+
+def test_viewing_a_still_visible_image_again_and_again_is_still_a_repeat(tmp_path):
+    ws = workspace(tmp_path, 1)
+    ep = StrictEndpoint([view(0), view(0), view(0), view(0), "done"], limit=5)
+    res = run_loop(ep, parity_registry(ws, FakeSbx(), vision=True, max_images=5), "s", "t", max_turns=20, supervision=Supervision(), max_images=5)
+    assert res.supervisor["counts"]["suppressed"] >= 1
+
+
+def test_the_image_message_asks_for_a_written_record_only_when_images_can_drop_out():
+    text = lambda cap: image_message([att(0)], cap)["content"][0]["text"]
+    assert "Only the newest 5 images stay visible" in text(5) and "write down every value you read" in text(5)
+    assert "stay visible" not in text(None)
+
+
+def test_image_is_visible_follows_the_attached_state():
+    msgs = base() + [image_message([att(0)]), image_message([att(1)])]
+    assert mm.image_is_visible(msgs, "/work/form0.png") and not mm.image_is_visible(msgs, "/work/form9.png")
+    enforce_image_cap(msgs, 1)
+    assert not mm.image_is_visible(msgs, "/work/form0.png") and mm.image_is_visible(msgs, "/work/form1.png")

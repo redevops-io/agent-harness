@@ -238,7 +238,7 @@ def run_loop(client: ChatClient, registry: ToolRegistry, system: str, task: str,
                     trace.tool_result(res.turns, name, args, text, admitted)
                 emit("tool", name=name, ok=not text.startswith("ERROR:"), out=text[:400])
             if images:
-                messages.append(image_message(images))
+                messages.append(image_message(images, max_images))
                 if trace:
                     trace.add(len(messages) - 1, messages[-1])
                 emit("images", n=len(images), paths=[a.path for a in images])
