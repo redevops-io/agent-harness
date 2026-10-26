@@ -14,7 +14,7 @@ import json
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Set, Any, Callable, Dict, List, Optional
 
 from .guardrails import LoopGuard
 from .llm import ChatClient, ChatError
@@ -37,7 +37,7 @@ class Supervision:
 
 @dataclass
 class LoopResult:
-    stop: str                     # done | verified_complete | max_turns | max_seconds | model_error | context_overflow | blocked | integrity_error
+    stop: str                     # done | verified_complete | max_turns | max_seconds | model_error | context_overflow | blocked | integrity_error | request_invalid
     turns: int = 0
     seconds: float = 0.0
     final_text: str = ""
@@ -52,6 +52,28 @@ class LoopResult:
 def is_context_error(text: str) -> bool:
     t = text.lower()
     return "context length" in t or "context_length" in t or "too many tokens" in t or "maximum context" in t
+
+
+REFUSED_ARGS_NOTE = "repeat of an earlier call, refused, not run"
+
+
+def shrink_refused_calls(messages: List[Dict[str, Any]], refused_ids: Set[str], keep_full: int = 2, min_chars: int = 160) -> int:
+    """Replace the arguments of OLD refused tool calls by a one-line note. A refusal loop otherwise grows the prompt by the size of the repeated call every turn (about
+    380 tokens a turn in the statisticians run, 130 turns, until the window overflowed) and nothing else can compact it. Only assistant messages all of whose calls were
+    refused are touched; the newest ``keep_full`` stay intact so the model still sees what was refused; indices, roles and call ids are unchanged. Returns messages changed."""
+    idx = [i for i, m in enumerate(messages) if m.get("role") == "assistant" and m.get("tool_calls") and all(c.get("id") in refused_ids for c in m["tool_calls"])]
+    changed = 0
+    for i in (idx[:-keep_full] if keep_full else idx):
+        new, hit = [], False
+        for c in messages[i]["tool_calls"]:
+            if len(c["function"].get("arguments") or "") > min_chars:
+                c = {**c, "function": {**c["function"], "arguments": json.dumps({"note": REFUSED_ARGS_NOTE})}}
+                hit = True
+            new.append(c)
+        if hit:
+            messages[i] = {**messages[i], "tool_calls": new}
+            changed += 1
+    return changed
 
 
 def missing_args(registry: ToolRegistry, name: str, args: Dict[str, Any]) -> Optional[str]:
@@ -106,6 +128,8 @@ def run_loop(client: ChatClient, registry: ToolRegistry, system: str, task: str,
                          specs=tool_params, emit=emit)
     is_ph = getattr(cm, "is_placeholder", None)
     last_prompt, sent_len = 0, 0
+    refused: Set[str] = set()                       # call ids the supervisor refused (their old arguments are shrunk, see shrink_refused_calls)
+    shrunk = 0
     try:
         while True:
             if not guard.check():
@@ -117,6 +141,11 @@ def run_loop(client: ChatClient, registry: ToolRegistry, system: str, task: str,
             if sup:
                 sup.begin_turn(res.turns + 1, time.time() - t0)
             # size of the next prompt: the last measured one plus everything appended since that reply
+            n_shrunk = shrink_refused_calls(messages, refused) if refused else 0
+            if n_shrunk:
+                shrunk += n_shrunk
+                if shrunk <= 3 or shrunk % 10 == 0:
+                    emit("refusal_shrink", changed=n_shrunk, total=shrunk)
             new_chars = messages_chars(messages[sent_len:])
             est = last_prompt + estimate_tokens(new_chars)
             if est > compact_at * max_context_tokens:
@@ -156,11 +185,12 @@ def run_loop(client: ChatClient, registry: ToolRegistry, system: str, task: str,
                         continue
                     if is_context_error(str(e)) and attempt < 3:
                         attempt += 1
+                        cut = shrink_refused_calls(messages, refused, keep_full=0) if refused else 0
                         emit("compact", level=attempt, reason="context error from server",
-                             changed=cm.on_context_error(messages, attempt))
+                             changed=cm.on_context_error(messages, attempt) + cut, refusal_pairs_shrunk=cut)
                         continue
                     emit("model_error", error=str(e)[:300])
-                    res.stop = "model_error"
+                    res.stop = "context_overflow" if is_context_error(str(e)) else "model_error"
                     break
             if out is None:
                 break
@@ -214,6 +244,7 @@ def run_loop(client: ChatClient, registry: ToolRegistry, system: str, task: str,
                         emit("placeholder_blocked", name=name, arg=ph)
                     elif sup and not (decision := sup.before(call_id, name, args, messages)).run:
                         text, res.tool_errors = sup.attach_pending(decision.text), res.tool_errors + 1
+                        refused.add(call_id)
                     else:
                         r = registry.run(name, args)
                         err = (r.error or "").removeprefix("ERROR: ").removeprefix("ERROR:").strip()

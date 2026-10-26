@@ -96,7 +96,7 @@ def test_context_error_from_server_triggers_compaction_and_retry():
 def test_persistent_context_error_gives_up_after_three_compactions():
     err = ChatError("HTTP 400: maximum context length is 100 tokens")
     c = Script([call("echo", x="a"), err, err, err, err])
-    assert run_loop(c, reg(), "s", "t").stop == "model_error"
+    assert run_loop(c, reg(), "s", "t").stop == "context_overflow"           # a persistent context error is reported as one (it was model_error before the 11-task run)
 
 
 def test_parallel_tool_outputs_are_estimated_before_sending():
