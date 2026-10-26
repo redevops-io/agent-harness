@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import base64
+import re
 import hashlib
 import struct
 from dataclasses import dataclass, field
@@ -120,29 +121,84 @@ def load_image(path: Path, shown_path: str) -> Tuple[Optional[ImageAttachment], 
     return ImageAttachment(shown_path, data, info), ""
 
 
+def image_label(a: ImageAttachment) -> str:
+    return f"[image: {a.path} ({a.info.width}x{a.info.height}) sha256:{a.info.sha256[:12]}]"
+
+
 def image_message(attachments: List[ImageAttachment]) -> Dict[str, Any]:
-    """The user message that delivers images after a turn's tool results."""
+    """The user message that delivers images after a turn's tool results. Each image is preceded by a text label (path, size, hash) that stays in the history
+    if the image itself is later dropped."""
     parts: List[Dict[str, Any]] = [{"type": "text", "text": "Image(s) from your view_image call(s): " + "; ".join(
         f"{a.path} ({a.info.width}x{a.info.height})" for a in attachments) + ". Report only what is actually legible; mark anything unclear as unreadable."}]
-    parts += [a.part() for a in attachments]
+    for a in attachments:
+        parts += [{"type": "text", "text": image_label(a)}, a.part()]
     return {"role": "user", "content": parts}
 
 
+def _is_image_part(x: Any) -> bool:
+    return isinstance(x, dict) and x.get("type") == "image_url"
+
+
 def is_image_message(m: Dict[str, Any]) -> bool:
-    return m.get("role") == "user" and isinstance(m.get("content"), list) and any(isinstance(x, dict) and x.get("type") == "image_url" for x in m["content"])
+    return m.get("role") == "user" and isinstance(m.get("content"), list) and any(_is_image_part(x) for x in m["content"])
+
+
+def count_images(messages: List[Dict[str, Any]]) -> int:
+    """Image content parts in the whole message list (what an endpoint's per-prompt image limit counts), not messages."""
+    return sum(1 for m in messages if isinstance(m.get("content"), list) for x in m["content"] if _is_image_part(x))
+
+
+class ImageCapError(RuntimeError):
+    """The newest image message alone holds more images than the endpoint accepts; nothing older can be dropped to make room."""
+
+
+def _drop_image(messages: List[Dict[str, Any]], i: int, j: int, reason: str) -> Dict[str, Any]:
+    """Replace image part j of message i by a text note that keeps the label (path, size, hash). Returns {path/label, message index}."""
+    parts = list(messages[i]["content"])
+    label = parts[j - 1]["text"] if j > 0 and isinstance(parts[j - 1], dict) and parts[j - 1].get("type") == "text" and str(parts[j - 1].get("text", "")).startswith("[image: ") else "[image]"
+    parts[j] = {"type": "text", "text": f"{label} was removed from the history ({reason}); it is not visible now. Use what you wrote down about it, or call view_image on the file again."}
+    messages[i] = {**messages[i], "content": parts}
+    return {"index": i, "label": label}
+
+
+def _image_positions(messages: List[Dict[str, Any]]) -> List[tuple]:
+    return [(i, j) for i, m in enumerate(messages) if isinstance(m.get("content"), list) for j, x in enumerate(m["content"]) if _is_image_part(x)]
 
 
 def prune_images(messages: List[Dict[str, Any]], keep: int = 2) -> int:
-    """Replace the image parts of all but the newest ``keep`` image messages with a text note (indices and roles are unchanged). Returns how many were pruned."""
-    idx = [i for i, m in enumerate(messages) if is_image_message(m)]
-    n = 0
-    for i in idx[:-keep] if keep else idx:
-        old = messages[i]["content"]
-        kept = [x for x in old if x.get("type") == "text"]
-        kept.append({"type": "text", "text": "[the image was removed from the history to save context; call view_image on the file again to see it]"})
-        messages[i] = {**messages[i], "content": kept}
-        n += 1
-    return n
+    """Drop all but the newest ``keep`` images (parts, not messages) to save context. Indices and roles are unchanged. Returns how many were dropped."""
+    pos = _image_positions(messages)
+    drop = pos[:-keep] if keep else pos
+    for i, j in drop:
+        _drop_image(messages, i, j, "to save context")
+    return len(drop)
+
+
+def enforce_image_cap(messages: List[Dict[str, Any]], cap: int) -> List[Dict[str, Any]]:
+    """Make the request satisfy an endpoint limit of ``cap`` images per prompt, whatever the token pressure: the oldest images are replaced by labelled text notes
+    until at most ``cap`` remain. Returns what was dropped. The newest image message is never touched; if it alone exceeds the cap, raises ImageCapError so the
+    caller can refuse the request locally with a clear reason instead of receiving an HTTP 400."""
+    pos = _image_positions(messages)
+    if len(pos) <= cap:
+        return []
+    newest = pos[-1][0]
+    if sum(1 for i, _ in pos if i == newest) > cap:
+        raise ImageCapError(f"the newest message holds {sum(1 for i, _ in pos if i == newest)} images but the endpoint accepts at most {cap} per prompt")
+    dropped = []
+    for i, j in pos[:len(pos) - cap]:
+        if i == newest:
+            raise ImageCapError(f"{len(pos)} images cannot be reduced to {cap} without dropping images of the newest message")
+        dropped.append(_drop_image(messages, i, j, f"the endpoint accepts at most {cap} images per prompt"))
+    return dropped
+
+
+_LIMIT_RE = re.compile(r"at most (\d+) image", re.I)
+
+
+def parse_image_limit(error: str) -> Optional[int]:
+    """The per-prompt image limit an endpoint names in its error (vLLM: 'At most 5 image(s) may be provided in one prompt'), else None."""
+    m = _LIMIT_RE.search(error or "")
+    return int(m.group(1)) if m else None
 
 
 def content_chars(content: Any) -> int:

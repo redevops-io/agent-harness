@@ -87,8 +87,8 @@ def test_a_real_image_is_attached_and_delivered_in_a_user_message_after_the_tool
     assert "Image attached in the next message" in req[tool_i]["content"] and "600x400" in req[tool_i]["content"]
     img = req[tool_i + 1]
     assert img["role"] == "user" and isinstance(img["content"], list) and img["content"][0]["type"] == "text"
-    part = img["content"][1]
-    assert part["type"] == "image_url" and part["image_url"]["url"].startswith("data:image/png;base64,")      # the exact format the server accepted in X0
+    part = next(x for x in img["content"] if x["type"] == "image_url")
+    assert part["image_url"]["url"].startswith("data:image/png;base64,")      # the exact format the server accepted in X0
     assert base64.b64decode(part["image_url"]["url"].split(",", 1)[1]) == CONTROL                          # byte for byte the task file
     assert res.stop == "done" and check_message_integrity(req) == []
 
@@ -210,7 +210,7 @@ def test_the_chat_client_posts_image_parts_in_the_openai_format():
         ChatClient(f"http://127.0.0.1:{srv.server_address[1]}", "m").complete(msgs, None)
     finally:
         srv.shutdown()
-    part = got["body"]["messages"][2]["content"][1]
+    part = next(x for x in got["body"]["messages"][2]["content"] if x["type"] == "image_url")
     assert part["type"] == "image_url" and list(part["image_url"]) == ["url"] and part["image_url"]["url"].startswith("data:image/png;base64,")
 
 

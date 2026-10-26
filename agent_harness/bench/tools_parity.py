@@ -57,7 +57,7 @@ def describe_bash(network: str, found: Sequence[str], stdout_chars: int = 7800, 
 def parity_registry(workspace: Path, sandbox, *, policy: Optional[NetPolicy] = None, web: bool = True, bash_timeout: int = 180,
                     network: str = "egress", found: Sequence[str] = (), blocked_log: Optional[List[str]] = None,
                     fetch: Callable[..., Any] = safe_fetch, store: Optional[OutputStore] = None, ledger: Optional[FileLedger] = None,
-                    output_budget: int = DEFAULT_BUDGET, vision: bool = False) -> ToolRegistry:
+                    output_budget: int = DEFAULT_BUDGET, vision: bool = False, max_images: Optional[int] = None) -> ToolRegistry:
     """``output_budget`` is the number of characters the caller will admit per tool result (the loop's ``max_tool_chars``). Every tool here returns at most that,
     so the context manager's admission clip is only a safety net and never cuts a page or its continuation hint. ``vision`` adds ``view_image``."""
     PAGE = max(500, output_budget - HINT_RESERVE)
@@ -174,7 +174,9 @@ def parity_registry(workspace: Path, sandbox, *, policy: Optional[NetPolicy] = N
     if vision:
         reg.register(function_tool("view_image", view_image,
                                    "Look at an image file under /work (PNG, JPEG, GIF or WebP, up to 5 MB): the image is shown to you in the next message. A blank or unreadable image "
-                                   "is reported as such and not shown; never guess values you cannot read.",
+                                   "is reported as such and not shown; never guess values you cannot read."
+                                   + (f" At most {max_images} images can be shown at once: when you view more, the oldest drop out of view (the files are unchanged), so "
+                                      f"write down what you read from each image (for example in a notes file) before you view more." if max_images else ""),
                                    {"type": "object", "properties": {"path": s}, "required": ["path"]}))
     reg.register(function_tool("list_dir", list_dir, "List a directory under /work.", {"type": "object", "properties": {"path": s}, "required": ["path"]}))
 

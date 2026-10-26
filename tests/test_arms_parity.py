@@ -36,16 +36,16 @@ def test_b_and_v2_differ_from_the_baseline_only_in_the_declared_options(tmp_path
     b, v2 = seen["ours-cr-tools"], seen["ours-cr-v2"]
     assert {k: v for k, v in b.items() if k not in ("tools", "network")} == base       # same context, limits, window, attempts, trace
     assert b["tools"] == "parity" and b["network"] == "egress" and "supervise" not in b
-    assert v2 == {**b, "supervise": True, "vision": "probe", "check_integrity": True}
+    assert v2 == {**b, "supervise": True, "vision": "probe", "check_integrity": True, "max_images": 5}
     for arm in e.arms:
         assert e.board.finished(arm_id(arm, "q8"), "a/task1")
     info = e.board.info(arm_id("ours-cr-v2", "q8"), "a/task1")
-    assert info["run_options"] == {"tools": "parity", "network": "egress", "supervise": True, "vision": "probe", "check_integrity": True} and info["failure"] == "delivered"
+    assert info["run_options"] == {"tools": "parity", "network": "egress", "supervise": True, "vision": "probe", "check_integrity": True, "max_images": 5} and info["failure"] == "delivered"
 
 
 def test_arm_options_are_declared_once_and_repeatable():
     assert ours_cr_tools.RUN_OPTIONS == {"tools": "parity", "network": "egress"}
-    assert ours_cr_v2.RUN_OPTIONS == {**ours_cr_tools.RUN_OPTIONS, "supervise": True, "vision": "probe", "check_integrity": True}
+    assert ours_cr_v2.RUN_OPTIONS == {**ours_cr_tools.RUN_OPTIONS, "supervise": True, "vision": "probe", "check_integrity": True, "max_images": 5}
     assert harnesses.load("ours-cr-v2-r2").NAME == "ours-cr-v2-r2"
     assert ours_cr_v2.OPTIONS == ours_cr.OPTIONS
 

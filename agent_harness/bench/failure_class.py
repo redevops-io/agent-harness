@@ -1,7 +1,7 @@
 """Deterministic failure classification of one attempt, from its trajectory and summary (no model, no judge).
 
 Classes (first match wins): ``delivered`` (files present and structurally valid); ``invalid_deliverable`` (files present but empty, unreadable, draft-only or incomplete); ``blocked`` (the supervisor's recovery was exhausted); ``verified_complete`` is a ``delivered`` run the supervisor ended; ``identical_call_loop`` (at least a fifth of the turns were refused or
-repeated identical calls); ``time_limit``; ``turn_limit``; ``model_error``; ``context_overflow``; ``finished_without_deliverable``. Flags are independent signals:
+repeated identical calls); ``time_limit``; ``turn_limit``; ``model_error``; ``request_invalid`` (the harness refused to send a request the endpoint would reject); ``context_overflow``; ``finished_without_deliverable``. Flags are independent signals:
 ``files_outside_output``, ``network_errors``, ``placeholder_blocked``, ``capability_notes`` and the recovery blockers.
 """
 from __future__ import annotations
@@ -53,8 +53,8 @@ def classify(trajectory: Path, summary: Dict[str, Any]) -> Dict[str, Any]:
         cls = "time_limit"
     elif stop == "max_turns":
         cls = "turn_limit"
-    elif stop == "model_error":
-        cls = "model_error"
+    elif stop in ("model_error", "request_invalid"):
+        cls = "model_error" if stop == "model_error" else "request_invalid"
     elif stop == "context_overflow":
         cls = "context_overflow"
     else:

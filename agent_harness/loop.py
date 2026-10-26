@@ -21,7 +21,7 @@ from .llm import ChatClient, ChatError
 from .context import (ELIDED, BasicContextManager, ContextManager, clip_text as _clip, elide_old_tool_outputs,  # noqa: F401
                       estimate_tokens, messages_chars, placeholder_arg, shrink_tool_call_args)
 from .integrity import check_message_integrity
-from .multimodal import image_message, prune_images
+from .multimodal import ImageCapError, enforce_image_cap, image_message, parse_image_limit, prune_images
 from .supervisor import Decision, Supervisor, SupervisorConfig
 from .trace import TraceRecorder
 from .tools import ToolRegistry
@@ -75,9 +75,10 @@ def run_loop(client: ChatClient, registry: ToolRegistry, system: str, task: str,
              on_turn: Optional[Callable[[int, Dict[str, Any]], None]] = None,
              context_manager: Optional[ContextManager] = None, compact_to: float = 0.5,
              trace: Optional[TraceRecorder] = None, supervision: Optional[Supervision] = Supervision(),
-             check_integrity: bool = False, keep_images: int = 2) -> LoopResult:
+             check_integrity: bool = False, keep_images: int = 2, max_images: Optional[int] = None) -> LoopResult:
     """``supervision=None`` turns the supervisor off (a bare loop, for ablations). ``check_integrity`` validates the message list before every model call and
-    ends the run as ``integrity_error`` rather than send a corrupt history."""
+    ends the run as ``integrity_error`` rather than send a corrupt history. ``max_images`` is the endpoint's limit of images per prompt: enforced on every request
+    (oldest images become labelled text notes), never more than that many images attached in one turn, and learned from the endpoint's own error if it is not given."""
     if max_tool_chars is None:
         max_tool_chars = min(12000, int(0.2 * max_context_tokens))
     messages: List[Dict[str, Any]] = [{"role": "system", "content": system}, {"role": "user", "content": task}]
@@ -136,9 +137,23 @@ def run_loop(client: ChatClient, registry: ToolRegistry, system: str, task: str,
                 trace.projection(res.turns + 1, messages, est, last_prompt)
             out, attempt = None, 0
             while out is None:
+                if max_images:
+                    try:
+                        dropped = enforce_image_cap(messages, max_images)
+                    except ImageCapError as e:
+                        emit("model_error", error=f"request refused locally: {e}"[:300])
+                        res.stop = "request_invalid"
+                        break
+                    if dropped:
+                        emit("image_cap", cap=max_images, dropped=[d["label"] for d in dropped])
                 try:
                     out = client.complete(messages, specs)
                 except ChatError as e:
+                    limit = parse_image_limit(str(e))
+                    if limit and (not max_images or limit < max_images):
+                        emit("image_cap", cap=limit, learned_from="server error", was=max_images)
+                        max_images = limit
+                        continue
                     if is_context_error(str(e)) and attempt < 3:
                         attempt += 1
                         emit("compact", level=attempt, reason="context error from server",
@@ -204,7 +219,13 @@ def run_loop(client: ChatClient, registry: ToolRegistry, system: str, task: str,
                         err = (r.error or "").removeprefix("ERROR: ").removeprefix("ERROR:").strip()
                         text = r.text if r.ok else f"ERROR: {err}"
                         res.tool_errors += 0 if r.ok else 1
-                        images += list(getattr(r, "attachments", None) or [])
+                        atts = list(getattr(r, "attachments", None) or [])
+                        if max_images and atts and len(images) + len(atts) > max_images:
+                            text = (f"NOT attached: at most {max_images} images can be shown at once and this turn already attaches {len(images)}. "
+                                    f"Write down what you read from the images you have seen (a notes file in /work), then view {', '.join(a.path for a in atts)} in a later call.")
+                            emit("image_cap", cap=max_images, refused_attachments=[a.path for a in atts])
+                        else:
+                            images += atts
                         if sup:
                             text = sup.after(call_id, name, args, text, r.ok)
                 except ValueError as e:

@@ -149,7 +149,7 @@ def run_task(tasks_base: Path, task_id: str, out_dir: Path, client: ChatClient, 
              pin_instructions: bool = True, context_options: Optional[Dict[str, Any]] = None,
              capability_notes: bool = False, web_paging: bool = False, web_downloads: bool = False,
              tools: str = "legacy", network: str = "none", supervise: bool = False, supervisor_config: Optional[Dict[str, Any]] = None,
-             vision: str = "off", vision_evidence: str = "", check_integrity: bool = False, preserve_incomplete: bool = True) -> Dict[str, Any]:
+             vision: str = "off", vision_evidence: str = "", check_integrity: bool = False, preserve_incomplete: bool = True, max_images: Optional[int] = None) -> Dict[str, Any]:
     """Roll one task. Returns a summary dict; deliverables land in ``out_dir/output``, the trajectory in ``out_dir``.
 
     Like the upstream OpenCode runner, a second attempt (fresh workspace) is made only when the first left no
@@ -203,7 +203,7 @@ def run_task(tasks_base: Path, task_id: str, out_dir: Path, client: ChatClient, 
                 budget = min(12000, int(0.2 * max_context_tokens))
                 if parity:
                     from .tools_parity import parity_registry
-                    reg = parity_registry(ws, sbx, web=web, network=network, found=found, blocked_log=blocked, output_budget=budget, vision=cap.supported)
+                    reg = parity_registry(ws, sbx, web=web, network=network, found=found, blocked_log=blocked, output_budget=budget, vision=cap.supported, max_images=max_images)
                 else:
                     reg = bench_registry(ws, sbx, blocked_log=blocked, web=web, web_paging=web_paging, web_downloads=web_downloads)
                 notes = ""
@@ -221,9 +221,9 @@ def run_task(tasks_base: Path, task_id: str, out_dir: Path, client: ChatClient, 
                 extra = "\n\n".join(x for x in (extra_system, notes) if x)
                 schemas = [sp["function"] if isinstance(sp, dict) and "function" in sp else sp for sp in reg.specs()]    # the exact schemas the model is shown
                 (out_dir / f"tool_schemas{'' if attempt == 1 else f'_attempt{attempt}'}.json").write_text(json.dumps(
-                    {"tools": tools, "network": network, "sandbox_tools_found": found, "vision": {"supported": cap.supported, "source": cap.source, "evidence": cap.evidence},
+                    {"tools": tools, "network": network, "sandbox_tools_found": found, "vision": {"supported": cap.supported, "source": cap.source, "evidence": cap.evidence, "max_images": max_images},
                      "output_budget": budget, "schemas": schemas}, indent=1))
-                res: LoopResult = run_loop(client, reg, (system + ("\n\n" + extra if extra else "")), PROMPT, supervision=supervision, check_integrity=check_integrity,
+                res: LoopResult = run_loop(client, reg, (system + ("\n\n" + extra if extra else "")), PROMPT, supervision=supervision, check_integrity=check_integrity, max_images=max_images,
                                            max_turns=max_turns, max_seconds=max_seconds,
                                            max_context_tokens=max_context_tokens, context_manager=mgr, trace=rec,
                                            trajectory=out_dir / f"trajectory{'' if attempt == 1 else f'_attempt{attempt}'}.jsonl")
@@ -255,7 +255,7 @@ def run_task(tasks_base: Path, task_id: str, out_dir: Path, client: ChatClient, 
             summary["failure"] = classify(out_dir / f"trajectory{'' if attempt == 1 else f'_attempt{attempt}'}.jsonl", summary)
             from .edit_stats import edit_stats, load as load_edits
             summary["edit_stats"] = edit_stats(load_edits(ws / ".artifacts" / "edits.jsonl"))
-            summary["run_options"] = {"tools": tools, "network": network, "supervise": supervise, "supervisor_config": supervisor_config, "vision": vision, "vision_supported": cap.supported, "capability_notes": capability_notes, "check_integrity": check_integrity}
+            summary["run_options"] = {"tools": tools, "network": network, "supervise": supervise, "supervisor_config": supervisor_config, "vision": vision, "vision_supported": cap.supported, "capability_notes": capability_notes, "check_integrity": check_integrity, "max_images": max_images}
             runs.append({k: summary[k] for k in ("attempt", "stop", "turns", "seconds", "deliverables")} | {"failure": summary["failure"]["class"]})
         finally:
             shutil.rmtree(ws, ignore_errors=True)
