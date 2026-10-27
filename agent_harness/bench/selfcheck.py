@@ -180,8 +180,22 @@ def check_endpoint(name: str, base_url: str, model: str, want_ctx_at_least: int 
         return Check(f"endpoint {name}", "FAIL", f"{type(e).__name__}: {str(e)[:200]}")
 
 
+def calibration_from_results(path: Path, min_spearman: float) -> Check:
+    """Judge calibration from SAVED scores of an earlier run of the same judge setting (list of {ref, cand}); costs nothing."""
+    rows = [r for r in json.loads(path.read_text()) if r.get("cand") is not None]
+    if len(rows) < 5:
+        return Check("judge calibration", "FAIL", f"only {len(rows)} saved scores in {path.name}")
+    ref, cand = [r["ref"] for r in rows], [r["cand"] for r in rows]
+    rho = spearman(ref, cand)
+    gap = sum(cand) / len(cand) - sum(ref) / len(ref)
+    return Check("judge calibration", "PASS" if rho >= min_spearman else "FAIL",
+                 f"REUSED saved scores from {path.name} (not re-run): Spearman {rho:.2f} vs the reference judge on {len(rows)} outputs "
+                 f"(need >= {min_spearman}); mean level gap {gap:+.2f}")
+
+
 def check_judge_controls(cfg: JudgeConfig, tasks_base: Path, calibration: Path, *, min_spearman: float = 0.7,
-                         max_items: Optional[int] = None, log: Callable[[str], None] = lambda s: None) -> List[Check]:
+                         max_items: Optional[int] = None, log: Callable[[str], None] = lambda s: None,
+                         reuse_calibration: Optional[Path] = None) -> List[Check]:
     """Negative control (garbage must score low), no-output control, then calibration against labelled outputs."""
     out: List[Check] = []
     man = json.loads((calibration / "manifest.json").read_text())
@@ -203,6 +217,9 @@ def check_judge_controls(cfg: JudgeConfig, tasks_base: Path, calibration: Path, 
         empty.mkdir()
         r0 = judge_output(t, tasks_base, empty, tmp / "empty.json", cfg)
         out.append(Check("judge no-output control", "PASS" if (r0.status, r0.score) == ("no_output", 0.0) else "FAIL", f"{r0.status} {r0.score}"))
+        if reuse_calibration:
+            out.append(calibration_from_results(reuse_calibration, min_spearman))
+            return out
         ref, cand, ungraded = [], [], 0
         for i, it in enumerate(items):
             res = judge_output(it["task"], tasks_base, calibration / it["dir"], tmp / f"cal{i}.json", cfg)
@@ -230,12 +247,16 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     ap.add_argument("--judge-python"); ap.add_argument("--judge-script"); ap.add_argument("--judge-model"); ap.add_argument("--judge-base-url")
     ap.add_argument("--judge-workers", type=int, default=4)
     ap.add_argument("--judge-rubric-timeout", type=int, default=240)
+    ap.add_argument("--judge-reasoning-effort", default="default", help="'default' sends none; 'low'|'medium'|'high' turns thinking on for models that support it")
     ap.add_argument("--judge-timeout", type=int, default=1800, help="seconds allowed per output")
     ap.add_argument("--tasks-base"); ap.add_argument("--calibration")
     ap.add_argument("--endpoint", action="append", default=[], help="name=base_url:model[:min_context]")
     ap.add_argument("--max-calibration-items", type=int)
+    ap.add_argument("--reuse-calibration", help="saved calibration scores (JSON list of {ref, cand}) of an earlier run of THIS judge setting; "
+                                                "skips the paid calibration pass, the live controls still run")
     ap.add_argument("--min-spearman", type=float, default=0.7)
     ap.add_argument("--skip", action="append", default=[], choices=["sandbox", "pipeline", "endpoints", "judge"])
+    ap.add_argument("--report", help="write a JSON report here (the experiment runner reads it to decide whether the judge may be used)")
     a = ap.parse_args(argv)
     checks: List[Check] = []
 
@@ -261,10 +282,16 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             show(Check("judge controls", "SKIP", "judge options not given"))
         else:
             cfg = JudgeConfig(a.judge_python, a.judge_script, a.judge_model, a.judge_base_url, workers=a.judge_workers,
-                              rubric_timeout_s=a.judge_rubric_timeout, timeout_s=a.judge_timeout)
+                              rubric_timeout_s=a.judge_rubric_timeout, timeout_s=a.judge_timeout,
+                              reasoning_effort=a.judge_reasoning_effort)
             for c in check_judge_controls(cfg, Path(a.tasks_base), Path(a.calibration).expanduser(), min_spearman=a.min_spearman,
-                                          max_items=a.max_calibration_items, log=lambda s: print(s, flush=True)):
+                                          max_items=a.max_calibration_items, log=lambda s: print(s, flush=True),
+                                          reuse_calibration=Path(a.reuse_calibration).expanduser() if a.reuse_calibration else None):
                 show(c)
+    if a.report:
+        Path(a.report).expanduser().write_text(json.dumps({
+            "time": time.strftime("%Y-%m-%dT%H:%M:%S"), "judge_model": a.judge_model, "judge_reasoning_effort": a.judge_reasoning_effort,
+            "checks": [{"name": c.name, "status": c.status, "detail": c.detail} for c in checks]}, indent=1))
     failed = [c for c in checks if c.status == "FAIL"]
     print(f"\n{len(checks) - len(failed)} of {len(checks)} checks passed" + (f"; FAILED: {', '.join(c.name for c in failed)}" if failed else ""))
     return 1 if failed else 0

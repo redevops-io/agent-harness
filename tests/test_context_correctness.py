@@ -5,7 +5,8 @@ import pytest
 
 from agent_harness.bench import jobbench as jb
 from agent_harness.bench.tools import bench_registry
-from agent_harness.context import ELIDED, BasicContextManager, PinSet, placeholder_arg, placeholder_in
+from agent_harness.context import (ELIDED, BasicContextManager, NoCompactionManager, PinSet, elide_old_tool_outputs, placeholder_arg,
+                                   placeholder_in)
 from agent_harness.loop import run_loop
 from agent_harness.tools import ToolRegistry, ToolResult, function_tool
 from agent_harness.trace import TraceRecorder
@@ -44,11 +45,16 @@ def registry(log):
 
 
 # -- placeholder guard -----------------------------------------------------------------------------------------------
-@pytest.mark.parametrize("value", ["[archived A0048: 17339 chars] import openpyxl ... (read_archive(\"A0048\"))",
-                                   "  [archived A1: 5 chars] x", "<<ARCHIVED-PLACEHOLDER A0002 ...>>",
-                                   "head...[900 chars omitted to save context]", ELIDED])
+@pytest.mark.parametrize("value", ["head...[900 chars omitted to save context]", ELIDED])
 def test_placeholder_text_is_recognised(value):
     assert placeholder_in(value) and placeholder_arg({"path": "/tmp/a", "content": value}) == "content"
+
+
+def test_a_managers_own_stub_format_is_recognised_through_its_detector_not_through_patterns_in_the_loop():
+    stub = "<<GONE 7: that text was removed>>"                      # a format this package has never heard of
+    assert not placeholder_in(stub)
+    assert placeholder_arg({"content": stub}, lambda v: isinstance(v, str) and v.startswith("<<GONE")) == "content"
+    assert placeholder_arg({"content": "fine"}, lambda v: isinstance(v, str) and v.startswith("<<GONE")) is None
 
 
 @pytest.mark.parametrize("value", ["a normal document that mentions the [archived] section", "def f(): return 1", "", 5, None])
@@ -58,7 +64,7 @@ def test_real_content_is_not_mistaken_for_a_placeholder(value):
 
 def test_an_action_carrying_a_placeholder_is_refused_not_run(tmp_path):
     log = []
-    stub = "[archived A0048: 17339 chars] import openpyxl from openpyxl.styles import Font ... (read_archive(\"A0048\"))"
+    stub = "import openpyxl from openpyxl.styles import Font ...[900 chars omitted to save context]"
     client = Script([("", [("write_file", {"path": "/tmp/d1.py", "content": stub})]),
                      ("", [("write_file", {"path": "/tmp/d1.py", "content": "print('real')"})]), ("done", [])])
     traj = tmp_path / "t.jsonl"
@@ -104,6 +110,15 @@ def test_pin_whitespace_differences_do_not_matter_and_tiny_pins_are_ignored():
     assert p.matches("$ cat x\nReference Files: a.csv and b.csv are required for this task\nmore")
 
 
+def test_the_none_manager_also_honours_pins_in_its_last_resort(tmp_path):
+    mgr = NoCompactionManager()
+    mgr.pin_text("TASK INSTRUCTIONS: produce a three-sheet workbook and a PDF")
+    msgs = conv("TASK INSTRUCTIONS: produce a three-sheet workbook and a PDF")
+    assert mgr.prepare(msgs, target_tokens=1, estimated_tokens=10**6) == 0
+    mgr.on_context_error(msgs, 1)
+    assert "TASK INSTRUCTIONS" in [m["content"] for m in msgs if m["role"] == "tool"][0]
+
+
 def test_pin_task_instructions_reads_the_file_and_creates_the_default_manager(tmp_path):
     (tmp_path / "TASK_INSTRUCTIONS.txt").write_text("Please build the quarterly reconciliation workbook with three sheets and a PDF summary.")
     mgr = jb.pin_task_instructions(None, tmp_path)
@@ -134,7 +149,7 @@ def run_traced(tmp_path, with_trace):
     log = []
     steps = [("", [("big", {})])] * 6 + [("done", [])]
     rec = TraceRecorder(tmp_path / "trace") if with_trace else None
-    res = run_loop(Script(steps, prompt_tokens=900), registry(log), "s", "t", max_context_tokens=1000, max_tool_chars=2000, trace=rec)
+    res = run_loop(Script(steps, prompt_tokens=900), registry(log), "s", "t", max_context_tokens=1000, max_tool_chars=2000, trace=rec, supervision=None)
     return res, rec
 
 

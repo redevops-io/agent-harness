@@ -61,6 +61,7 @@ def test_context_runtime_is_the_default_and_a_missing_package_is_an_error_not_a_
 
 
 def test_runner_passes_a_context_runtime_manager_into_the_loop_and_reports_archive_stats(tmp_path, monkeypatch):
+    pytest.importorskip("context_runtime.compression.contract")      # the harness refuses a context-runtime without the transcript contract
     pytest.importorskip("context_runtime")
     base = make_task(tmp_path)
     (base / "x" / "task1" / "task_folder" / "notes.txt").write_text("alpha beta gamma")
@@ -99,3 +100,14 @@ def test_guard_flags_grader_names_but_not_ordinary_inputs(tmp_path):
         (tmp_path / name).unlink()
     (tmp_path / "rubric_notes.md").write_text("x")             # \b stops at "_": only the exact grader file names are flagged
     jb.assert_workspace_clean(tmp_path)
+
+
+def test_a_context_runtime_without_the_transcript_contract_is_refused_not_silently_used(tmp_path, monkeypatch):
+    pytest.importorskip("context_runtime")
+    import context_runtime.integrations.agent_harness as cra
+
+    class Old:
+        def __init__(self, *a, **k): pass
+    monkeypatch.setattr(cra, "ContextRuntimeManager", Old)
+    with pytest.raises(RuntimeError, match="predates the transcript contract"):
+        jb.make_context_manager("context-runtime", tmp_path)

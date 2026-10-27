@@ -232,7 +232,8 @@ def test_output_token_ceiling_clamps_only_larger_values(tmp_path):
     up = ThreadingHTTPServer(("127.0.0.1", 0), Fake)
     threading.Thread(target=up.serve_forever, kwargs={"poll_interval": 0.05}, daemon=True).start()
     prices = load_prices()
-    assert prices["providers"]["proxmox48"]["clamp_output_tokens"] == 8192
+    ceiling = prices["providers"]["proxmox48"]["clamp_output_tokens"]
+    assert ceiling == prices["providers"]["proxmox32"]["clamp_output_tokens"] == 16384
     proxy = Proxy(prices, Ledger(tmp_path / "l.jsonl", {}, free={"proxmox48"}), {"proxmox48": ""},
                   upstreams={"proxmox48": f"http://127.0.0.1:{up.server_address[1]}/v1"})
     srv = serve(proxy)
@@ -242,7 +243,7 @@ def test_output_token_ceiling_clamps_only_larger_values(tmp_path):
         post(base, "/proxmox48/x/v1/chat/completions", {"model": "Qwen3.8-27B", "messages": [], "max_tokens": 500})
         post(base, "/proxmox48/x/v1/chat/completions", {"model": "Qwen3.8-27B", "messages": []})
         b = [s["body"] for s in Fake.seen]
-        assert b[0]["max_completion_tokens"] == 8192 and b[1]["max_tokens"] == 500 and "max_tokens" not in b[2]
+        assert b[0]["max_completion_tokens"] == ceiling and b[1]["max_tokens"] == 500 and "max_tokens" not in b[2]
     finally:
         srv.shutdown()
         up.shutdown()
@@ -287,3 +288,52 @@ def test_a_providers_base_url_can_come_from_the_environment(monkeypatch):
     monkeypatch.delenv("AGENT_HARNESS_PROXMOX48_URL")
     px2 = Proxy(PRICES, Ledger("/tmp/_unused_ledger.jsonl", {}, free={"proxmox48"}), {"proxmox48": ""})
     assert px2.upstreams["proxmox48"] == "http://localhost:8001/v1"
+
+
+def test_the_think_label_turns_reasoning_on_and_is_the_only_difference_between_the_two_modes(tmp_path):
+    Fake.seen, Fake.omit_usage = [], False
+    up = ThreadingHTTPServer(("127.0.0.1", 0), Fake)
+    threading.Thread(target=up.serve_forever, kwargs={"poll_interval": 0.05}, daemon=True).start()
+    prices = load_prices()
+    proxy = Proxy(prices, Ledger(tmp_path / "l.jsonl", {}, free={"proxmox48", "proxmox32"}), {"proxmox48": "", "proxmox32": ""},
+                  upstreams={n: f"http://127.0.0.1:{up.server_address[1]}/v1" for n in ("proxmox48", "proxmox32")})
+    srv = serve(proxy)
+    base = f"http://127.0.0.1:{srv.server_address[1]}"
+    try:
+        body = {"model": "Qwen3.8-27B", "messages": [], "max_tokens": 65536}
+        for prov in ("proxmox48", "proxmox32"):
+            for label in ("ours", "oc", "think"):
+                post(base, f"/{prov}/{label}/v1/chat/completions", body)
+        got = {(s["path"], i): s["body"] for i, s in enumerate(Fake.seen)}
+        bodies = [s["body"] for s in Fake.seen]
+        for i in (0, 1, 3, 4):
+            assert bodies[i]["chat_template_kwargs"] == {"enable_thinking": False}         # default: off
+        for i in (2, 5):
+            assert bodies[i]["chat_template_kwargs"] == {"enable_thinking": True}          # label 'think': on
+        assert all(b["max_tokens"] == 16384 for b in bodies)                               # one output ceiling for every cell and mode
+        rest = [{k: v for k, v in b.items() if k != "chat_template_kwargs"} for b in bodies]
+        assert all(r == rest[0] for r in rest)                                            # nothing else differs
+    finally:
+        srv.shutdown()
+        up.shutdown()
+
+
+def test_the_ledger_records_sampling_as_sent_upstream_and_never_request_content(tmp_path):
+    Fake.seen, Fake.omit_usage = [], False
+    up = ThreadingHTTPServer(("127.0.0.1", 0), Fake)
+    threading.Thread(target=up.serve_forever, kwargs={"poll_interval": 0.05}, daemon=True).start()
+    ledger = Ledger(tmp_path / "l.jsonl", {}, headroom=1.0, free={"proxmox48"})
+    proxy = Proxy(load_prices(), ledger, {"proxmox48": ""}, upstreams={"proxmox48": f"http://127.0.0.1:{up.server_address[1]}/v1"})
+    srv = serve(proxy)
+    base = f"http://127.0.0.1:{srv.server_address[1]}"
+    try:
+        post(base, "/proxmox48/ours/v1/chat/completions", {"model": "Qwen3.8-27B", "temperature": 0.55, "top_p": 1.0, "max_tokens": 99999,
+                                                          "messages": [{"role": "user", "content": "secret-prompt-text"}], "tools": [{"type": "function"}]})
+        post(base, "/proxmox48/other/v1/chat/completions", {"model": "Qwen3.8-27B", "messages": []})          # nothing sent: nothing recorded
+    finally:
+        srv.shutdown()
+        up.shutdown()
+    rows = [json.loads(l) for l in (tmp_path / "l.jsonl").read_text().splitlines()]
+    assert rows[0]["params"] == {"temperature": 0.55, "top_p": 1.0, "max_tokens": 16384, "thinking": False, "n_messages": 1, "n_tools": 1}
+    assert "temperature" not in rows[1]["params"] and "top_p" not in rows[1]["params"]                       # an unset value is visible as absent
+    assert "secret-prompt-text" not in (tmp_path / "l.jsonl").read_text()

@@ -41,6 +41,7 @@ class ToolResult:
     hits: list = field(default_factory=list)      # if the tool is a retrieval source (type owned by the caller)
     text: str = ""                                # human/agent-readable summary
     error: Optional[str] = None
+    attachments: list = field(default_factory=list)   # model inputs the tool produced (images); the loop delivers them in a user message after the tool results
 
 
 @runtime_checkable

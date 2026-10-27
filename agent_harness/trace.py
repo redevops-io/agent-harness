@@ -27,11 +27,24 @@ def sha(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8", "replace")).hexdigest()[:16]
 
 
+def _parts_text(content: Any) -> str:
+    """Canonical text of list-style content: images are recorded by hash and size, never as base64."""
+    out = []
+    for p in content or []:
+        if isinstance(p, dict) and p.get("type") == "image_url":
+            url = (p.get("image_url") or {}).get("url", "")
+            out.append({"type": "image_url", "sha256": hashlib.sha256(url.encode()).hexdigest()[:16], "chars": len(url)})
+        else:
+            out.append(p)
+    return json.dumps(out, sort_keys=True, ensure_ascii=False)
+
+
 def message_text(m: Dict[str, Any]) -> str:
     """Everything the model sees of one message: content plus the exact tool-call arguments."""
     calls = m.get("tool_calls") or []
     if not calls:
-        return m.get("content") or ""
+        c = m.get("content") or ""
+        return c if isinstance(c, str) else _parts_text(c)
     return json.dumps({"content": m.get("content") or "", "tool_calls": [
         {"id": c.get("id"), "name": c["function"]["name"], "arguments": c["function"].get("arguments")} for c in calls]},
         sort_keys=True)

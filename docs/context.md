@@ -27,11 +27,13 @@ runner stops with an error instead of falling back, so a run cannot silently use
 
 ## Keeping actions and instructions intact
 
-* **Placeholder guard.** `run_loop` refuses to run an action whose string argument is, or starts with, text a manager
-  put in the history in place of removed content (`[archived A0007: ...`, `<<ARCHIVED-PLACEHOLDER ...`,
-  `... chars omitted to save context]`, the elision notice). The model receives an error saying nothing was run. A model
-  was seen to copy such a stub into a new `write_file`; the file then held the stub. The markers are defined in
-  `context.py` (`placeholder_in`, `placeholder_arg`), so a manager that adds a new stub format must be added there.
+* **Placeholder guard.** `run_loop` refuses to run an action whose string argument is, or contains, text a manager put in
+  the history in place of removed content. The model receives an error saying nothing was run. A model was seen to copy
+  such a stub into a new `write_file`; the file then held the stub. What a stub looks like is the manager's business: the
+  loop asks `cm.is_placeholder(value)` (the optional `ContextAware` extension), so Context Runtime's own formats
+  (`[archived A0007: ...`, `<<ARCHIVED-PLACEHOLDER ...`) are recognised by Context Runtime and a manager that adds a new
+  format only has to report it there. `placeholder_in` / `placeholder_arg` in `context.py` cover only the markers this
+  package writes itself (`... chars omitted to save context]` and the elision notice).
 * **Pins.** `BasicContextManager.pin_text(text)` keeps any tool result that contains the start of `text` (whitespace
   normalised) out of `prepare`'s elision. The last-resort clipping at `on_context_error` attempt 3 still applies, so a
   pin cannot make a run fail. The benchmark runner pins the task's `TASK_INSTRUCTIONS*` file (`run_task(pin_instructions=True)`,

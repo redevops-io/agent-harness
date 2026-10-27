@@ -16,6 +16,7 @@ def test_sandbox_check_passes_on_a_correct_sandbox():
 
 @needs_docker
 def test_scripted_pipeline_runs_end_to_end_with_real_sandbox_and_context_runtime():
+    pytest.importorskip("context_runtime.compression.contract")
     pytest.importorskip("context_runtime")
     c = sc.check_pipeline()
     assert c.status == "PASS", c.detail
