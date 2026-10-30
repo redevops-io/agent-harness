@@ -11,6 +11,7 @@ from .test_boundaries import QA, imports_of, qa_internal_imports
 H2_MODULES = ["checkpoint", "cleanup", "clock", "hooks", "idempotency", "limits", "policy", "receipts", "run_errors",
               "runner", "runstate"]
 H0_H1_MODULES = ["canon", "classify", "errors", "ports", "records", "recovery_types", "schemas", "specstore", "verifier"]
+H3_MODULES = ["recovery"]          # plan H3: the runner (an H2 module) is the one H2 module that may import it
 
 
 def top(names):
@@ -31,7 +32,7 @@ def closure(start):
 @pytest.mark.parametrize("name", H2_MODULES)
 def test_every_h2_module_exists_and_imports_only_qa_modules_inside_the_package(name):
     assert (QA / f"{name}.py").is_file()
-    assert top(qa_internal_imports(f"{name}.py")) <= set(H2_MODULES + H0_H1_MODULES)
+    assert top(qa_internal_imports(f"{name}.py")) <= set(H2_MODULES + H0_H1_MODULES + (H3_MODULES if name == "runner" else []))
 
 
 def test_h0_and_h1_modules_do_not_import_any_h2_module():
