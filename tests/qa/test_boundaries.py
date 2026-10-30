@@ -75,7 +75,11 @@ CORE_FILES = sorted(p for p in PKG.rglob("*.py") if QA not in p.parents)
 
 def test_the_expected_files_exist():
     assert {p.name for p in QA_FILES} == {"__init__.py", "canon.py", "classify.py", "errors.py", "ports.py", "records.py",
-                                          "recovery_types.py", "schemas.py", "specstore.py", "verifier.py"}
+                                          "recovery_types.py", "schemas.py", "specstore.py", "verifier.py",
+                                          # H2: the single-run executor
+                                          "checkpoint.py", "cleanup.py", "clock.py", "hooks.py", "idempotency.py",
+                                          "limits.py", "policy.py", "receipts.py", "run_errors.py", "runner.py",
+                                          "runstate.py"}
 
 
 @pytest.mark.parametrize("path", QA_FILES, ids=lambda p: p.name)
