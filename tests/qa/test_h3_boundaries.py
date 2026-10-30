@@ -26,7 +26,7 @@ def test_recovery_cannot_reach_the_verifier_the_classifier_the_spec_store_the_po
 
 def test_only_the_runner_imports_the_recovery_module():
     users = {name for name in ALL_QA if name != "recovery" and "recovery" in top(qa_internal_imports(f"{name}.py"))}
-    assert users == {"runner"}
+    assert users == {"runner", "recovery_model"}          # plan H4 builds on it; nothing else may
 
 
 def test_nothing_the_verdict_depends_on_imports_recovery():

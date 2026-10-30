@@ -11,7 +11,7 @@ from .test_boundaries import QA, imports_of, qa_internal_imports
 H2_MODULES = ["checkpoint", "cleanup", "clock", "hooks", "idempotency", "limits", "policy", "receipts", "run_errors",
               "runner", "runstate"]
 H0_H1_MODULES = ["canon", "classify", "errors", "ports", "records", "recovery_types", "schemas", "specstore", "verifier"]
-H3_MODULES = ["recovery"]          # plan H3: the runner (an H2 module) is the one H2 module that may import it
+H3_MODULES = ["recovery", "recovery_model"]   # plans H3 and H4: the runner (an H2 module) is the one H2 module that may import them
 
 
 def top(names):
