@@ -39,6 +39,15 @@ What it guarantees, and where:
   the model's cost (calls, tokens, milliseconds) is recorded on the ``FaultRecovery`` and charged to the run budget, the
   hash and size of each request and raw response are evidence events, and a run that used a recovered locator never
   ends ``PASS`` or ``PRODUCT_FAIL``.
+* **Redaction, egress and evidence integrity (plan H5, opt-in).** With an ``EvidenceGuard`` (``vault.py``) every evidence
+  event is redacted *before* it is hashed into the chain, bounded in size and count, and its evidence references are
+  checked for full-width digests; a failure drops the event, records an ``EvidenceFailure`` event (kind and code, no
+  content) and ends the run (``RedactionFailed`` is ``INCONCLUSIVE``, a size bound is ``ENVIRONMENT_FAIL``). With an
+  ``EgressGuard`` (``egress.py``) a ``NAVIGATE`` step is checked against the operator's allow-list before the adapter is
+  touched (a refusal is a ``NAVIGATION_DENIED`` receipt), a URL the page ends up on is re-checked against the listing,
+  and every decision the guard made, allow or deny, is written as an ``EgressDecision`` event that names the receipt it
+  belongs to. At the end the run's ``EgressSummary`` and ``RedactionManifest`` events are sealed before ``RunSealed``.
+  Without either guard nothing changes.
 * **Untrusted content.** Observed content (URLs, DOM text, titles, adapter detail strings) is stored as evidence and
   hashed into state hashes; it is never an input to the policy, to the spec or to the assertion set.
 
@@ -59,18 +68,20 @@ from .classify import (ENVIRONMENT_CODES, Classification, RunFacts, Signal, clas
                        review_item_for)
 from .cleanup import close_and_report
 from .checkpoint import CheckpointLog
+from .blobs import BlobRejected
+from .egress import ABOUT_BLANK, EgressGuard
 from .errors import (ADAPTER_ERRORS, REASON_ASSERTION_INTEGRITY, ActionTimeout, AdapterCrash, AssertionHashMismatch,
-                     LocatorAmbiguous, LocatorNotFound, QAAdapterError, QAError, RedactionFailed, SpecInvalid,
-                     TargetNotActionable, UnsupportedOperation)
+                     LocatorAmbiguous, LocatorNotFound, NavigationDenied, QAAdapterError, QAError, RedactionFailed,
+                     ResourceLimitExceeded, SpecInvalid, TargetNotActionable, UnsupportedOperation)
 from .hooks import (CancelToken, EvidenceStream, NotEvaluatedPostcondition, PostconditionChecker, PrepareChecks,
                     RecoveryHook, RecoveryRequest, RecoveryResponse, UnverifiedChecks)
 from .idempotency import RetryInputs, decide_retry, idempotency_key
 from .limits import (SCOPE_RUN, Budgets, Deadlines, EffectiveLimits, LimitCaps, StepTimer, effective_limits)
 from .policy import (binding_problem, decision_ref, failsafe_decision, is_allowed)
 from .ports import ActionPolicy, Clock, NeutralCheckAdapter, NeutralQAAdapter
-from .receipts import (ChainLink, EventChain, ReceiptLedger, bounded_id, build_receipt, state_hash,
+from .receipts import (ChainLink, EventChain, ReceiptLedger, bounded_id, build_receipt, receipt_ref, state_hash,
                        unknown_state_hash)
-from .records import (ActionOutcome, ActionReceipt, ActionRequest, AssertionResult, CheckProfile,
+from .records import (ActionKind, ActionOutcome, ActionReceipt, ActionRequest, AssertionResult, CheckProfile,
                       ComponentRef, Counters, Observation, ObserveRequest, Outcome, Phase, PermittedRecovery,
                       PolicyDecisionRecord, Postcondition, PostconditionResult, LocateMode,
                       LocateResult, LocatorStrategy, LocatorUsed, RecoveryStrategy, ResolvedTarget, ResultCode,
@@ -86,6 +97,7 @@ from .runstate import OUTCOME_STATE, RunState, RunStateMachine
 from .runstate import is_allowed as is_allowed_transition
 from .schemas import ADAPTER_API_VERSION, CHECK_ADAPTER_API_VERSION
 from .specstore import ProgramRegistry, SpecStore
+from .vault import EvidenceGuard
 from .verifier import (ApprovedLineage, DeterministicVerifier, FrozenAssertionSet, HaltLatch,
                        assertion_set_pin, load_frozen_assertions)
 
@@ -282,7 +294,8 @@ class QARunner:
                  checks: Optional[PrepareChecks] = None, postconditions: Optional[PostconditionChecker] = None,
                  recovery: Optional[RecoveryHook] = None, halt: Optional[HaltLatch] = None,
                  cancel: Optional[CancelToken] = None,
-                 recovery_engine: Optional[DeterministicRecovery] = None) -> None:
+                 recovery_engine: Optional[DeterministicRecovery] = None,
+                 evidence_guard: Optional[EvidenceGuard] = None, egress: Optional[EgressGuard] = None) -> None:
         if not isinstance(config, RunConfig):
             raise SpecInvalid("QARunner: config must be a RunConfig")
         if recovery_engine is not None and recovery is not None:
@@ -299,6 +312,14 @@ class QARunner:
                                    ("programs", programs, ("registered_program_hash",))):
             if obj is None or not all(callable(getattr(obj, m, None)) for m in methods):
                 raise SpecInvalid(f"QARunner: {what} must provide {', '.join(methods)}")
+        if evidence_guard is not None and (type(evidence_guard) is not EvidenceGuard
+                                           or evidence_guard.policy_id != config.redaction_policy_id):
+            raise SpecInvalid("QARunner: the evidence guard must be an EvidenceGuard whose policy id is the "
+                              "configured redaction_policy_id")
+        if egress is not None and (type(egress) is not EgressGuard or egress.policy_id != config.egress_policy_id):
+            raise SpecInvalid("QARunner: egress must be an EgressGuard whose policy id is the configured egress_policy_id")
+        self._guard = evidence_guard
+        self._egress = egress
         self._adapter_ref = ComponentRef(id=str(getattr(qa_adapter, "adapter_id", "")),
                                          version=str(getattr(qa_adapter, "adapter_version", "")))
         self._tool = ToolRef(name=self._adapter_ref.id, version=self._adapter_ref.version)
@@ -387,12 +408,26 @@ class QARunner:
             payload, phash = record, canon.canon_hash(record)
         else:
             payload, phash = record.to_json(with_hash=True), record.canon_hash()
-        event = c.chain.link(kind, payload, phash)
+        if self._guard is not None:
+            try:
+                payload, phash = self._guard.apply(kind, record, payload, phash, seq=len(c.events))
+            except (RedactionFailed, ResourceLimitExceeded, BlobRejected) as exc:
+                self._append(c, "EvidenceFailure", self._guard.failure_payload(kind, exc), tolerate=True)
+                raise
+        self._append(c, kind, payload, phash=phash)
+
+    def _append(self, c: _Ctx, kind: str, payload: Any, *, phash: Optional[str] = None,
+                tolerate: bool = False) -> None:
+        """Chain one event and append it to the stream. ``tolerate`` is for the failure marker written while another
+        error is being raised: an append that fails then is not allowed to hide that error."""
+        event = c.chain.link(kind, payload, phash if phash is not None else canon.canon_hash(payload))
         c.events.append(event)
         if self._evidence is not None:
             try:
                 self._evidence.append(event)
             except Exception as exc:
+                if tolerate:
+                    return
                 raise EvidenceUnavailable(f"the evidence stream refused an append ({type(exc).__name__})") from exc
 
     def _abort_from(self, c: _Ctx, exc: BaseException) -> _Abort:
@@ -470,6 +505,7 @@ class QARunner:
         for index, step in enumerate(c.spec.steps):
             try:
                 self._run_step(c, index, step)
+                self._flush_egress(c, step.step_id, c.ledger.last_for_step(step.step_id))
             finally:
                 self._abandon_pending(c)
                 if c.ledger.last_for_step(step.step_id) is not None:
@@ -488,7 +524,13 @@ class QARunner:
             raise RedactionFailed("the observation was not redacted under the run's redaction policy")
         if c.browser is None and obs.source.browser:
             c.browser = f"{obs.source.browser} {obs.source.browser_version or ''}".strip()
+        if self._egress is not None and obs.url is not None and obs.url != ABOUT_BLANK:
+            where = self._egress.check_static(obs.url, purpose="observed-url")      # the page may not end up off the list
+        else:
+            where = None
         self._emit(c, "Observation", obs)
+        if where is not None and not where.allowed:
+            raise NavigationDenied("the page is at a location the egress policy does not allow")
         return obs
 
     def _pick(self, descriptor: Any, result: Any, strategy: LocatorStrategy) -> ResolvedTarget:
@@ -562,7 +604,12 @@ class QARunner:
         def failed(exc: QAError) -> ResultCode:
             return _CODE_BY_RESULT.get(exc.code, ResultCode.ACTION_TIMEOUT if isinstance(exc, DeadlineExceeded)
                                        else ResultCode.ADAPTER_CRASH)
-        if used is None:
+        if self._egress is not None and step.action.kind is ActionKind.NAVIGATE:
+            # plan H5: the operator's allow-list is consulted before the adapter is touched; a refusal is a receipt
+            if not self._egress.check(step.action.value, purpose="navigation").allowed:
+                error, result = NavigationDenied("the egress policy does not allow this navigation"), \
+                    ResultCode.NAVIGATION_DENIED
+        if error is None and used is None:
             try:
                 used = self._locate_authored(c, step)
             except QAError as exc:
@@ -600,6 +647,7 @@ class QARunner:
             error = ActionTimeout("the declared transition was not observed", signal="TRANSITION_NOT_OBSERVED")
         receipt = self._receipt(c, step, attempt, ref, result=result, post=post, before=state_before,
                                 after=state_after, used=used, started=started, rationale=rationale)
+        self._flush_egress(c, step.step_id, receipt)
         return _Attempt(error=error, acted=acted, postcondition=post, after=after, receipt=receipt)
 
     def _run_step(self, c: _Ctx, index: int, step: Step) -> None:
@@ -1206,12 +1254,15 @@ class QARunner:
         try:
             if review is not None:
                 self._emit(c, "ReviewItem", review)
+            self._emit_summaries(c)
             self._emit(c, "RunSealed", {
                 "abort": ({"cancelled": c.abort.cancelled, "code": c.abort.code, "note": c.abort.note,
                            "skip": c.abort.skip.value} if c.abort is not None else None),
                 "classification": classification.to_json(), "manifest_hash": manifest.canon_hash(),
                 "receipt_head": c.ledger.head, "run_id": c.run_id})
-        except EvidenceUnavailable:                 # an outcome that could not be sealed is not certified
+        except (EvidenceUnavailable, RedactionFailed, ResourceLimitExceeded, BlobRejected):
+            # an outcome that could not be sealed (the stream refused it, or the closing events could not be recorded
+            # within the redaction and size rules) is not certified
             sealed = False
             classification = Classification(
                 outcome=Outcome.ENVIRONMENT_FAIL, reason="EVIDENCE_UNAVAILABLE",
@@ -1226,6 +1277,28 @@ class QARunner:
             receipts=c.ledger.receipts, receipt_links=c.ledger.links, policy_decisions=tuple(c.decisions),
             checkpoints=c.checkpoints.items, events=tuple(c.events),
             cancelled=bool(c.abort is not None and c.abort.cancelled), sealed=sealed)
+
+    def _flush_egress(self, c: _Ctx, step_id: str, receipt: Optional[ActionReceipt]) -> None:
+        """Write the egress decisions made since the last flush as events, each naming the receipt it belongs to (``None``
+        when no receipt exists yet). Every decision is written, allow or deny."""
+        if self._egress is None:
+            return
+        for decision in self._egress.drain():
+            self._emit(c, "EgressDecision", {"decision": decision.to_json(), "decision_hash": decision.record_hash,
+                                             "receipt_ref": receipt_ref(receipt) if receipt is not None else None,
+                                             "step_id": step_id})
+
+    def _emit_summaries(self, c: _Ctx) -> None:
+        """The closing H5 events, written before ``RunSealed``: any egress decision not yet written, the egress counts,
+        and the run's redaction manifest. Nothing here carries a removed value."""
+        if self._egress is not None:
+            last = c.ledger.receipts[-1] if len(c.ledger) else None
+            self._flush_egress(c, last.step_id if last is not None else "", last)
+            self._emit(c, "EgressSummary", {"counts": self._egress.counts,
+                                            "denied_hosts": [list(item) for item in self._egress.denied_hosts()],
+                                            "policy_id": self._egress.policy_id})
+        if self._guard is not None:
+            self._emit(c, "RedactionManifest", self._guard.manifest_payload())
 
     def _settle(self, c: _Ctx, classification: Classification) -> None:
         """Move the machine to the state that records the outcome (``INCONCLUSIVE`` continues to ``REVIEW``)."""
