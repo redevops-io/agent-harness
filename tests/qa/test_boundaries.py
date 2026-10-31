@@ -74,7 +74,8 @@ CORE_FILES = sorted(p for p in PKG.rglob("*.py") if QA not in p.parents)
 
 
 def test_the_expected_files_exist():
-    assert {p.name for p in QA_FILES} == {"__init__.py", "canon.py", "errors.py", "ports.py", "records.py", "schemas.py"}
+    assert {p.name for p in QA_FILES} == {"__init__.py", "canon.py", "classify.py", "errors.py", "ports.py", "records.py",
+                                          "recovery_types.py", "schemas.py", "specstore.py", "verifier.py"}
 
 
 @pytest.mark.parametrize("path", QA_FILES, ids=lambda p: p.name)
@@ -182,3 +183,62 @@ def test_the_boundary_scanner_flags_violations(source, why):
 ])
 def test_the_boundary_scanner_accepts_the_allowed_imports(source):
     assert violations(source) == []
+
+
+# --- who may import whom inside the QA module -----------------------------------------------------------------
+
+def qa_internal_imports(filename):
+    """Names of sibling qa modules (``verifier``, ``records`` ...) imported by ``agent_harness/qa/<filename>``,
+    and of the names imported from them."""
+    out = set()
+    for _, target in imports_of((QA / filename).read_text(encoding="utf-8")):
+        if target.startswith("agent_harness.qa."):
+            out.add(target[len("agent_harness.qa."):])
+    return out
+
+
+def test_the_verifier_classifier_and_store_never_import_recovery_code():
+    for name in ("verifier.py", "classify.py", "specstore.py"):
+        got = qa_internal_imports(name)
+        assert not {g for g in got if g.split(".")[0] == "recovery_types"}, (name, got)
+        text = (QA / name).read_text(encoding="utf-8")
+        tree = ast.parse(text)
+        names = {a.name for n in ast.walk(tree) if isinstance(n, ast.ImportFrom) for a in n.names}
+        assert not names & {"Recoverer", "RecoveryContext", "LocatorCandidate", "propose_safely", "parse_recovery_output"}, name
+
+
+def test_the_recovery_package_cannot_import_the_assertion_module_the_spec_store_or_the_classifier():
+    got = qa_internal_imports("recovery_types.py")
+    assert not {g.split(".")[0] for g in got} & {"verifier", "classify", "specstore"}, got
+    assert {g.split(".")[0] for g in got} <= {"errors", "ports", "records"}, got
+    ports_got = qa_internal_imports("ports.py")
+    assert not {g.split(".")[0] for g in ports_got} & {"verifier", "classify", "specstore", "recovery_types"}, ports_got
+
+
+def test_nothing_in_the_chain_from_a_recoverer_reaches_the_verifier():
+    """Transitive closure over qa-internal imports: from recovery_types.py no path leads to verifier, classify or specstore."""
+    def closure(start):
+        seen, todo = set(), [start]
+        while todo:
+            mod = todo.pop()
+            for t in qa_internal_imports(mod + ".py"):
+                top = t.split(".")[0]
+                if top not in seen:
+                    seen.add(top)
+                    todo.append(top)
+        return seen
+
+    assert not closure("recovery_types") & {"verifier", "classify", "specstore"}
+    assert "verifier" in closure("classify")                                     # classify may use the verifier's pure checks
+    assert "recovery_types" not in closure("classify") | closure("verifier") | closure("specstore")
+
+
+def test_the_recovery_boundary_scanner_can_fail():
+    import tempfile
+    for body, expect_hit in (("from .verifier import load_frozen_assertions\n", True),
+                             ("from . import specstore\n", True),
+                             ("from .records import LocatorCandidate\n", False)):
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / "x.py").write_text(body, encoding="utf-8")
+            targets = {t.split(".")[-1] for _, t in imports_of((Path(d) / "x.py").read_text(encoding="utf-8"))}
+            assert bool(targets & {"verifier", "specstore", "classify", "load_frozen_assertions"}) is expect_hit
