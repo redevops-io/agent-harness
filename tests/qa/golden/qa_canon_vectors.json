@@ -1,0 +1,2684 @@
+{
+  "canonicalization": "rcv1",
+  "contract": "qa/v1",
+  "how_to_use": "For each entry in `vectors`, canonicalize `input` under rcv1 and compare: the canonical bytes must equal `canonical_json` (UTF-8), SHA-256 of those bytes must equal `sha256_hex`, and `rcv1` is 'rcv1:' + sha256_hex. For each entry in `refusals`, canonicalization must be refused. Rules: map keys sorted by Unicode code point; a null map value is dropped; strings NFC (keys too); floats refused; lists keep order; compact separators; UTF-8 without \\u escaping of non-ASCII. A decimal is a string.",
+  "refusals": [
+    {
+      "expect": "refused",
+      "id": "float_refused",
+      "input": {
+        "a": 1.5
+      },
+      "why": "a float has no canonical form; carry decimals as strings"
+    },
+    {
+      "expect": "refused",
+      "id": "float_that_is_integral_refused",
+      "input": {
+        "a": 1.0
+      },
+      "why": "1.0 is still a float"
+    },
+    {
+      "expect": "refused",
+      "id": "float_in_list_refused",
+      "input": {
+        "a": [
+          1,
+          2.5
+        ]
+      },
+      "why": "refusal is recursive"
+    }
+  ],
+  "vector_set": "runtime-contracts/qa/canonical-vectors",
+  "vectors": [
+    {
+      "canonical_json": "{\"a\":2,\"b\":1}",
+      "id": "key_order",
+      "input": {
+        "a": 2,
+        "b": 1
+      },
+      "rcv1": "rcv1:d3626ac30a87e6f7a6428233b3c68299976865fa5508e4267c5415c76af7a772",
+      "sha256_hex": "d3626ac30a87e6f7a6428233b3c68299976865fa5508e4267c5415c76af7a772",
+      "why": "map keys are sorted"
+    },
+    {
+      "canonical_json": "{\"a\":[{\"c\":2,\"d\":1}],\"z\":{\"x\":2,\"y\":1}}",
+      "id": "nested_key_order",
+      "input": {
+        "a": [
+          {
+            "c": 2,
+            "d": 1
+          }
+        ],
+        "z": {
+          "x": 2,
+          "y": 1
+        }
+      },
+      "rcv1": "rcv1:19193c50ead68635304bd8806c55581fdadcb60fdc6d19b7629101f9adb4460e",
+      "sha256_hex": "19193c50ead68635304bd8806c55581fdadcb60fdc6d19b7629101f9adb4460e",
+      "why": "sorting is recursive"
+    },
+    {
+      "canonical_json": "{\"a\":1}",
+      "id": "null_dropped_in_map",
+      "input": {
+        "a": 1,
+        "b": null
+      },
+      "rcv1": "rcv1:015abd7f5cc57a2dd94b7590f04ad8084273905ee33ec5cebeae62276a97f862",
+      "sha256_hex": "015abd7f5cc57a2dd94b7590f04ad8084273905ee33ec5cebeae62276a97f862",
+      "why": "absent and null are the same thing"
+    },
+    {
+      "canonical_json": "{\"a\":[1,null]}",
+      "id": "null_kept_in_list",
+      "input": {
+        "a": [
+          1,
+          null
+        ]
+      },
+      "rcv1": "rcv1:a290b55a84a4e851c13e570346d396a0ff58e13e3b458112237484f9ed3b8950",
+      "sha256_hex": "a290b55a84a4e851c13e570346d396a0ff58e13e3b458112237484f9ed3b8950",
+      "why": "a null inside a list is an element, not an absent key"
+    },
+    {
+      "canonical_json": "{\"a\":[],\"b\":{}}",
+      "id": "empty_containers",
+      "input": {
+        "a": [],
+        "b": {}
+      },
+      "rcv1": "rcv1:9959f7ea5ff37e0cf81634a894845a335eb6e26fbad0877944e9bc009b4f0644",
+      "sha256_hex": "9959f7ea5ff37e0cf81634a894845a335eb6e26fbad0877944e9bc009b4f0644",
+      "why": "empty list and empty map are values"
+    },
+    {
+      "canonical_json": "{\"big\":9007199254740991,\"neg\":-7,\"zero\":0}",
+      "id": "integers",
+      "input": {
+        "big": 9007199254740991,
+        "neg": -7,
+        "zero": 0
+      },
+      "rcv1": "rcv1:49cc418113fe7a7f390abd2be38bdc1cb6649a31dc90d13027628d8fe7067b44",
+      "sha256_hex": "49cc418113fe7a7f390abd2be38bdc1cb6649a31dc90d13027628d8fe7067b44",
+      "why": "integers are written without exponent or fraction"
+    },
+    {
+      "canonical_json": "{\"f\":false,\"t\":true}",
+      "id": "booleans",
+      "input": {
+        "f": false,
+        "t": true
+      },
+      "rcv1": "rcv1:c22848c47426fcf4d27e55573c22f1d23546315c251e8e4bc384820ba5fae568",
+      "sha256_hex": "c22848c47426fcf4d27e55573c22f1d23546315c251e8e4bc384820ba5fae568",
+      "why": "booleans are true and false"
+    },
+    {
+      "canonical_json": "{\"amount\":\"12.5\",\"zero\":\"0\"}",
+      "id": "decimal_string_stays_a_string",
+      "input": {
+        "amount": "12.5",
+        "zero": "0"
+      },
+      "rcv1": "rcv1:1b1bc078a078fe5110303699249cd449aa79df8b377c0a793367cd70032ed4d1",
+      "sha256_hex": "1b1bc078a078fe5110303699249cd449aa79df8b377c0a793367cd70032ed4d1",
+      "why": "fractional values are carried as canonical decimal strings"
+    },
+    {
+      "canonical_json": "{\"name\":\"caf\u00e9\"}",
+      "id": "nfc_normalization",
+      "input": {
+        "name": "cafe\u0301"
+      },
+      "rcv1": "rcv1:645fa443126a8954fc6d871912b8fc67bc2ee8feae417efe55546251962ca74d",
+      "sha256_hex": "645fa443126a8954fc6d871912b8fc67bc2ee8feae417efe55546251962ca74d",
+      "why": "strings are NFC; NFD input hashes as NFC"
+    },
+    {
+      "canonical_json": "{\"caf\u00e9\":1}",
+      "id": "nfc_in_keys",
+      "input": {
+        "cafe\u0301": 1
+      },
+      "rcv1": "rcv1:4ba6f859a6604763e30e1afc74dd00bf3b245be58d902b5d1ae0eaa119e8a141",
+      "sha256_hex": "4ba6f859a6604763e30e1afc74dd00bf3b245be58d902b5d1ae0eaa119e8a141",
+      "why": "keys are NFC too"
+    },
+    {
+      "canonical_json": "{\"s\":\"q\\\" b\\\\ n\\n t\\t c\\u0001 d\u007f /\"}",
+      "id": "string_escapes",
+      "input": {
+        "s": "q\" b\\ n\n t\t c\u0001 d\u007f /"
+      },
+      "rcv1": "rcv1:e279a2affe2bc3aa0f64e65e13dd48b9b0ccfb6832a09311bf40e18de06984a0",
+      "sha256_hex": "e279a2affe2bc3aa0f64e65e13dd48b9b0ccfb6832a09311bf40e18de06984a0",
+      "why": "quote, backslash, newline, tab and C0 controls are escaped; '/' and DEL are not"
+    },
+    {
+      "canonical_json": "{\"s\":\"\u00e9 \u4e2d \ud83d\ude00 \u2028\"}",
+      "id": "non_ascii_is_not_escaped",
+      "input": {
+        "s": "\u00e9 \u4e2d \ud83d\ude00 \u2028"
+      },
+      "rcv1": "rcv1:4218ef0085e76c7ccff7cb34093acba139677c8a45d6bd81ccb66be2f41e1e1d",
+      "sha256_hex": "4218ef0085e76c7ccff7cb34093acba139677c8a45d6bd81ccb66be2f41e1e1d",
+      "why": "ensure_ascii is off: the bytes are UTF-8, not \\u escapes"
+    },
+    {
+      "canonical_json": "{\"\ue000\":1,\"\ud83d\ude00\":2}",
+      "id": "key_order_is_code_point_order",
+      "input": {
+        "\ue000": 1,
+        "\ud83d\ude00": 2
+      },
+      "rcv1": "rcv1:871954531859c7572c6279f90eb83a594ddc3a289e8bdc28d2a84ffb8c1a1703",
+      "sha256_hex": "871954531859c7572c6279f90eb83a594ddc3a289e8bdc28d2a84ffb8c1a1703",
+      "why": "keys sort by Unicode code point, not by UTF-16 code unit: U+E000 sorts before U+1F600"
+    },
+    {
+      "canonical_json": "{\"a\":[3,1,2]}",
+      "id": "list_order_is_preserved",
+      "input": {
+        "a": [
+          3,
+          1,
+          2
+        ]
+      },
+      "rcv1": "rcv1:d934227f5a9f29b31bd6a8ceed3213dd498a07ce32bdfa9ae2488de0c0ab68f1",
+      "sha256_hex": "d934227f5a9f29b31bd6a8ceed3213dd498a07ce32bdfa9ae2488de0c0ab68f1",
+      "why": "only maps are unordered"
+    },
+    {
+      "canonical_json": "{\"a\":1,\"b\":[1,2]}",
+      "id": "compact_separators",
+      "input": {
+        "a": 1,
+        "b": [
+          1,
+          2
+        ]
+      },
+      "rcv1": "rcv1:8baa73198470c7bb4c3ce142a8fd651affc0310d878bb9bd159e37a573fb4874",
+      "sha256_hex": "8baa73198470c7bb4c3ce142a8fd651affc0310d878bb9bd159e37a573fb4874",
+      "why": "no spaces after ',' or ':'"
+    },
+    {
+      "canonical_json": "\"plain\"",
+      "id": "top_level_scalar",
+      "input": "plain",
+      "rcv1": "rcv1:945603a8f587786b463c3f94fce115c0fae88fac2728cc96ddf5981cf7f61741",
+      "sha256_hex": "945603a8f587786b463c3f94fce115c0fae88fac2728cc96ddf5981cf7f61741",
+      "why": "a bare string is canonicalizable"
+    },
+    {
+      "canonical_json": "{\"assertion_id\":\"a-saved\",\"determinism\":\"DETERMINISTIC\",\"executor\":\"PLAYWRIGHT\",\"on_unresolvable\":\"INDETERMINATE\",\"predicate\":{\"expected\":\"Saved\",\"op\":\"EQUALS\"},\"requirement_ref\":\"REQ-SAVE-1\",\"schema_id\":\"runtime-contracts/qa/assertion-spec\",\"schema_version\":\"0.1\",\"subject\":{\"inputs\":[],\"kind\":\"UI_ELEMENT\",\"locator\":{\"frame_path\":[],\"test_id\":\"save-status\"},\"subject_alternates\":[]},\"verifier_id\":\"det-verifier\",\"verifier_version_range\":\">=1.0,<2\"}",
+      "id": "qa:assertion_spec_playwright",
+      "input": {
+        "assertion_id": "a-saved",
+        "determinism": "DETERMINISTIC",
+        "executor": "PLAYWRIGHT",
+        "on_unresolvable": "INDETERMINATE",
+        "predicate": {
+          "expected": "Saved",
+          "op": "EQUALS"
+        },
+        "requirement_ref": "REQ-SAVE-1",
+        "schema_id": "runtime-contracts/qa/assertion-spec",
+        "schema_version": "0.1",
+        "subject": {
+          "inputs": [],
+          "kind": "UI_ELEMENT",
+          "locator": {
+            "frame_path": [],
+            "test_id": "save-status"
+          },
+          "subject_alternates": []
+        },
+        "verifier_id": "det-verifier",
+        "verifier_version_range": ">=1.0,<2"
+      },
+      "rcv1": "rcv1:0fc7c18c187e055f82f58a06cb45ac76712526d3e2e7d305806cacaacbfd2108",
+      "sha256_hex": "0fc7c18c187e055f82f58a06cb45ac76712526d3e2e7d305806cacaacbfd2108",
+      "why": "a frozen UI assertion: executor, requirement_ref and expected are all hashed"
+    },
+    {
+      "canonical_json": "{\"assertion_id\":\"a-saved\",\"determinism\":\"DETERMINISTIC\",\"executor\":\"PLAYWRIGHT\",\"on_unresolvable\":\"INDETERMINATE\",\"predicate\":{\"expected\":\"Saved\",\"op\":\"EQUALS\"},\"schema_id\":\"runtime-contracts/qa/assertion-spec\",\"schema_version\":\"0.1\",\"subject\":{\"inputs\":[],\"kind\":\"UI_ELEMENT\",\"locator\":{\"frame_path\":[],\"test_id\":\"save-status\"},\"subject_alternates\":[]},\"verifier_id\":\"det-verifier\",\"verifier_version_range\":\">=1.0,<2\"}",
+      "id": "qa:assertion_spec_without_requirement_ref",
+      "input": {
+        "assertion_id": "a-saved",
+        "determinism": "DETERMINISTIC",
+        "executor": "PLAYWRIGHT",
+        "on_unresolvable": "INDETERMINATE",
+        "predicate": {
+          "expected": "Saved",
+          "op": "EQUALS"
+        },
+        "schema_id": "runtime-contracts/qa/assertion-spec",
+        "schema_version": "0.1",
+        "subject": {
+          "inputs": [],
+          "kind": "UI_ELEMENT",
+          "locator": {
+            "frame_path": [],
+            "test_id": "save-status"
+          },
+          "subject_alternates": []
+        },
+        "verifier_id": "det-verifier",
+        "verifier_version_range": ">=1.0,<2"
+      },
+      "rcv1": "rcv1:59fbf768d0461f9a2c1b18b2dd84fc0e142410509d24ceb41f100c4d884754bd",
+      "sha256_hex": "59fbf768d0461f9a2c1b18b2dd84fc0e142410509d24ceb41f100c4d884754bd",
+      "why": "absent requirement_ref is null and null is dropped, so this hashes as an assertion from before the field existed"
+    },
+    {
+      "canonical_json": "{\"assertion_id\":\"a-image-pinned\",\"check_program_ref\":{\"id\":\"image-pinned\",\"program_hash\":\"sha256:0000000000000000000000000000000000000000000000000000000000000006\",\"version\":\"1.0.0\"},\"determinism\":\"DETERMINISTIC\",\"executor\":\"SCRIPT\",\"on_unresolvable\":\"INDETERMINATE\",\"predicate\":{\"expected\":\"pinned\",\"op\":\"EQUALS\"},\"requirement_ref\":\"REQ-IMG-1\",\"schema_id\":\"runtime-contracts/qa/assertion-spec\",\"schema_version\":\"0.1\",\"subject\":{\"inputs\":[{\"digest\":\"sha256:0000000000000000000000000000000000000000000000000000000000000005\",\"kind\":\"IMAGE_DIGEST\"}],\"kind\":\"RESOURCE_INPUTS\",\"subject_alternates\":[]},\"verifier_id\":\"det-verifier\",\"verifier_version_range\":\">=1.0,<2\"}",
+      "id": "qa:assertion_spec_script",
+      "input": {
+        "assertion_id": "a-image-pinned",
+        "check_program_ref": {
+          "id": "image-pinned",
+          "program_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000006",
+          "version": "1.0.0"
+        },
+        "determinism": "DETERMINISTIC",
+        "executor": "SCRIPT",
+        "on_unresolvable": "INDETERMINATE",
+        "predicate": {
+          "expected": "pinned",
+          "op": "EQUALS"
+        },
+        "requirement_ref": "REQ-IMG-1",
+        "schema_id": "runtime-contracts/qa/assertion-spec",
+        "schema_version": "0.1",
+        "subject": {
+          "inputs": [
+            {
+              "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000005",
+              "kind": "IMAGE_DIGEST"
+            }
+          ],
+          "kind": "RESOURCE_INPUTS",
+          "subject_alternates": []
+        },
+        "verifier_id": "det-verifier",
+        "verifier_version_range": ">=1.0,<2"
+      },
+      "rcv1": "rcv1:fe5d8b8e99e6ac80446dd829da0f16bae39c19cd4a6d0f03c90235075ce713f6",
+      "sha256_hex": "fe5d8b8e99e6ac80446dd829da0f16bae39c19cd4a6d0f03c90235075ce713f6",
+      "why": "a SCRIPT assertion: executor and check_program_ref (id, version, program_hash) are hashed"
+    },
+    {
+      "canonical_json": "{\"allowed_side_effects\":[\"WRITES_INTERNAL\"],\"assertions\":[{\"assertion_id\":\"a-saved\",\"determinism\":\"DETERMINISTIC\",\"executor\":\"PLAYWRIGHT\",\"on_unresolvable\":\"INDETERMINATE\",\"predicate\":{\"expected\":\"Saved\",\"op\":\"EQUALS\"},\"requirement_ref\":\"REQ-SAVE-1\",\"schema_id\":\"runtime-contracts/qa/assertion-spec\",\"schema_version\":\"0.1\",\"subject\":{\"inputs\":[],\"kind\":\"UI_ELEMENT\",\"locator\":{\"frame_path\":[],\"test_id\":\"save-status\"},\"subject_alternates\":[]},\"verifier_id\":\"det-verifier\",\"verifier_version_range\":\">=1.0,<2\"},{\"assertion_id\":\"a-url\",\"determinism\":\"DETERMINISTIC\",\"executor\":\"PLAYWRIGHT\",\"on_unresolvable\":\"INDETERMINATE\",\"predicate\":{\"expected\":\"/saved$\",\"op\":\"MATCHES\"},\"schema_id\":\"runtime-contracts/qa/assertion-spec\",\"schema_version\":\"0.1\",\"subject\":{\"inputs\":[],\"kind\":\"URL\",\"pattern\":\"/saved$\",\"subject_alternates\":[]},\"verifier_id\":\"det-verifier\",\"verifier_version_range\":\">=1.0,<2\"}],\"budget\":{\"deadline_ms\":120000,\"max_model_calls\":0,\"max_recovery_attempts\":2,\"max_retries\":1,\"max_tokens\":0},\"cleanup\":[\"reset form fixture\"],\"depends_on\":[],\"egress_profile\":\"operator-default\",\"fixtures\":[{\"content_hash\":\"sha256:0000000000000000000000000000000000000000000000000000000000000007\",\"id\":\"seed-form\"}],\"id\":\"checkout-save\",\"preconditions\":[\"user is signed in\"],\"schema_id\":\"runtime-contracts/qa/test-spec\",\"schema_version\":\"0.1\",\"sensitivity_labels\":[\"internal\"],\"steps\":[{\"action\":{\"kind\":\"click\"},\"expected_transition\":\"url ends /saved\",\"idempotency\":\"AT_MOST_ONCE\",\"intent\":\"Save the form\",\"observation_deadline_ms\":5000,\"permitted_recovery\":[\"CHECKPOINT_RESUME\",\"SEMANTIC_LOCATOR\"],\"retry_safety\":\"UNSAFE\",\"side_effect\":\"WRITES_INTERNAL\",\"step_id\":\"s1\",\"target\":{\"kind\":\"ui\",\"locator\":{\"frame_path\":[],\"name\":\"Save\",\"role\":\"button\"}}}],\"target\":{\"app_id\":\"demo-app\",\"build_sha\":\"0123456789abcdef\",\"environment_profile\":\"ci-baseline\"},\"version\":1}",
+      "id": "qa:test_spec_ui",
+      "input": {
+        "allowed_side_effects": [
+          "WRITES_INTERNAL"
+        ],
+        "assertions": [
+          {
+            "assertion_id": "a-saved",
+            "determinism": "DETERMINISTIC",
+            "executor": "PLAYWRIGHT",
+            "on_unresolvable": "INDETERMINATE",
+            "predicate": {
+              "expected": "Saved",
+              "op": "EQUALS"
+            },
+            "requirement_ref": "REQ-SAVE-1",
+            "schema_id": "runtime-contracts/qa/assertion-spec",
+            "schema_version": "0.1",
+            "subject": {
+              "inputs": [],
+              "kind": "UI_ELEMENT",
+              "locator": {
+                "frame_path": [],
+                "test_id": "save-status"
+              },
+              "subject_alternates": []
+            },
+            "verifier_id": "det-verifier",
+            "verifier_version_range": ">=1.0,<2"
+          },
+          {
+            "assertion_id": "a-url",
+            "determinism": "DETERMINISTIC",
+            "executor": "PLAYWRIGHT",
+            "on_unresolvable": "INDETERMINATE",
+            "predicate": {
+              "expected": "/saved$",
+              "op": "MATCHES"
+            },
+            "schema_id": "runtime-contracts/qa/assertion-spec",
+            "schema_version": "0.1",
+            "subject": {
+              "inputs": [],
+              "kind": "URL",
+              "pattern": "/saved$",
+              "subject_alternates": []
+            },
+            "verifier_id": "det-verifier",
+            "verifier_version_range": ">=1.0,<2"
+          }
+        ],
+        "budget": {
+          "deadline_ms": 120000,
+          "max_model_calls": 0,
+          "max_recovery_attempts": 2,
+          "max_retries": 1,
+          "max_tokens": 0
+        },
+        "cleanup": [
+          "reset form fixture"
+        ],
+        "depends_on": [],
+        "egress_profile": "operator-default",
+        "fixtures": [
+          {
+            "content_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000007",
+            "id": "seed-form"
+          }
+        ],
+        "id": "checkout-save",
+        "preconditions": [
+          "user is signed in"
+        ],
+        "schema_id": "runtime-contracts/qa/test-spec",
+        "schema_version": "0.1",
+        "sensitivity_labels": [
+          "internal"
+        ],
+        "steps": [
+          {
+            "action": {
+              "kind": "click"
+            },
+            "expected_transition": "url ends /saved",
+            "idempotency": "AT_MOST_ONCE",
+            "intent": "Save the form",
+            "observation_deadline_ms": 5000,
+            "permitted_recovery": [
+              "CHECKPOINT_RESUME",
+              "SEMANTIC_LOCATOR"
+            ],
+            "retry_safety": "UNSAFE",
+            "side_effect": "WRITES_INTERNAL",
+            "step_id": "s1",
+            "target": {
+              "kind": "ui",
+              "locator": {
+                "frame_path": [],
+                "name": "Save",
+                "role": "button"
+              }
+            }
+          }
+        ],
+        "target": {
+          "app_id": "demo-app",
+          "build_sha": "0123456789abcdef",
+          "environment_profile": "ci-baseline"
+        },
+        "version": 1
+      },
+      "rcv1": "rcv1:2e63d029f7e5eea524716ed9c5e80d8fd807155318b5c02c2fda2f6b7c69d8f7",
+      "sha256_hex": "2e63d029f7e5eea524716ed9c5e80d8fd807155318b5c02c2fda2f6b7c69d8f7",
+      "why": "a UI spec; author is custody and is not in the hash"
+    },
+    {
+      "canonical_json": "{\"allowed_side_effects\":[],\"assertions\":[{\"assertion_id\":\"a-resource-note\",\"determinism\":\"DETERMINISTIC\",\"executor\":\"PLAYWRIGHT\",\"on_unresolvable\":\"INDETERMINATE\",\"predicate\":{\"expected\":\"Saved\",\"op\":\"EQUALS\"},\"schema_id\":\"runtime-contracts/qa/assertion-spec\",\"schema_version\":\"0.1\",\"subject\":{\"inputs\":[],\"kind\":\"UI_ELEMENT\",\"locator\":{\"frame_path\":[],\"test_id\":\"save-status\"},\"subject_alternates\":[]},\"verifier_id\":\"det-verifier\",\"verifier_version_range\":\">=1.0,<2\"}],\"budget\":{\"deadline_ms\":120000,\"max_model_calls\":0,\"max_recovery_attempts\":2,\"max_retries\":1,\"max_tokens\":0},\"cleanup\":[\"reset form fixture\"],\"depends_on\":[],\"egress_profile\":\"operator-default\",\"fixtures\":[{\"content_hash\":\"sha256:0000000000000000000000000000000000000000000000000000000000000007\",\"id\":\"seed-form\"}],\"id\":\"infra-manifest\",\"preconditions\":[\"user is signed in\"],\"schema_id\":\"runtime-contracts/qa/test-spec\",\"schema_version\":\"0.1\",\"sensitivity_labels\":[\"internal\"],\"steps\":[{\"action\":{\"kind\":\"resolve\"},\"expected_transition\":\"manifest resolves to a content digest\",\"idempotency\":\"IDEMPOTENT\",\"intent\":\"Resolve the deployment manifest\",\"observation_deadline_ms\":2000,\"permitted_recovery\":[\"RETRY_SAME\"],\"retry_safety\":\"SAFE\",\"side_effect\":\"NONE\",\"step_id\":\"r1\",\"target\":{\"kind\":\"resource\",\"resource\":{\"kind\":\"MANIFEST_PATH\",\"path\":\"k8s/deploy.yaml\"}}}],\"target\":{\"app_id\":\"demo-app\",\"build_sha\":\"0123456789abcdef\",\"environment_profile\":\"ci-baseline\"},\"version\":1}",
+      "id": "qa:test_spec_resource",
+      "input": {
+        "allowed_side_effects": [],
+        "assertions": [
+          {
+            "assertion_id": "a-resource-note",
+            "determinism": "DETERMINISTIC",
+            "executor": "PLAYWRIGHT",
+            "on_unresolvable": "INDETERMINATE",
+            "predicate": {
+              "expected": "Saved",
+              "op": "EQUALS"
+            },
+            "schema_id": "runtime-contracts/qa/assertion-spec",
+            "schema_version": "0.1",
+            "subject": {
+              "inputs": [],
+              "kind": "UI_ELEMENT",
+              "locator": {
+                "frame_path": [],
+                "test_id": "save-status"
+              },
+              "subject_alternates": []
+            },
+            "verifier_id": "det-verifier",
+            "verifier_version_range": ">=1.0,<2"
+          }
+        ],
+        "budget": {
+          "deadline_ms": 120000,
+          "max_model_calls": 0,
+          "max_recovery_attempts": 2,
+          "max_retries": 1,
+          "max_tokens": 0
+        },
+        "cleanup": [
+          "reset form fixture"
+        ],
+        "depends_on": [],
+        "egress_profile": "operator-default",
+        "fixtures": [
+          {
+            "content_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000007",
+            "id": "seed-form"
+          }
+        ],
+        "id": "infra-manifest",
+        "preconditions": [
+          "user is signed in"
+        ],
+        "schema_id": "runtime-contracts/qa/test-spec",
+        "schema_version": "0.1",
+        "sensitivity_labels": [
+          "internal"
+        ],
+        "steps": [
+          {
+            "action": {
+              "kind": "resolve"
+            },
+            "expected_transition": "manifest resolves to a content digest",
+            "idempotency": "IDEMPOTENT",
+            "intent": "Resolve the deployment manifest",
+            "observation_deadline_ms": 2000,
+            "permitted_recovery": [
+              "RETRY_SAME"
+            ],
+            "retry_safety": "SAFE",
+            "side_effect": "NONE",
+            "step_id": "r1",
+            "target": {
+              "kind": "resource",
+              "resource": {
+                "kind": "MANIFEST_PATH",
+                "path": "k8s/deploy.yaml"
+              }
+            }
+          }
+        ],
+        "target": {
+          "app_id": "demo-app",
+          "build_sha": "0123456789abcdef",
+          "environment_profile": "ci-baseline"
+        },
+        "version": 1
+      },
+      "rcv1": "rcv1:6cf52f6e0857de42e1a95099619011058641e9a9c9c7a6edea647ec315fdd901",
+      "sha256_hex": "6cf52f6e0857de42e1a95099619011058641e9a9c9c7a6edea647ec315fdd901",
+      "why": "a spec with a resource-target step (manifest path)"
+    },
+    {
+      "canonical_json": "{\"action_policy_ref\":\"rcv1:0000000000000000000000000000000000000000000000000000000000000009\",\"coverage_contract\":\"FULL\",\"gates\":[{\"after\":[\"checkout-save@rcv1:2e63d029f7e5eea524716ed9c5e80d8fd807155318b5c02c2fda2f6b7c69d8f7\"],\"item\":\"infra-manifest@rcv1:6cf52f6e0857de42e1a95099619011058641e9a9c9c7a6edea647ec315fdd901\"}],\"items\":[{\"budget\":{\"deadline_ms\":120000,\"max_model_calls\":0,\"max_recovery_attempts\":2,\"max_retries\":0,\"max_tokens\":0},\"evidence_level\":\"STANDARD\",\"lane\":\"lane-a\",\"order\":0,\"recovery_ceiling\":2,\"spec_ref\":\"checkout-save@rcv1:2e63d029f7e5eea524716ed9c5e80d8fd807155318b5c02c2fda2f6b7c69d8f7\"},{\"budget\":{\"deadline_ms\":120000,\"max_model_calls\":0,\"max_recovery_attempts\":2,\"max_retries\":0,\"max_tokens\":0},\"evidence_level\":\"STANDARD\",\"lane\":\"lane-b\",\"order\":0,\"recovery_ceiling\":2,\"spec_ref\":\"infra-manifest@rcv1:6cf52f6e0857de42e1a95099619011058641e9a9c9c7a6edea647ec315fdd901\"}],\"lanes\":[\"lane-a\",\"lane-b\"],\"max_parallel\":2,\"planner\":{\"id\":\"cr-qa-planner\",\"version\":\"0.1.0\"},\"resource_claims\":[{\"amount\":2,\"resource\":\"browser_slots\"}],\"schema_id\":\"runtime-contracts/qa/qa-plan\",\"schema_version\":\"0.1\"}",
+      "id": "qa:qa_plan",
+      "input": {
+        "action_policy_ref": "rcv1:0000000000000000000000000000000000000000000000000000000000000009",
+        "coverage_contract": "FULL",
+        "gates": [
+          {
+            "after": [
+              "checkout-save@rcv1:2e63d029f7e5eea524716ed9c5e80d8fd807155318b5c02c2fda2f6b7c69d8f7"
+            ],
+            "item": "infra-manifest@rcv1:6cf52f6e0857de42e1a95099619011058641e9a9c9c7a6edea647ec315fdd901"
+          }
+        ],
+        "items": [
+          {
+            "budget": {
+              "deadline_ms": 120000,
+              "max_model_calls": 0,
+              "max_recovery_attempts": 2,
+              "max_retries": 0,
+              "max_tokens": 0
+            },
+            "evidence_level": "STANDARD",
+            "lane": "lane-a",
+            "order": 0,
+            "recovery_ceiling": 2,
+            "spec_ref": "checkout-save@rcv1:2e63d029f7e5eea524716ed9c5e80d8fd807155318b5c02c2fda2f6b7c69d8f7"
+          },
+          {
+            "budget": {
+              "deadline_ms": 120000,
+              "max_model_calls": 0,
+              "max_recovery_attempts": 2,
+              "max_retries": 0,
+              "max_tokens": 0
+            },
+            "evidence_level": "STANDARD",
+            "lane": "lane-b",
+            "order": 0,
+            "recovery_ceiling": 2,
+            "spec_ref": "infra-manifest@rcv1:6cf52f6e0857de42e1a95099619011058641e9a9c9c7a6edea647ec315fdd901"
+          }
+        ],
+        "lanes": [
+          "lane-a",
+          "lane-b"
+        ],
+        "max_parallel": 2,
+        "planner": {
+          "id": "cr-qa-planner",
+          "version": "0.1.0"
+        },
+        "resource_claims": [
+          {
+            "amount": 2,
+            "resource": "browser_slots"
+          }
+        ],
+        "schema_id": "runtime-contracts/qa/qa-plan",
+        "schema_version": "0.1"
+      },
+      "rcv1": "rcv1:fd55c6ae75e6b7cdc7fb9240af713212bbd045a7f7ae28586966a7c535453090",
+      "sha256_hex": "fd55c6ae75e6b7cdc7fb9240af713212bbd045a7f7ae28586966a7c535453090",
+      "why": "static lanes, one gate, coverage_contract FULL; rationale_ref is custody"
+    },
+    {
+      "canonical_json": "{\"a11y_snapshot_ref\":{\"content_hash\":\"sha256:0000000000000000000000000000000000000000000000000000000000000065\",\"media_type\":\"image/png\",\"modality\":\"image\",\"ref\":\"a11y-1\",\"ref_type\":\"artifact\",\"source\":\"qa-playwright\",\"version\":\"1\"},\"dom_meta\":{\"nodes\":41,\"title\":\"Saved\"},\"frame\":\"main\",\"observation_id\":\"obs-s1-after\",\"phase\":\"AFTER\",\"redaction_applied\":true,\"redaction_policy_id\":\"rcv1:000000000000000000000000000000000000000000000000000000000000001f\",\"schema_id\":\"runtime-contracts/qa/observation\",\"schema_version\":\"0.1\",\"screenshot_ref\":{\"content_hash\":\"sha256:0000000000000000000000000000000000000000000000000000000000000066\",\"media_type\":\"image/png\",\"modality\":\"image\",\"ref\":\"shot-2\",\"ref_type\":\"artifact\",\"source\":\"qa-playwright\",\"version\":\"1\"},\"source\":{\"adapter\":\"qa-playwright\",\"adapter_version\":\"0.1.0\",\"browser\":\"chromium\",\"browser_version\":\"130.0.1\"},\"step_id\":\"s1\",\"url\":\"https://app.example.test/saved\"}",
+      "id": "qa:observation",
+      "input": {
+        "a11y_snapshot_ref": {
+          "content_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000065",
+          "media_type": "image/png",
+          "modality": "image",
+          "ref": "a11y-1",
+          "ref_type": "artifact",
+          "source": "qa-playwright",
+          "version": "1"
+        },
+        "dom_meta": {
+          "nodes": 41,
+          "title": "Saved"
+        },
+        "frame": "main",
+        "observation_id": "obs-s1-after",
+        "phase": "AFTER",
+        "redaction_applied": true,
+        "redaction_policy_id": "rcv1:000000000000000000000000000000000000000000000000000000000000001f",
+        "schema_id": "runtime-contracts/qa/observation",
+        "schema_version": "0.1",
+        "screenshot_ref": {
+          "content_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000066",
+          "media_type": "image/png",
+          "modality": "image",
+          "ref": "shot-2",
+          "ref_type": "artifact",
+          "source": "qa-playwright",
+          "version": "1"
+        },
+        "source": {
+          "adapter": "qa-playwright",
+          "adapter_version": "0.1.0",
+          "browser": "chromium",
+          "browser_version": "130.0.1"
+        },
+        "step_id": "s1",
+        "url": "https://app.example.test/saved"
+      },
+      "rcv1": "rcv1:76a27ce82824ba5625667e1b02a29ef3814208b343effd7cacfef965e9420d38",
+      "sha256_hex": "76a27ce82824ba5625667e1b02a29ef3814208b343effd7cacfef965e9420d38",
+      "why": "observation; timestamps and duration are custody"
+    },
+    {
+      "canonical_json": "{\"action\":{\"kind\":\"click\"},\"attempt\":1,\"idempotency_key\":\"idem-s1-1\",\"locator_used\":{\"descriptor\":{\"frame_path\":[],\"name\":\"Save\",\"role\":\"button\"},\"strategy\":\"AUTHORED\"},\"policy_decision_ref\":\"rcv1:9cf0f2b4f7f49d81d6736ee4d988c98158485b5d29ea74ac1d2af2e3fb16e29e\",\"postcondition\":{\"declared\":\"url ends /saved\",\"observed\":\"url ends /saved\",\"result\":\"SATISFIED\"},\"receipt_id\":\"rcpt-s1-1\",\"result\":\"OK\",\"run_id\":\"run-1\",\"schema_id\":\"runtime-contracts/qa/action-receipt\",\"schema_version\":\"0.1\",\"state_after_hash\":\"rcv1:000000000000000000000000000000000000000000000000000000000000002a\",\"state_before_hash\":\"rcv1:0000000000000000000000000000000000000000000000000000000000000029\",\"step_id\":\"s1\",\"tool\":{\"name\":\"qa-playwright\",\"version\":\"0.1.0\"}}",
+      "id": "qa:action_receipt",
+      "input": {
+        "action": {
+          "kind": "click"
+        },
+        "attempt": 1,
+        "idempotency_key": "idem-s1-1",
+        "locator_used": {
+          "descriptor": {
+            "frame_path": [],
+            "name": "Save",
+            "role": "button"
+          },
+          "strategy": "AUTHORED"
+        },
+        "policy_decision_ref": "rcv1:9cf0f2b4f7f49d81d6736ee4d988c98158485b5d29ea74ac1d2af2e3fb16e29e",
+        "postcondition": {
+          "declared": "url ends /saved",
+          "observed": "url ends /saved",
+          "result": "SATISFIED"
+        },
+        "receipt_id": "rcpt-s1-1",
+        "result": "OK",
+        "run_id": "run-1",
+        "schema_id": "runtime-contracts/qa/action-receipt",
+        "schema_version": "0.1",
+        "state_after_hash": "rcv1:000000000000000000000000000000000000000000000000000000000000002a",
+        "state_before_hash": "rcv1:0000000000000000000000000000000000000000000000000000000000000029",
+        "step_id": "s1",
+        "tool": {
+          "name": "qa-playwright",
+          "version": "0.1.0"
+        }
+      },
+      "rcv1": "rcv1:f3cb21bbb77b5f3924619162bb42b15a16fffdea41e3a71300961bdcc7e50d61",
+      "sha256_hex": "f3cb21bbb77b5f3924619162bb42b15a16fffdea41e3a71300961bdcc7e50d61",
+      "why": "an attempt with the authored locator and a satisfied postcondition"
+    },
+    {
+      "canonical_json": "{\"action\":{\"kind\":\"click\"},\"attempt\":1,\"idempotency_key\":\"idem-s1-1\",\"locator_used\":{\"descriptor\":{\"frame_path\":[],\"name\":\"Save\",\"role\":\"button\"},\"strategy\":\"AUTHORED\"},\"policy_decision_ref\":\"rcv1:1c679fda34a9ca67fbdaaf4ff5247ba48a6b9f60225f97b99a1b8fb6dd56b695\",\"postcondition\":{\"declared\":\"url ends /saved\",\"result\":\"NOT_EVALUATED\"},\"receipt_id\":\"rcpt-s1-1\",\"result\":\"ACTION_BLOCKED_BY_POLICY\",\"run_id\":\"run-1\",\"schema_id\":\"runtime-contracts/qa/action-receipt\",\"schema_version\":\"0.1\",\"state_after_hash\":\"rcv1:0000000000000000000000000000000000000000000000000000000000000029\",\"state_before_hash\":\"rcv1:0000000000000000000000000000000000000000000000000000000000000029\",\"step_id\":\"s1\",\"tool\":{\"name\":\"qa-playwright\",\"version\":\"0.1.0\"}}",
+      "id": "qa:action_receipt_blocked_by_policy",
+      "input": {
+        "action": {
+          "kind": "click"
+        },
+        "attempt": 1,
+        "idempotency_key": "idem-s1-1",
+        "locator_used": {
+          "descriptor": {
+            "frame_path": [],
+            "name": "Save",
+            "role": "button"
+          },
+          "strategy": "AUTHORED"
+        },
+        "policy_decision_ref": "rcv1:1c679fda34a9ca67fbdaaf4ff5247ba48a6b9f60225f97b99a1b8fb6dd56b695",
+        "postcondition": {
+          "declared": "url ends /saved",
+          "result": "NOT_EVALUATED"
+        },
+        "receipt_id": "rcpt-s1-1",
+        "result": "ACTION_BLOCKED_BY_POLICY",
+        "run_id": "run-1",
+        "schema_id": "runtime-contracts/qa/action-receipt",
+        "schema_version": "0.1",
+        "state_after_hash": "rcv1:0000000000000000000000000000000000000000000000000000000000000029",
+        "state_before_hash": "rcv1:0000000000000000000000000000000000000000000000000000000000000029",
+        "step_id": "s1",
+        "tool": {
+          "name": "qa-playwright",
+          "version": "0.1.0"
+        }
+      },
+      "rcv1": "rcv1:d4986198ab73ff6331dbf2cccc62a48254630284ec2dc09afd5b1d3bb35eca27",
+      "sha256_hex": "d4986198ab73ff6331dbf2cccc62a48254630284ec2dc09afd5b1d3bb35eca27",
+      "why": "a denied action still cites its policy decision and changed nothing"
+    },
+    {
+      "canonical_json": "{\"action_kind\":\"click\",\"app\":\"demo-app\",\"decision\":\"ALLOW\",\"phase\":\"ui_action\",\"policy_decision_id\":\"pd-s1\",\"principal\":\"runner:qa\",\"provider\":\"cr-policy-plane\",\"rule_id\":\"allow-local-writes\",\"run_id\":\"run-1\",\"schema_id\":\"runtime-contracts/qa/policy-decision\",\"schema_version\":\"0.1\",\"scope\":[\"ui:click\"],\"side_effect\":\"WRITES_INTERNAL\",\"step_id\":\"s1\"}",
+      "id": "qa:policy_decision",
+      "input": {
+        "action_kind": "click",
+        "app": "demo-app",
+        "decision": "ALLOW",
+        "phase": "ui_action",
+        "policy_decision_id": "pd-s1",
+        "principal": "runner:qa",
+        "provider": "cr-policy-plane",
+        "rule_id": "allow-local-writes",
+        "run_id": "run-1",
+        "schema_id": "runtime-contracts/qa/policy-decision",
+        "schema_version": "0.1",
+        "scope": [
+          "ui:click"
+        ],
+        "side_effect": "WRITES_INTERNAL",
+        "step_id": "s1"
+      },
+      "rcv1": "rcv1:9cf0f2b4f7f49d81d6736ee4d988c98158485b5d29ea74ac1d2af2e3fb16e29e",
+      "sha256_hex": "9cf0f2b4f7f49d81d6736ee4d988c98158485b5d29ea74ac1d2af2e3fb16e29e",
+      "why": "a ui_action allow decision; reason is custody"
+    },
+    {
+      "canonical_json": "{\"name\":\"Save\",\"role\":\"button\",\"schema_id\":\"runtime-contracts/qa/locator-candidate\",\"schema_version\":\"0.1\",\"strategy\":\"SEMANTIC_ALTERNATE\"}",
+      "id": "qa:locator_candidate",
+      "input": {
+        "name": "Save",
+        "role": "button",
+        "schema_id": "runtime-contracts/qa/locator-candidate",
+        "schema_version": "0.1",
+        "strategy": "SEMANTIC_ALTERNATE"
+      },
+      "rcv1": "rcv1:866474e59f99128f4713de1b62a9c3fed539900b38d8aada97940a607a5738b0",
+      "sha256_hex": "866474e59f99128f4713de1b62a9c3fed539900b38d8aada97940a607a5738b0",
+      "why": "the only thing recovery may express: a locator to try"
+    },
+    {
+      "canonical_json": "{\"match_count\":1,\"observation_id\":\"obs-s1-after\",\"resolution\":\"RESOLVED\",\"schema_id\":\"runtime-contracts/qa/observed-value\",\"schema_version\":\"0.1\",\"value\":\"Saved\"}",
+      "id": "qa:observed_value_resolved",
+      "input": {
+        "match_count": 1,
+        "observation_id": "obs-s1-after",
+        "resolution": "RESOLVED",
+        "schema_id": "runtime-contracts/qa/observed-value",
+        "schema_version": "0.1",
+        "value": "Saved"
+      },
+      "rcv1": "rcv1:244c1a464ff8509acd5dbf73983c448c5df08319f0c851d075cd507ea3f43934",
+      "sha256_hex": "244c1a464ff8509acd5dbf73983c448c5df08319f0c851d075cd507ea3f43934",
+      "why": "what assert_ read; no expected and no verdict"
+    },
+    {
+      "canonical_json": "{\"match_count\":3,\"resolution\":\"AMBIGUOUS\",\"schema_id\":\"runtime-contracts/qa/observed-value\",\"schema_version\":\"0.1\"}",
+      "id": "qa:observed_value_ambiguous",
+      "input": {
+        "match_count": 3,
+        "resolution": "AMBIGUOUS",
+        "schema_id": "runtime-contracts/qa/observed-value",
+        "schema_version": "0.1"
+      },
+      "rcv1": "rcv1:c437b45a6f2f574e89bc143b20209d6f03202ed69bf6068947a731fc7893e9a4",
+      "sha256_hex": "c437b45a6f2f574e89bc143b20209d6f03202ed69bf6068947a731fc7893e9a4",
+      "why": "resolution fact only"
+    },
+    {
+      "canonical_json": "{\"actual\":\"Saved\",\"assertion_id\":\"a-saved\",\"assertion_set_hash\":\"rcv1:94c9e0bd652146534232836c1de1cea4d1aab066939f8e0755f8b930a2898858\",\"check\":{\"check_id\":\"a-saved\",\"determinism\":\"DETERMINISTIC\",\"evidence_refs\":[\"shot-3@1#sha256:0000000000000000000000000000000000000000000000000000000000000067\"],\"verdict\":\"PASS\"},\"executor\":\"PLAYWRIGHT\",\"expected_hash\":\"rcv1:1b995d3503f549f89ae235791af06f1923a99bb30ec7904e2e77921cd2830c80\",\"observation_id\":\"obs-s1-after\",\"schema_id\":\"runtime-contracts/qa/assertion-result\",\"schema_version\":\"0.1\",\"verifier\":{\"id\":\"det-verifier\",\"version\":\"1.0.0\"}}",
+      "id": "qa:assertion_result_pass",
+      "input": {
+        "actual": "Saved",
+        "assertion_id": "a-saved",
+        "assertion_set_hash": "rcv1:94c9e0bd652146534232836c1de1cea4d1aab066939f8e0755f8b930a2898858",
+        "check": {
+          "check_id": "a-saved",
+          "determinism": "DETERMINISTIC",
+          "evidence_refs": [
+            "shot-3@1#sha256:0000000000000000000000000000000000000000000000000000000000000067"
+          ],
+          "verdict": "PASS"
+        },
+        "executor": "PLAYWRIGHT",
+        "expected_hash": "rcv1:1b995d3503f549f89ae235791af06f1923a99bb30ec7904e2e77921cd2830c80",
+        "observation_id": "obs-s1-after",
+        "schema_id": "runtime-contracts/qa/assertion-result",
+        "schema_version": "0.1",
+        "verifier": {
+          "id": "det-verifier",
+          "version": "1.0.0"
+        }
+      },
+      "rcv1": "rcv1:97868ba9578029b73aa83202ab123f0d939fe6d4372db36299078c9689503e20",
+      "sha256_hex": "97868ba9578029b73aa83202ab123f0d939fe6d4372db36299078c9689503e20",
+      "why": "verifier output; embeds Check, mirrors executor"
+    },
+    {
+      "canonical_json": "{\"assertion_id\":\"a-saved\",\"assertion_set_hash\":\"rcv1:94c9e0bd652146534232836c1de1cea4d1aab066939f8e0755f8b930a2898858\",\"check\":{\"check_id\":\"a-saved\",\"determinism\":\"DETERMINISTIC\",\"evidence_refs\":[],\"verdict\":\"INDETERMINATE\"},\"executor\":\"PLAYWRIGHT\",\"expected_hash\":\"rcv1:1b995d3503f549f89ae235791af06f1923a99bb30ec7904e2e77921cd2830c80\",\"observation_id\":\"obs-s1-after\",\"reason_code\":\"SUBJECT_UNRESOLVED\",\"schema_id\":\"runtime-contracts/qa/assertion-result\",\"schema_version\":\"0.1\",\"verifier\":{\"id\":\"det-verifier\",\"version\":\"1.0.0\"}}",
+      "id": "qa:assertion_result_indeterminate",
+      "input": {
+        "assertion_id": "a-saved",
+        "assertion_set_hash": "rcv1:94c9e0bd652146534232836c1de1cea4d1aab066939f8e0755f8b930a2898858",
+        "check": {
+          "check_id": "a-saved",
+          "determinism": "DETERMINISTIC",
+          "evidence_refs": [],
+          "verdict": "INDETERMINATE"
+        },
+        "executor": "PLAYWRIGHT",
+        "expected_hash": "rcv1:1b995d3503f549f89ae235791af06f1923a99bb30ec7904e2e77921cd2830c80",
+        "observation_id": "obs-s1-after",
+        "reason_code": "SUBJECT_UNRESOLVED",
+        "schema_id": "runtime-contracts/qa/assertion-result",
+        "schema_version": "0.1",
+        "verifier": {
+          "id": "det-verifier",
+          "version": "1.0.0"
+        }
+      },
+      "rcv1": "rcv1:a69939d3c687bb92cb0cde5132a48c61704baf9a69d44e25fd1b3549032a5cf1",
+      "sha256_hex": "a69939d3c687bb92cb0cde5132a48c61704baf9a69d44e25fd1b3549032a5cf1",
+      "why": "an unresolved subject is indeterminate with a reason, never a pass"
+    },
+    {
+      "canonical_json": "{\"claimed_class\":\"BENIGN_DRIFT\",\"detected\":true,\"detector\":{\"id\":\"step-detector\",\"version\":\"0.1.0\"},\"evidence_refs\":[{\"content_hash\":\"sha256:0000000000000000000000000000000000000000000000000000000000000068\",\"media_type\":\"image/png\",\"modality\":\"image\",\"ref\":\"obs-4\",\"ref_type\":\"artifact\",\"source\":\"qa-playwright\",\"version\":\"1\"}],\"schema_id\":\"runtime-contracts/qa/fault-detection\",\"schema_version\":\"0.1\",\"signal\":\"LOCATOR_NOT_FOUND\"}",
+      "id": "qa:fault_detection",
+      "input": {
+        "claimed_class": "BENIGN_DRIFT",
+        "detected": true,
+        "detector": {
+          "id": "step-detector",
+          "version": "0.1.0"
+        },
+        "evidence_refs": [
+          {
+            "content_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000068",
+            "media_type": "image/png",
+            "modality": "image",
+            "ref": "obs-4",
+            "ref_type": "artifact",
+            "source": "qa-playwright",
+            "version": "1"
+          }
+        ],
+        "schema_id": "runtime-contracts/qa/fault-detection",
+        "schema_version": "0.1",
+        "signal": "LOCATOR_NOT_FOUND"
+      },
+      "rcv1": "rcv1:c6370e1a6b97fdfda74ac2a7a937ff3a3ca3960fd48b389fed5a75b043271738",
+      "sha256_hex": "c6370e1a6b97fdfda74ac2a7a937ff3a3ca3960fd48b389fed5a75b043271738",
+      "why": "detection, hashed first"
+    },
+    {
+      "canonical_json": "{\"attempted\":true,\"attempts\":1,\"candidates_considered\":2,\"candidates_rejected_reasons\":[\"NOT_UNIQUE\"],\"detection_ref\":\"rcv1:c6370e1a6b97fdfda74ac2a7a937ff3a3ca3960fd48b389fed5a75b043271738\",\"postcondition_verified\":true,\"result\":\"RECOVERED\",\"schema_id\":\"runtime-contracts/qa/fault-recovery\",\"schema_version\":\"0.1\",\"strategy\":\"SEMANTIC_LOCATOR\",\"suppressed_reason\":\"NONE\"}",
+      "id": "qa:fault_recovery",
+      "input": {
+        "attempted": true,
+        "attempts": 1,
+        "candidates_considered": 2,
+        "candidates_rejected_reasons": [
+          "NOT_UNIQUE"
+        ],
+        "detection_ref": "rcv1:c6370e1a6b97fdfda74ac2a7a937ff3a3ca3960fd48b389fed5a75b043271738",
+        "postcondition_verified": true,
+        "result": "RECOVERED",
+        "schema_id": "runtime-contracts/qa/fault-recovery",
+        "schema_version": "0.1",
+        "strategy": "SEMANTIC_LOCATOR",
+        "suppressed_reason": "NONE"
+      },
+      "rcv1": "rcv1:e9fc14128bdf765d77cef1169c9a511885db5ac6f3197b01e0d2531aa410e4b9",
+      "sha256_hex": "e9fc14128bdf765d77cef1169c9a511885db5ac6f3197b01e0d2531aa410e4b9",
+      "why": "recovery binds to the detection by hash; cost is custody"
+    },
+    {
+      "canonical_json": "{\"detection\":{\"claimed_class\":\"BENIGN_DRIFT\",\"detected\":true,\"detector\":{\"id\":\"step-detector\",\"version\":\"0.1.0\"},\"evidence_refs\":[{\"content_hash\":\"sha256:0000000000000000000000000000000000000000000000000000000000000068\",\"media_type\":\"image/png\",\"modality\":\"image\",\"ref\":\"obs-4\",\"ref_type\":\"artifact\",\"source\":\"qa-playwright\",\"version\":\"1\"}],\"schema_id\":\"runtime-contracts/qa/fault-detection\",\"schema_version\":\"0.1\",\"signal\":\"LOCATOR_NOT_FOUND\"},\"fault_event_id\":\"fe-0\",\"recovery\":{\"attempted\":true,\"attempts\":1,\"candidates_considered\":2,\"candidates_rejected_reasons\":[\"NOT_UNIQUE\"],\"detection_ref\":\"rcv1:c6370e1a6b97fdfda74ac2a7a937ff3a3ca3960fd48b389fed5a75b043271738\",\"postcondition_verified\":true,\"result\":\"RECOVERED\",\"schema_id\":\"runtime-contracts/qa/fault-recovery\",\"schema_version\":\"0.1\",\"strategy\":\"SEMANTIC_LOCATOR\",\"suppressed_reason\":\"NONE\"},\"schema_id\":\"runtime-contracts/qa/fault-event\",\"schema_version\":\"0.1\",\"sequence\":0,\"step_id\":\"s1\"}",
+      "id": "qa:fault_event",
+      "input": {
+        "detection": {
+          "claimed_class": "BENIGN_DRIFT",
+          "detected": true,
+          "detector": {
+            "id": "step-detector",
+            "version": "0.1.0"
+          },
+          "evidence_refs": [
+            {
+              "content_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000068",
+              "media_type": "image/png",
+              "modality": "image",
+              "ref": "obs-4",
+              "ref_type": "artifact",
+              "source": "qa-playwright",
+              "version": "1"
+            }
+          ],
+          "schema_id": "runtime-contracts/qa/fault-detection",
+          "schema_version": "0.1",
+          "signal": "LOCATOR_NOT_FOUND"
+        },
+        "fault_event_id": "fe-0",
+        "recovery": {
+          "attempted": true,
+          "attempts": 1,
+          "candidates_considered": 2,
+          "candidates_rejected_reasons": [
+            "NOT_UNIQUE"
+          ],
+          "detection_ref": "rcv1:c6370e1a6b97fdfda74ac2a7a937ff3a3ca3960fd48b389fed5a75b043271738",
+          "postcondition_verified": true,
+          "result": "RECOVERED",
+          "schema_id": "runtime-contracts/qa/fault-recovery",
+          "schema_version": "0.1",
+          "strategy": "SEMANTIC_LOCATOR",
+          "suppressed_reason": "NONE"
+        },
+        "schema_id": "runtime-contracts/qa/fault-event",
+        "schema_version": "0.1",
+        "sequence": 0,
+        "step_id": "s1"
+      },
+      "rcv1": "rcv1:8051bb050e03c32079e1d2e1b716d2f22c05e2d0f2552ca43404a7bfa12a09a1",
+      "sha256_hex": "8051bb050e03c32079e1d2e1b716d2f22c05e2d0f2552ca43404a7bfa12a09a1",
+      "why": "detection and recovery as two embedded records"
+    },
+    {
+      "canonical_json": "{\"adapter\":{\"id\":\"qa-playwright\",\"version\":\"0.1.0\"},\"assertion_results\":[{\"actual\":\"Saved\",\"assertion_id\":\"a-saved\",\"assertion_set_hash\":\"rcv1:94c9e0bd652146534232836c1de1cea4d1aab066939f8e0755f8b930a2898858\",\"check\":{\"check_id\":\"a-saved\",\"determinism\":\"DETERMINISTIC\",\"evidence_refs\":[\"shot-3@1#sha256:0000000000000000000000000000000000000000000000000000000000000067\"],\"verdict\":\"PASS\"},\"executor\":\"PLAYWRIGHT\",\"expected_hash\":\"rcv1:1b995d3503f549f89ae235791af06f1923a99bb30ec7904e2e77921cd2830c80\",\"observation_id\":\"obs-s1-after\",\"schema_id\":\"runtime-contracts/qa/assertion-result\",\"schema_version\":\"0.1\",\"verifier\":{\"id\":\"det-verifier\",\"version\":\"1.0.0\"}},{\"actual\":\"Saved\",\"assertion_id\":\"a-url\",\"assertion_set_hash\":\"rcv1:94c9e0bd652146534232836c1de1cea4d1aab066939f8e0755f8b930a2898858\",\"check\":{\"check_id\":\"a-url\",\"determinism\":\"DETERMINISTIC\",\"evidence_refs\":[\"shot-3@1#sha256:0000000000000000000000000000000000000000000000000000000000000067\"],\"verdict\":\"PASS\"},\"executor\":\"PLAYWRIGHT\",\"expected_hash\":\"rcv1:fd486b78aafb6295042c9b2ad98dd2ce47c9df3d0d26dc8795bb5f6c3a701b40\",\"observation_id\":\"obs-s1-after\",\"schema_id\":\"runtime-contracts/qa/assertion-result\",\"schema_version\":\"0.1\",\"verifier\":{\"id\":\"det-verifier\",\"version\":\"1.0.0\"}}],\"assertion_set_hash\":\"rcv1:94c9e0bd652146534232836c1de1cea4d1aab066939f8e0755f8b930a2898858\",\"assertions_declared\":[\"a-saved\",\"a-url\"],\"assertions_executed\":[\"a-saved\",\"a-url\"],\"assertions_skipped\":[],\"browser\":\"chromium 130.0.1\",\"egress_policy_id\":\"rcv1:0000000000000000000000000000000000000000000000000000000000000020\",\"fault_events\":[{\"detection\":{\"claimed_class\":\"BENIGN_DRIFT\",\"detected\":true,\"detector\":{\"id\":\"step-detector\",\"version\":\"0.1.0\"},\"evidence_refs\":[{\"content_hash\":\"sha256:0000000000000000000000000000000000000000000000000000000000000068\",\"media_type\":\"image/png\",\"modality\":\"image\",\"ref\":\"obs-4\",\"ref_type\":\"artifact\",\"source\":\"qa-playwright\",\"version\":\"1\"}],\"schema_id\":\"runtime-contracts/qa/fault-detection\",\"schema_version\":\"0.1\",\"signal\":\"LOCATOR_NOT_FOUND\"},\"fault_event_id\":\"fe-0\",\"recovery\":{\"attempted\":true,\"attempts\":1,\"candidates_considered\":2,\"candidates_rejected_reasons\":[\"NOT_UNIQUE\"],\"detection_ref\":\"rcv1:c6370e1a6b97fdfda74ac2a7a937ff3a3ca3960fd48b389fed5a75b043271738\",\"postcondition_verified\":true,\"result\":\"RECOVERED\",\"schema_id\":\"runtime-contracts/qa/fault-recovery\",\"schema_version\":\"0.1\",\"strategy\":\"SEMANTIC_LOCATOR\",\"suppressed_reason\":\"NONE\"},\"schema_id\":\"runtime-contracts/qa/fault-event\",\"schema_version\":\"0.1\",\"sequence\":0,\"step_id\":\"s1\"}],\"model_recovery_enabled\":false,\"outcome\":\"PASS\",\"plan_hash\":\"rcv1:0000000000000000000000000000000000000000000000000000000000000021\",\"planner\":{\"id\":\"cr-qa-planner\",\"version\":\"0.1.0\"},\"recovery_enabled\":true,\"redaction_policy_id\":\"rcv1:000000000000000000000000000000000000000000000000000000000000001f\",\"resource_limits\":{\"memory_mb\":2048,\"pids\":256},\"run_id\":\"run-1\",\"sandbox_image_digest\":\"sha256:0000000000000000000000000000000000000000000000000000000000000022\",\"schema_id\":\"runtime-contracts/qa/run-manifest\",\"schema_version\":\"0.1\",\"seeds\":[7,11],\"spec_ref\":\"checkout-save@rcv1:2e63d029f7e5eea524716ed9c5e80d8fd807155318b5c02c2fda2f6b7c69d8f7\",\"step_results\":[{\"postcondition\":\"SATISFIED\",\"receipts\":[\"rcv1:f3cb21bbb77b5f3924619162bb42b15a16fffdea41e3a71300961bdcc7e50d61\"],\"result\":\"OK\",\"step_id\":\"s1\"}],\"trace_id\":\"0123456789abcdef0123456789abcdef\",\"versions\":[{\"component\":\"agent-harness\",\"version\":\"0.1.0\"},{\"component\":\"runtime-contracts\",\"revision\":\"403f536\",\"version\":\"0.3.14\"}]}",
+      "id": "qa:run_manifest_pass",
+      "input": {
+        "adapter": {
+          "id": "qa-playwright",
+          "version": "0.1.0"
+        },
+        "assertion_results": [
+          {
+            "actual": "Saved",
+            "assertion_id": "a-saved",
+            "assertion_set_hash": "rcv1:94c9e0bd652146534232836c1de1cea4d1aab066939f8e0755f8b930a2898858",
+            "check": {
+              "check_id": "a-saved",
+              "determinism": "DETERMINISTIC",
+              "evidence_refs": [
+                "shot-3@1#sha256:0000000000000000000000000000000000000000000000000000000000000067"
+              ],
+              "verdict": "PASS"
+            },
+            "executor": "PLAYWRIGHT",
+            "expected_hash": "rcv1:1b995d3503f549f89ae235791af06f1923a99bb30ec7904e2e77921cd2830c80",
+            "observation_id": "obs-s1-after",
+            "schema_id": "runtime-contracts/qa/assertion-result",
+            "schema_version": "0.1",
+            "verifier": {
+              "id": "det-verifier",
+              "version": "1.0.0"
+            }
+          },
+          {
+            "actual": "Saved",
+            "assertion_id": "a-url",
+            "assertion_set_hash": "rcv1:94c9e0bd652146534232836c1de1cea4d1aab066939f8e0755f8b930a2898858",
+            "check": {
+              "check_id": "a-url",
+              "determinism": "DETERMINISTIC",
+              "evidence_refs": [
+                "shot-3@1#sha256:0000000000000000000000000000000000000000000000000000000000000067"
+              ],
+              "verdict": "PASS"
+            },
+            "executor": "PLAYWRIGHT",
+            "expected_hash": "rcv1:fd486b78aafb6295042c9b2ad98dd2ce47c9df3d0d26dc8795bb5f6c3a701b40",
+            "observation_id": "obs-s1-after",
+            "schema_id": "runtime-contracts/qa/assertion-result",
+            "schema_version": "0.1",
+            "verifier": {
+              "id": "det-verifier",
+              "version": "1.0.0"
+            }
+          }
+        ],
+        "assertion_set_hash": "rcv1:94c9e0bd652146534232836c1de1cea4d1aab066939f8e0755f8b930a2898858",
+        "assertions_declared": [
+          "a-saved",
+          "a-url"
+        ],
+        "assertions_executed": [
+          "a-saved",
+          "a-url"
+        ],
+        "assertions_skipped": [],
+        "browser": "chromium 130.0.1",
+        "egress_policy_id": "rcv1:0000000000000000000000000000000000000000000000000000000000000020",
+        "fault_events": [
+          {
+            "detection": {
+              "claimed_class": "BENIGN_DRIFT",
+              "detected": true,
+              "detector": {
+                "id": "step-detector",
+                "version": "0.1.0"
+              },
+              "evidence_refs": [
+                {
+                  "content_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000068",
+                  "media_type": "image/png",
+                  "modality": "image",
+                  "ref": "obs-4",
+                  "ref_type": "artifact",
+                  "source": "qa-playwright",
+                  "version": "1"
+                }
+              ],
+              "schema_id": "runtime-contracts/qa/fault-detection",
+              "schema_version": "0.1",
+              "signal": "LOCATOR_NOT_FOUND"
+            },
+            "fault_event_id": "fe-0",
+            "recovery": {
+              "attempted": true,
+              "attempts": 1,
+              "candidates_considered": 2,
+              "candidates_rejected_reasons": [
+                "NOT_UNIQUE"
+              ],
+              "detection_ref": "rcv1:c6370e1a6b97fdfda74ac2a7a937ff3a3ca3960fd48b389fed5a75b043271738",
+              "postcondition_verified": true,
+              "result": "RECOVERED",
+              "schema_id": "runtime-contracts/qa/fault-recovery",
+              "schema_version": "0.1",
+              "strategy": "SEMANTIC_LOCATOR",
+              "suppressed_reason": "NONE"
+            },
+            "schema_id": "runtime-contracts/qa/fault-event",
+            "schema_version": "0.1",
+            "sequence": 0,
+            "step_id": "s1"
+          }
+        ],
+        "model_recovery_enabled": false,
+        "outcome": "PASS",
+        "plan_hash": "rcv1:0000000000000000000000000000000000000000000000000000000000000021",
+        "planner": {
+          "id": "cr-qa-planner",
+          "version": "0.1.0"
+        },
+        "recovery_enabled": true,
+        "redaction_policy_id": "rcv1:000000000000000000000000000000000000000000000000000000000000001f",
+        "resource_limits": {
+          "memory_mb": 2048,
+          "pids": 256
+        },
+        "run_id": "run-1",
+        "sandbox_image_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000022",
+        "schema_id": "runtime-contracts/qa/run-manifest",
+        "schema_version": "0.1",
+        "seeds": [
+          7,
+          11
+        ],
+        "spec_ref": "checkout-save@rcv1:2e63d029f7e5eea524716ed9c5e80d8fd807155318b5c02c2fda2f6b7c69d8f7",
+        "step_results": [
+          {
+            "postcondition": "SATISFIED",
+            "receipts": [
+              "rcv1:f3cb21bbb77b5f3924619162bb42b15a16fffdea41e3a71300961bdcc7e50d61"
+            ],
+            "result": "OK",
+            "step_id": "s1"
+          }
+        ],
+        "trace_id": "0123456789abcdef0123456789abcdef",
+        "versions": [
+          {
+            "component": "agent-harness",
+            "version": "0.1.0"
+          },
+          {
+            "component": "runtime-contracts",
+            "revision": "403f536",
+            "version": "0.3.14"
+          }
+        ]
+      },
+      "rcv1": "rcv1:a2eb640ac68297ff03feb9eec4f678a7f4af3d3a6be4a06f2d89f3ebbb14cec9",
+      "sha256_hex": "a2eb640ac68297ff03feb9eec4f678a7f4af3d3a6be4a06f2d89f3ebbb14cec9",
+      "why": "declared == executed, nothing skipped, PASS"
+    },
+    {
+      "canonical_json": "{\"adapter\":{\"id\":\"qa-playwright\",\"version\":\"0.1.0\"},\"assertion_results\":[{\"actual\":\"Saved\",\"assertion_id\":\"a-saved\",\"assertion_set_hash\":\"rcv1:94c9e0bd652146534232836c1de1cea4d1aab066939f8e0755f8b930a2898858\",\"check\":{\"check_id\":\"a-saved\",\"determinism\":\"DETERMINISTIC\",\"evidence_refs\":[\"shot-3@1#sha256:0000000000000000000000000000000000000000000000000000000000000067\"],\"verdict\":\"PASS\"},\"executor\":\"PLAYWRIGHT\",\"expected_hash\":\"rcv1:1b995d3503f549f89ae235791af06f1923a99bb30ec7904e2e77921cd2830c80\",\"observation_id\":\"obs-s1-after\",\"schema_id\":\"runtime-contracts/qa/assertion-result\",\"schema_version\":\"0.1\",\"verifier\":{\"id\":\"det-verifier\",\"version\":\"1.0.0\"}}],\"assertion_set_hash\":\"rcv1:94c9e0bd652146534232836c1de1cea4d1aab066939f8e0755f8b930a2898858\",\"assertions_declared\":[\"a-saved\",\"a-url\"],\"assertions_executed\":[\"a-saved\"],\"assertions_skipped\":[{\"assertion_id\":\"a-url\",\"reason_code\":\"NOT_REACHED\"}],\"browser\":\"chromium 130.0.1\",\"egress_policy_id\":\"rcv1:0000000000000000000000000000000000000000000000000000000000000020\",\"fault_events\":[{\"detection\":{\"claimed_class\":\"BENIGN_DRIFT\",\"detected\":true,\"detector\":{\"id\":\"step-detector\",\"version\":\"0.1.0\"},\"evidence_refs\":[{\"content_hash\":\"sha256:0000000000000000000000000000000000000000000000000000000000000068\",\"media_type\":\"image/png\",\"modality\":\"image\",\"ref\":\"obs-4\",\"ref_type\":\"artifact\",\"source\":\"qa-playwright\",\"version\":\"1\"}],\"schema_id\":\"runtime-contracts/qa/fault-detection\",\"schema_version\":\"0.1\",\"signal\":\"LOCATOR_NOT_FOUND\"},\"fault_event_id\":\"fe-0\",\"recovery\":{\"attempted\":true,\"attempts\":1,\"candidates_considered\":2,\"candidates_rejected_reasons\":[\"NOT_UNIQUE\"],\"detection_ref\":\"rcv1:c6370e1a6b97fdfda74ac2a7a937ff3a3ca3960fd48b389fed5a75b043271738\",\"postcondition_verified\":true,\"result\":\"RECOVERED\",\"schema_id\":\"runtime-contracts/qa/fault-recovery\",\"schema_version\":\"0.1\",\"strategy\":\"SEMANTIC_LOCATOR\",\"suppressed_reason\":\"NONE\"},\"schema_id\":\"runtime-contracts/qa/fault-event\",\"schema_version\":\"0.1\",\"sequence\":0,\"step_id\":\"s1\"}],\"model_recovery_enabled\":false,\"outcome\":\"INCONCLUSIVE\",\"plan_hash\":\"rcv1:0000000000000000000000000000000000000000000000000000000000000021\",\"planner\":{\"id\":\"cr-qa-planner\",\"version\":\"0.1.0\"},\"recovery_enabled\":true,\"redaction_policy_id\":\"rcv1:000000000000000000000000000000000000000000000000000000000000001f\",\"resource_limits\":{\"memory_mb\":2048,\"pids\":256},\"run_id\":\"run-1\",\"sandbox_image_digest\":\"sha256:0000000000000000000000000000000000000000000000000000000000000022\",\"schema_id\":\"runtime-contracts/qa/run-manifest\",\"schema_version\":\"0.1\",\"seeds\":[7,11],\"spec_ref\":\"checkout-save@rcv1:2e63d029f7e5eea524716ed9c5e80d8fd807155318b5c02c2fda2f6b7c69d8f7\",\"step_results\":[{\"postcondition\":\"SATISFIED\",\"receipts\":[\"rcv1:f3cb21bbb77b5f3924619162bb42b15a16fffdea41e3a71300961bdcc7e50d61\"],\"result\":\"OK\",\"step_id\":\"s1\"}],\"trace_id\":\"0123456789abcdef0123456789abcdef\",\"versions\":[{\"component\":\"agent-harness\",\"version\":\"0.1.0\"},{\"component\":\"runtime-contracts\",\"revision\":\"403f536\",\"version\":\"0.3.14\"}]}",
+      "id": "qa:run_manifest_inconclusive_skipped",
+      "input": {
+        "adapter": {
+          "id": "qa-playwright",
+          "version": "0.1.0"
+        },
+        "assertion_results": [
+          {
+            "actual": "Saved",
+            "assertion_id": "a-saved",
+            "assertion_set_hash": "rcv1:94c9e0bd652146534232836c1de1cea4d1aab066939f8e0755f8b930a2898858",
+            "check": {
+              "check_id": "a-saved",
+              "determinism": "DETERMINISTIC",
+              "evidence_refs": [
+                "shot-3@1#sha256:0000000000000000000000000000000000000000000000000000000000000067"
+              ],
+              "verdict": "PASS"
+            },
+            "executor": "PLAYWRIGHT",
+            "expected_hash": "rcv1:1b995d3503f549f89ae235791af06f1923a99bb30ec7904e2e77921cd2830c80",
+            "observation_id": "obs-s1-after",
+            "schema_id": "runtime-contracts/qa/assertion-result",
+            "schema_version": "0.1",
+            "verifier": {
+              "id": "det-verifier",
+              "version": "1.0.0"
+            }
+          }
+        ],
+        "assertion_set_hash": "rcv1:94c9e0bd652146534232836c1de1cea4d1aab066939f8e0755f8b930a2898858",
+        "assertions_declared": [
+          "a-saved",
+          "a-url"
+        ],
+        "assertions_executed": [
+          "a-saved"
+        ],
+        "assertions_skipped": [
+          {
+            "assertion_id": "a-url",
+            "reason_code": "NOT_REACHED"
+          }
+        ],
+        "browser": "chromium 130.0.1",
+        "egress_policy_id": "rcv1:0000000000000000000000000000000000000000000000000000000000000020",
+        "fault_events": [
+          {
+            "detection": {
+              "claimed_class": "BENIGN_DRIFT",
+              "detected": true,
+              "detector": {
+                "id": "step-detector",
+                "version": "0.1.0"
+              },
+              "evidence_refs": [
+                {
+                  "content_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000068",
+                  "media_type": "image/png",
+                  "modality": "image",
+                  "ref": "obs-4",
+                  "ref_type": "artifact",
+                  "source": "qa-playwright",
+                  "version": "1"
+                }
+              ],
+              "schema_id": "runtime-contracts/qa/fault-detection",
+              "schema_version": "0.1",
+              "signal": "LOCATOR_NOT_FOUND"
+            },
+            "fault_event_id": "fe-0",
+            "recovery": {
+              "attempted": true,
+              "attempts": 1,
+              "candidates_considered": 2,
+              "candidates_rejected_reasons": [
+                "NOT_UNIQUE"
+              ],
+              "detection_ref": "rcv1:c6370e1a6b97fdfda74ac2a7a937ff3a3ca3960fd48b389fed5a75b043271738",
+              "postcondition_verified": true,
+              "result": "RECOVERED",
+              "schema_id": "runtime-contracts/qa/fault-recovery",
+              "schema_version": "0.1",
+              "strategy": "SEMANTIC_LOCATOR",
+              "suppressed_reason": "NONE"
+            },
+            "schema_id": "runtime-contracts/qa/fault-event",
+            "schema_version": "0.1",
+            "sequence": 0,
+            "step_id": "s1"
+          }
+        ],
+        "model_recovery_enabled": false,
+        "outcome": "INCONCLUSIVE",
+        "plan_hash": "rcv1:0000000000000000000000000000000000000000000000000000000000000021",
+        "planner": {
+          "id": "cr-qa-planner",
+          "version": "0.1.0"
+        },
+        "recovery_enabled": true,
+        "redaction_policy_id": "rcv1:000000000000000000000000000000000000000000000000000000000000001f",
+        "resource_limits": {
+          "memory_mb": 2048,
+          "pids": 256
+        },
+        "run_id": "run-1",
+        "sandbox_image_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000022",
+        "schema_id": "runtime-contracts/qa/run-manifest",
+        "schema_version": "0.1",
+        "seeds": [
+          7,
+          11
+        ],
+        "spec_ref": "checkout-save@rcv1:2e63d029f7e5eea524716ed9c5e80d8fd807155318b5c02c2fda2f6b7c69d8f7",
+        "step_results": [
+          {
+            "postcondition": "SATISFIED",
+            "receipts": [
+              "rcv1:f3cb21bbb77b5f3924619162bb42b15a16fffdea41e3a71300961bdcc7e50d61"
+            ],
+            "result": "OK",
+            "step_id": "s1"
+          }
+        ],
+        "trace_id": "0123456789abcdef0123456789abcdef",
+        "versions": [
+          {
+            "component": "agent-harness",
+            "version": "0.1.0"
+          },
+          {
+            "component": "runtime-contracts",
+            "revision": "403f536",
+            "version": "0.3.14"
+          }
+        ]
+      },
+      "rcv1": "rcv1:f14e6bc8dbd762711c28b1291ea418c438e52a2acaac4a404a695eaffd3de3d7",
+      "sha256_hex": "f14e6bc8dbd762711c28b1291ea418c438e52a2acaac4a404a695eaffd3de3d7",
+      "why": "an assertion skipped with a reason: INCONCLUSIVE, consistent accounting"
+    },
+    {
+      "canonical_json": "{\"adapter\":{\"id\":\"qa-playwright\",\"version\":\"0.1.0\"},\"assertion_results\":[{\"actual\":\"Saved\",\"assertion_id\":\"a-saved\",\"assertion_set_hash\":\"rcv1:94c9e0bd652146534232836c1de1cea4d1aab066939f8e0755f8b930a2898858\",\"check\":{\"check_id\":\"a-saved\",\"determinism\":\"DETERMINISTIC\",\"evidence_refs\":[\"shot-3@1#sha256:0000000000000000000000000000000000000000000000000000000000000067\"],\"verdict\":\"PASS\"},\"executor\":\"PLAYWRIGHT\",\"expected_hash\":\"rcv1:1b995d3503f549f89ae235791af06f1923a99bb30ec7904e2e77921cd2830c80\",\"observation_id\":\"obs-s1-after\",\"schema_id\":\"runtime-contracts/qa/assertion-result\",\"schema_version\":\"0.1\",\"verifier\":{\"id\":\"det-verifier\",\"version\":\"1.0.0\"}}],\"assertion_set_hash\":\"rcv1:94c9e0bd652146534232836c1de1cea4d1aab066939f8e0755f8b930a2898858\",\"assertions_declared\":[\"a-saved\",\"a-url\"],\"assertions_executed\":[\"a-saved\"],\"assertions_skipped\":[],\"browser\":\"chromium 130.0.1\",\"egress_policy_id\":\"rcv1:0000000000000000000000000000000000000000000000000000000000000020\",\"fault_events\":[{\"detection\":{\"claimed_class\":\"BENIGN_DRIFT\",\"detected\":true,\"detector\":{\"id\":\"step-detector\",\"version\":\"0.1.0\"},\"evidence_refs\":[{\"content_hash\":\"sha256:0000000000000000000000000000000000000000000000000000000000000068\",\"media_type\":\"image/png\",\"modality\":\"image\",\"ref\":\"obs-4\",\"ref_type\":\"artifact\",\"source\":\"qa-playwright\",\"version\":\"1\"}],\"schema_id\":\"runtime-contracts/qa/fault-detection\",\"schema_version\":\"0.1\",\"signal\":\"LOCATOR_NOT_FOUND\"},\"fault_event_id\":\"fe-0\",\"recovery\":{\"attempted\":true,\"attempts\":1,\"candidates_considered\":2,\"candidates_rejected_reasons\":[\"NOT_UNIQUE\"],\"detection_ref\":\"rcv1:c6370e1a6b97fdfda74ac2a7a937ff3a3ca3960fd48b389fed5a75b043271738\",\"postcondition_verified\":true,\"result\":\"RECOVERED\",\"schema_id\":\"runtime-contracts/qa/fault-recovery\",\"schema_version\":\"0.1\",\"strategy\":\"SEMANTIC_LOCATOR\",\"suppressed_reason\":\"NONE\"},\"schema_id\":\"runtime-contracts/qa/fault-event\",\"schema_version\":\"0.1\",\"sequence\":0,\"step_id\":\"s1\"}],\"model_recovery_enabled\":false,\"outcome\":\"INCONCLUSIVE\",\"outcome_reason\":\"ASSERTION_INTEGRITY\",\"plan_hash\":\"rcv1:0000000000000000000000000000000000000000000000000000000000000021\",\"planner\":{\"id\":\"cr-qa-planner\",\"version\":\"0.1.0\"},\"recovery_enabled\":true,\"redaction_policy_id\":\"rcv1:000000000000000000000000000000000000000000000000000000000000001f\",\"resource_limits\":{\"memory_mb\":2048,\"pids\":256},\"run_id\":\"run-1\",\"sandbox_image_digest\":\"sha256:0000000000000000000000000000000000000000000000000000000000000022\",\"schema_id\":\"runtime-contracts/qa/run-manifest\",\"schema_version\":\"0.1\",\"seeds\":[7,11],\"spec_ref\":\"checkout-save@rcv1:2e63d029f7e5eea524716ed9c5e80d8fd807155318b5c02c2fda2f6b7c69d8f7\",\"step_results\":[{\"postcondition\":\"SATISFIED\",\"receipts\":[\"rcv1:f3cb21bbb77b5f3924619162bb42b15a16fffdea41e3a71300961bdcc7e50d61\"],\"result\":\"OK\",\"step_id\":\"s1\"}],\"trace_id\":\"0123456789abcdef0123456789abcdef\",\"versions\":[{\"component\":\"agent-harness\",\"version\":\"0.1.0\"},{\"component\":\"runtime-contracts\",\"revision\":\"403f536\",\"version\":\"0.3.14\"}]}",
+      "id": "qa:run_manifest_assertion_integrity",
+      "input": {
+        "adapter": {
+          "id": "qa-playwright",
+          "version": "0.1.0"
+        },
+        "assertion_results": [
+          {
+            "actual": "Saved",
+            "assertion_id": "a-saved",
+            "assertion_set_hash": "rcv1:94c9e0bd652146534232836c1de1cea4d1aab066939f8e0755f8b930a2898858",
+            "check": {
+              "check_id": "a-saved",
+              "determinism": "DETERMINISTIC",
+              "evidence_refs": [
+                "shot-3@1#sha256:0000000000000000000000000000000000000000000000000000000000000067"
+              ],
+              "verdict": "PASS"
+            },
+            "executor": "PLAYWRIGHT",
+            "expected_hash": "rcv1:1b995d3503f549f89ae235791af06f1923a99bb30ec7904e2e77921cd2830c80",
+            "observation_id": "obs-s1-after",
+            "schema_id": "runtime-contracts/qa/assertion-result",
+            "schema_version": "0.1",
+            "verifier": {
+              "id": "det-verifier",
+              "version": "1.0.0"
+            }
+          }
+        ],
+        "assertion_set_hash": "rcv1:94c9e0bd652146534232836c1de1cea4d1aab066939f8e0755f8b930a2898858",
+        "assertions_declared": [
+          "a-saved",
+          "a-url"
+        ],
+        "assertions_executed": [
+          "a-saved"
+        ],
+        "assertions_skipped": [],
+        "browser": "chromium 130.0.1",
+        "egress_policy_id": "rcv1:0000000000000000000000000000000000000000000000000000000000000020",
+        "fault_events": [
+          {
+            "detection": {
+              "claimed_class": "BENIGN_DRIFT",
+              "detected": true,
+              "detector": {
+                "id": "step-detector",
+                "version": "0.1.0"
+              },
+              "evidence_refs": [
+                {
+                  "content_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000068",
+                  "media_type": "image/png",
+                  "modality": "image",
+                  "ref": "obs-4",
+                  "ref_type": "artifact",
+                  "source": "qa-playwright",
+                  "version": "1"
+                }
+              ],
+              "schema_id": "runtime-contracts/qa/fault-detection",
+              "schema_version": "0.1",
+              "signal": "LOCATOR_NOT_FOUND"
+            },
+            "fault_event_id": "fe-0",
+            "recovery": {
+              "attempted": true,
+              "attempts": 1,
+              "candidates_considered": 2,
+              "candidates_rejected_reasons": [
+                "NOT_UNIQUE"
+              ],
+              "detection_ref": "rcv1:c6370e1a6b97fdfda74ac2a7a937ff3a3ca3960fd48b389fed5a75b043271738",
+              "postcondition_verified": true,
+              "result": "RECOVERED",
+              "schema_id": "runtime-contracts/qa/fault-recovery",
+              "schema_version": "0.1",
+              "strategy": "SEMANTIC_LOCATOR",
+              "suppressed_reason": "NONE"
+            },
+            "schema_id": "runtime-contracts/qa/fault-event",
+            "schema_version": "0.1",
+            "sequence": 0,
+            "step_id": "s1"
+          }
+        ],
+        "model_recovery_enabled": false,
+        "outcome": "INCONCLUSIVE",
+        "outcome_reason": "ASSERTION_INTEGRITY",
+        "plan_hash": "rcv1:0000000000000000000000000000000000000000000000000000000000000021",
+        "planner": {
+          "id": "cr-qa-planner",
+          "version": "0.1.0"
+        },
+        "recovery_enabled": true,
+        "redaction_policy_id": "rcv1:000000000000000000000000000000000000000000000000000000000000001f",
+        "resource_limits": {
+          "memory_mb": 2048,
+          "pids": 256
+        },
+        "run_id": "run-1",
+        "sandbox_image_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000022",
+        "schema_id": "runtime-contracts/qa/run-manifest",
+        "schema_version": "0.1",
+        "seeds": [
+          7,
+          11
+        ],
+        "spec_ref": "checkout-save@rcv1:2e63d029f7e5eea524716ed9c5e80d8fd807155318b5c02c2fda2f6b7c69d8f7",
+        "step_results": [
+          {
+            "postcondition": "SATISFIED",
+            "receipts": [
+              "rcv1:f3cb21bbb77b5f3924619162bb42b15a16fffdea41e3a71300961bdcc7e50d61"
+            ],
+            "result": "OK",
+            "step_id": "s1"
+          }
+        ],
+        "trace_id": "0123456789abcdef0123456789abcdef",
+        "versions": [
+          {
+            "component": "agent-harness",
+            "version": "0.1.0"
+          },
+          {
+            "component": "runtime-contracts",
+            "revision": "403f536",
+            "version": "0.3.14"
+          }
+        ]
+      },
+      "rcv1": "rcv1:e8650e4b27a5204928797057304ed8551cae8c65a81ed74a28f7f7ca2194445a",
+      "sha256_hex": "e8650e4b27a5204928797057304ed8551cae8c65a81ed74a28f7f7ca2194445a",
+      "why": "declared != executed + skipped: only INCONCLUSIVE(ASSERTION_INTEGRITY) can be recorded"
+    },
+    {
+      "canonical_json": "{\"checkpoint_id\":\"cp-1\",\"fixture_snapshot_id\":\"snap-1\",\"run_id\":\"run-1\",\"schema_id\":\"runtime-contracts/qa/checkpoint\",\"schema_version\":\"0.1\",\"state_hash\":\"rcv1:0000000000000000000000000000000000000000000000000000000000000033\",\"step_index\":2}",
+      "id": "qa:checkpoint",
+      "input": {
+        "checkpoint_id": "cp-1",
+        "fixture_snapshot_id": "snap-1",
+        "run_id": "run-1",
+        "schema_id": "runtime-contracts/qa/checkpoint",
+        "schema_version": "0.1",
+        "state_hash": "rcv1:0000000000000000000000000000000000000000000000000000000000000033",
+        "step_index": 2
+      },
+      "rcv1": "rcv1:5592da10a1073d0af498f6ec6acace2fab97cc97d2392f114a74f9ab63ee5d31",
+      "sha256_hex": "5592da10a1073d0af498f6ec6acace2fab97cc97d2392f114a74f9ab63ee5d31",
+      "why": "in-run resume point; no storage state"
+    },
+    {
+      "canonical_json": "{\"evidence_refs\":[{\"content_hash\":\"sha256:0000000000000000000000000000000000000000000000000000000000000065\",\"media_type\":\"image/png\",\"modality\":\"image\",\"ref\":\"shot-1\",\"ref_type\":\"artifact\",\"source\":\"qa-playwright\",\"version\":\"1\"},{\"content_hash\":\"sha256:0000000000000000000000000000000000000000000000000000000000000066\",\"media_type\":\"image/png\",\"modality\":\"image\",\"ref\":\"shot-2\",\"ref_type\":\"artifact\",\"source\":\"qa-playwright\",\"version\":\"1\"}],\"reason\":\"ASSERTION_INTEGRITY\",\"review_item_id\":\"ri-1\",\"run_id\":\"run-1\",\"schema_id\":\"runtime-contracts/qa/review-item\",\"schema_version\":\"0.1\",\"suggested_change_ref\":\"rcv1:0000000000000000000000000000000000000000000000000000000000000034\"}",
+      "id": "qa:review_item",
+      "input": {
+        "evidence_refs": [
+          {
+            "content_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000065",
+            "media_type": "image/png",
+            "modality": "image",
+            "ref": "shot-1",
+            "ref_type": "artifact",
+            "source": "qa-playwright",
+            "version": "1"
+          },
+          {
+            "content_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000066",
+            "media_type": "image/png",
+            "modality": "image",
+            "ref": "shot-2",
+            "ref_type": "artifact",
+            "source": "qa-playwright",
+            "version": "1"
+          }
+        ],
+        "reason": "ASSERTION_INTEGRITY",
+        "review_item_id": "ri-1",
+        "run_id": "run-1",
+        "schema_id": "runtime-contracts/qa/review-item",
+        "schema_version": "0.1",
+        "suggested_change_ref": "rcv1:0000000000000000000000000000000000000000000000000000000000000034"
+      },
+      "rcv1": "rcv1:40719e535c30abda606af75187dd62ebc56fedb036ab837c3c4e01cbe79052c4",
+      "sha256_hex": "40719e535c30abda606af75187dd62ebc56fedb036ab837c3c4e01cbe79052c4",
+      "why": "an INCONCLUSIVE run always creates one"
+    },
+    {
+      "canonical_json": "{\"decision\":\"ACCEPT\",\"review_item_ref\":\"rcv1:0000000000000000000000000000000000000000000000000000000000000035\",\"schema_id\":\"runtime-contracts/qa/review-record\",\"schema_version\":\"0.1\"}",
+      "id": "qa:review_record",
+      "input": {
+        "decision": "ACCEPT",
+        "review_item_ref": "rcv1:0000000000000000000000000000000000000000000000000000000000000035",
+        "schema_id": "runtime-contracts/qa/review-record",
+        "schema_version": "0.1"
+      },
+      "rcv1": "rcv1:8f82cecde42816ebbbf4468a2bd5eea7af527bce888b7c723f16f19d0d2e67e4",
+      "sha256_hex": "8f82cecde42816ebbbf4468a2bd5eea7af527bce888b7c723f16f19d0d2e67e4",
+      "why": "appended later; reviewer and minutes are custody"
+    },
+    {
+      "canonical_json": "{\"handle_id\":\"s1\",\"leaked\":[],\"released\":[\"context\",\"page\"],\"schema_id\":\"runtime-contracts/qa/cleanup-report\",\"schema_version\":\"0.1\",\"verified\":true}",
+      "id": "qa:cleanup_report",
+      "input": {
+        "handle_id": "s1",
+        "leaked": [],
+        "released": [
+          "context",
+          "page"
+        ],
+        "schema_id": "runtime-contracts/qa/cleanup-report",
+        "schema_version": "0.1",
+        "verified": true
+      },
+      "rcv1": "rcv1:7c905b058993f6312fbd4d00f56484e9731c061aa7f72bc7111e5d30672ac9b2",
+      "sha256_hex": "7c905b058993f6312fbd4d00f56484e9731c061aa7f72bc7111e5d30672ac9b2",
+      "why": "verified cleanup"
+    },
+    {
+      "canonical_json": "{\"id\":\"qa-playwright\",\"version\":\"0.1.0\"}",
+      "id": "qa-value:component_ref",
+      "input": {
+        "id": "qa-playwright",
+        "version": "0.1.0"
+      },
+      "rcv1": "rcv1:08940da4789b67f9e9f190788b9dddfee3c014ad2a644b6f501014465c2c24ba",
+      "sha256_hex": "08940da4789b67f9e9f190788b9dddfee3c014ad2a644b6f501014465c2c24ba",
+      "why": "{id, version} of whatever produced something"
+    },
+    {
+      "canonical_json": "{\"frame_path\":[\"outer\",\"inner\"],\"name\":\"Save\",\"role\":\"button\"}",
+      "id": "qa-value:locator_descriptor",
+      "input": {
+        "frame_path": [
+          "outer",
+          "inner"
+        ],
+        "name": "Save",
+        "role": "button"
+      },
+      "rcv1": "rcv1:dffd320eda4cdce28314a54e98da64a510c95f056db000383578c93063e3e0de",
+      "sha256_hex": "dffd320eda4cdce28314a54e98da64a510c95f056db000383578c93063e3e0de",
+      "why": "frame_path order is meaning"
+    },
+    {
+      "canonical_json": "{\"kind\":\"MANIFEST_PATH\",\"path\":\"k8s/deploy.yaml\"}",
+      "id": "qa-value:resource_ref_manifest_path",
+      "input": {
+        "kind": "MANIFEST_PATH",
+        "path": "k8s/deploy.yaml"
+      },
+      "rcv1": "rcv1:a1076a7c65370ed2faaace5143dfbe6df781747d04e2dac664514d1df3ea1f90",
+      "sha256_hex": "a1076a7c65370ed2faaace5143dfbe6df781747d04e2dac664514d1df3ea1f90",
+      "why": "MANIFEST_PATH carries only a case-relative path"
+    },
+    {
+      "canonical_json": "{\"digest\":\"sha256:0000000000000000000000000000000000000000000000000000000000000002\",\"kind\":\"IMAGE_DIGEST\"}",
+      "id": "qa-value:resource_ref_image_digest",
+      "input": {
+        "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000002",
+        "kind": "IMAGE_DIGEST"
+      },
+      "rcv1": "rcv1:d8aef569c4dd83a794a17caa5e35e345880cb8848667de563d2c73d161d2aae8",
+      "sha256_hex": "d8aef569c4dd83a794a17caa5e35e345880cb8848667de563d2c73d161d2aae8",
+      "why": "IMAGE_DIGEST carries only a digest"
+    },
+    {
+      "canonical_json": "{\"api_version\":\"apps/v1\",\"kind\":\"NAMESPACE_OBJECT\",\"name\":\"api\",\"namespace\":\"web\",\"object_kind\":\"Deployment\"}",
+      "id": "qa-value:resource_ref_namespace_object",
+      "input": {
+        "api_version": "apps/v1",
+        "kind": "NAMESPACE_OBJECT",
+        "name": "api",
+        "namespace": "web",
+        "object_kind": "Deployment"
+      },
+      "rcv1": "rcv1:08dd1d25d93cfc1b9fa6b2fe4694e1fdf14f072120a76708343e679defb52bfb",
+      "sha256_hex": "08dd1d25d93cfc1b9fa6b2fe4694e1fdf14f072120a76708343e679defb52bfb",
+      "why": "NAMESPACE_OBJECT carries the four typed fields"
+    },
+    {
+      "canonical_json": "{\"id\":\"image-pinned\",\"program_hash\":\"sha256:0000000000000000000000000000000000000000000000000000000000000006\",\"version\":\"1.0.0\"}",
+      "id": "qa-value:check_program_ref",
+      "input": {
+        "id": "image-pinned",
+        "program_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000006",
+        "version": "1.0.0"
+      },
+      "rcv1": "rcv1:a347e173d4894cc92f057f38b1d96be73189044cacd8c125f24ab7f02ecbb341",
+      "sha256_hex": "a347e173d4894cc92f057f38b1d96be73189044cacd8c125f24ab7f02ecbb341",
+      "why": "a registered program pinned by the full sha256 of its source"
+    },
+    {
+      "canonical_json": "{\"kind\":\"ui\",\"locator\":{\"frame_path\":[],\"name\":\"Save\",\"role\":\"button\"}}",
+      "id": "qa-value:step_target_ui",
+      "input": {
+        "kind": "ui",
+        "locator": {
+          "frame_path": [],
+          "name": "Save",
+          "role": "button"
+        }
+      },
+      "rcv1": "rcv1:84657f53ff5437f48bab0d1d4649a282aa6a0ad8248ef9dfb3234ac3f51da3d7",
+      "sha256_hex": "84657f53ff5437f48bab0d1d4649a282aa6a0ad8248ef9dfb3234ac3f51da3d7",
+      "why": "tagged target kind=ui"
+    },
+    {
+      "canonical_json": "{\"kind\":\"resource\",\"resource\":{\"kind\":\"MANIFEST_PATH\",\"path\":\"k8s/deploy.yaml\"}}",
+      "id": "qa-value:step_target_resource",
+      "input": {
+        "kind": "resource",
+        "resource": {
+          "kind": "MANIFEST_PATH",
+          "path": "k8s/deploy.yaml"
+        }
+      },
+      "rcv1": "rcv1:4076213bed4538dbdab15ac64423a560d1b46464cefd5366528e23632c236052",
+      "sha256_hex": "4076213bed4538dbdab15ac64423a560d1b46464cefd5366528e23632c236052",
+      "why": "tagged target kind=resource"
+    },
+    {
+      "canonical_json": "{\"kind\":\"click\"}",
+      "id": "qa-value:action_click",
+      "input": {
+        "kind": "click"
+      },
+      "rcv1": "rcv1:28c5bdf86ec3f9b048fc0fc10c12fc81e661c9a622d22b0a83dc9e20988fc004",
+      "sha256_hex": "28c5bdf86ec3f9b048fc0fc10c12fc81e661c9a622d22b0a83dc9e20988fc004",
+      "why": "an action with no value"
+    },
+    {
+      "canonical_json": "{\"action\":{\"kind\":\"click\"},\"expected_transition\":\"url ends /saved\",\"idempotency\":\"AT_MOST_ONCE\",\"intent\":\"Save the form\",\"observation_deadline_ms\":5000,\"permitted_recovery\":[\"CHECKPOINT_RESUME\",\"SEMANTIC_LOCATOR\"],\"retry_safety\":\"UNSAFE\",\"side_effect\":\"WRITES_INTERNAL\",\"step_id\":\"s1\",\"target\":{\"kind\":\"ui\",\"locator\":{\"frame_path\":[],\"name\":\"Save\",\"role\":\"button\"}}}",
+      "id": "qa-value:step_ui",
+      "input": {
+        "action": {
+          "kind": "click"
+        },
+        "expected_transition": "url ends /saved",
+        "idempotency": "AT_MOST_ONCE",
+        "intent": "Save the form",
+        "observation_deadline_ms": 5000,
+        "permitted_recovery": [
+          "CHECKPOINT_RESUME",
+          "SEMANTIC_LOCATOR"
+        ],
+        "retry_safety": "UNSAFE",
+        "side_effect": "WRITES_INTERNAL",
+        "step_id": "s1",
+        "target": {
+          "kind": "ui",
+          "locator": {
+            "frame_path": [],
+            "name": "Save",
+            "role": "button"
+          }
+        }
+      },
+      "rcv1": "rcv1:3805417efcdfe7927c74116ed21f2cd756069e94dd1b7a97ed12e1528d8d7b11",
+      "sha256_hex": "3805417efcdfe7927c74116ed21f2cd756069e94dd1b7a97ed12e1528d8d7b11",
+      "why": "a UI step"
+    },
+    {
+      "canonical_json": "{\"action\":{\"kind\":\"resolve\"},\"expected_transition\":\"manifest resolves to a content digest\",\"idempotency\":\"IDEMPOTENT\",\"intent\":\"Resolve the deployment manifest\",\"observation_deadline_ms\":2000,\"permitted_recovery\":[\"RETRY_SAME\"],\"retry_safety\":\"SAFE\",\"side_effect\":\"NONE\",\"step_id\":\"r1\",\"target\":{\"kind\":\"resource\",\"resource\":{\"kind\":\"MANIFEST_PATH\",\"path\":\"k8s/deploy.yaml\"}}}",
+      "id": "qa-value:step_resource",
+      "input": {
+        "action": {
+          "kind": "resolve"
+        },
+        "expected_transition": "manifest resolves to a content digest",
+        "idempotency": "IDEMPOTENT",
+        "intent": "Resolve the deployment manifest",
+        "observation_deadline_ms": 2000,
+        "permitted_recovery": [
+          "RETRY_SAME"
+        ],
+        "retry_safety": "SAFE",
+        "side_effect": "NONE",
+        "step_id": "r1",
+        "target": {
+          "kind": "resource",
+          "resource": {
+            "kind": "MANIFEST_PATH",
+            "path": "k8s/deploy.yaml"
+          }
+        }
+      },
+      "rcv1": "rcv1:78b552887575ed15bae9d2a3c5f826e5e9b91848d00e99fe2f503cdca2a3b7b2",
+      "sha256_hex": "78b552887575ed15bae9d2a3c5f826e5e9b91848d00e99fe2f503cdca2a3b7b2",
+      "why": "a resource step with a MANIFEST_PATH reference"
+    },
+    {
+      "canonical_json": "{\"expected\":\"Saved\",\"op\":\"EQUALS\"}",
+      "id": "qa-value:predicate_equals",
+      "input": {
+        "expected": "Saved",
+        "op": "EQUALS"
+      },
+      "rcv1": "rcv1:1b995d3503f549f89ae235791af06f1923a99bb30ec7904e2e77921cd2830c80",
+      "sha256_hex": "1b995d3503f549f89ae235791af06f1923a99bb30ec7904e2e77921cd2830c80",
+      "why": "expected_hash is the hash of this value"
+    },
+    {
+      "canonical_json": "{\"inputs\":[],\"kind\":\"UI_ELEMENT\",\"locator\":{\"frame_path\":[],\"test_id\":\"save-status\"},\"subject_alternates\":[]}",
+      "id": "qa-value:assertion_subject_ui",
+      "input": {
+        "inputs": [],
+        "kind": "UI_ELEMENT",
+        "locator": {
+          "frame_path": [],
+          "test_id": "save-status"
+        },
+        "subject_alternates": []
+      },
+      "rcv1": "rcv1:3b82d127375f0293b22681e743ec7869494abb244c2874e2c24b07bc75bf7275",
+      "sha256_hex": "3b82d127375f0293b22681e743ec7869494abb244c2874e2c24b07bc75bf7275",
+      "why": "a UI element subject"
+    },
+    {
+      "canonical_json": "{\"app_id\":\"demo-app\",\"build_sha\":\"0123456789abcdef\",\"environment_profile\":\"ci-baseline\"}",
+      "id": "qa-value:test_target",
+      "input": {
+        "app_id": "demo-app",
+        "build_sha": "0123456789abcdef",
+        "environment_profile": "ci-baseline"
+      },
+      "rcv1": "rcv1:d04f6c1d8f218c39e3661b2fb316de336cf0b59ea08e25d801824f4fdcf94fba",
+      "sha256_hex": "d04f6c1d8f218c39e3661b2fb316de336cf0b59ea08e25d801824f4fdcf94fba",
+      "why": "app, build and environment profile"
+    },
+    {
+      "canonical_json": "{\"content_hash\":\"sha256:0000000000000000000000000000000000000000000000000000000000000007\",\"id\":\"seed-form\"}",
+      "id": "qa-value:fixture_ref",
+      "input": {
+        "content_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000007",
+        "id": "seed-form"
+      },
+      "rcv1": "rcv1:918e1e4dd4dd9d63d14fe6791b3397e572d86672d3a7ecefd26397978992ca89",
+      "sha256_hex": "918e1e4dd4dd9d63d14fe6791b3397e572d86672d3a7ecefd26397978992ca89",
+      "why": "a fixture pinned by digest"
+    },
+    {
+      "canonical_json": "{\"deadline_ms\":120000,\"max_model_calls\":0,\"max_recovery_attempts\":2,\"max_retries\":1,\"max_tokens\":0}",
+      "id": "qa-value:budget",
+      "input": {
+        "deadline_ms": 120000,
+        "max_model_calls": 0,
+        "max_recovery_attempts": 2,
+        "max_retries": 1,
+        "max_tokens": 0
+      },
+      "rcv1": "rcv1:26b7d76debd287a71ed35945d703488c2cb46d4107e59e16af2664945a20d497",
+      "sha256_hex": "26b7d76debd287a71ed35945d703488c2cb46d4107e59e16af2664945a20d497",
+      "why": "hard caps for one run"
+    },
+    {
+      "canonical_json": "{\"budget\":{\"deadline_ms\":120000,\"max_model_calls\":0,\"max_recovery_attempts\":2,\"max_retries\":0,\"max_tokens\":0},\"evidence_level\":\"STANDARD\",\"lane\":\"lane-a\",\"order\":0,\"recovery_ceiling\":2,\"spec_ref\":\"checkout-save@rcv1:2e63d029f7e5eea524716ed9c5e80d8fd807155318b5c02c2fda2f6b7c69d8f7\"}",
+      "id": "qa-value:plan_item",
+      "input": {
+        "budget": {
+          "deadline_ms": 120000,
+          "max_model_calls": 0,
+          "max_recovery_attempts": 2,
+          "max_retries": 0,
+          "max_tokens": 0
+        },
+        "evidence_level": "STANDARD",
+        "lane": "lane-a",
+        "order": 0,
+        "recovery_ceiling": 2,
+        "spec_ref": "checkout-save@rcv1:2e63d029f7e5eea524716ed9c5e80d8fd807155318b5c02c2fda2f6b7c69d8f7"
+      },
+      "rcv1": "rcv1:b8d96b4919948fcf2cc1a9fe69720679c1e30e4c011b7941d599e446eb87123a",
+      "sha256_hex": "b8d96b4919948fcf2cc1a9fe69720679c1e30e4c011b7941d599e446eb87123a",
+      "why": "a spec in a lane at a position"
+    },
+    {
+      "canonical_json": "{\"after\":[\"checkout-save@rcv1:2e63d029f7e5eea524716ed9c5e80d8fd807155318b5c02c2fda2f6b7c69d8f7\"],\"item\":\"infra-manifest@rcv1:6cf52f6e0857de42e1a95099619011058641e9a9c9c7a6edea647ec315fdd901\"}",
+      "id": "qa-value:plan_gate",
+      "input": {
+        "after": [
+          "checkout-save@rcv1:2e63d029f7e5eea524716ed9c5e80d8fd807155318b5c02c2fda2f6b7c69d8f7"
+        ],
+        "item": "infra-manifest@rcv1:6cf52f6e0857de42e1a95099619011058641e9a9c9c7a6edea647ec315fdd901"
+      },
+      "rcv1": "rcv1:be399edba5e6887dbdd94da2f2262597b708df9c2fd255e98b61499f4c023567",
+      "sha256_hex": "be399edba5e6887dbdd94da2f2262597b708df9c2fd255e98b61499f4c023567",
+      "why": "a start condition between items"
+    },
+    {
+      "canonical_json": "{\"amount\":2,\"resource\":\"browser_slots\"}",
+      "id": "qa-value:resource_claim",
+      "input": {
+        "amount": 2,
+        "resource": "browser_slots"
+      },
+      "rcv1": "rcv1:e249bb152755cdcfdc98702d96038e5aa97fa98efb38f163186f9932cd2e2f2b",
+      "sha256_hex": "e249bb152755cdcfdc98702d96038e5aa97fa98efb38f163186f9932cd2e2f2b",
+      "why": "a declarative claim"
+    },
+    {
+      "canonical_json": "{\"adapter\":\"qa-playwright\",\"adapter_version\":\"0.1.0\",\"browser\":\"chromium\",\"browser_version\":\"130.0.1\"}",
+      "id": "qa-value:observation_source",
+      "input": {
+        "adapter": "qa-playwright",
+        "adapter_version": "0.1.0",
+        "browser": "chromium",
+        "browser_version": "130.0.1"
+      },
+      "rcv1": "rcv1:270a3c006b7de36057bdc3a5353e2202051a4a1b04445b51a38507682d840f87",
+      "sha256_hex": "270a3c006b7de36057bdc3a5353e2202051a4a1b04445b51a38507682d840f87",
+      "why": "which adapter and browser observed"
+    },
+    {
+      "canonical_json": "{\"name\":\"qa-playwright\",\"version\":\"0.1.0\"}",
+      "id": "qa-value:tool_ref",
+      "input": {
+        "name": "qa-playwright",
+        "version": "0.1.0"
+      },
+      "rcv1": "rcv1:71e06c17e177976c1c983a96d9c65d07b4dfde7aee322ce73678c86d826db659",
+      "sha256_hex": "71e06c17e177976c1c983a96d9c65d07b4dfde7aee322ce73678c86d826db659",
+      "why": "the tool that acted"
+    },
+    {
+      "canonical_json": "{\"descriptor\":{\"frame_path\":[],\"name\":\"Save\",\"role\":\"button\"},\"strategy\":\"AUTHORED\"}",
+      "id": "qa-value:locator_used",
+      "input": {
+        "descriptor": {
+          "frame_path": [],
+          "name": "Save",
+          "role": "button"
+        },
+        "strategy": "AUTHORED"
+      },
+      "rcv1": "rcv1:f898d5a2fa88ed1093ccbb49694aae8dda4aa9290af8f93272b63da1cdd6b16f",
+      "sha256_hex": "f898d5a2fa88ed1093ccbb49694aae8dda4aa9290af8f93272b63da1cdd6b16f",
+      "why": "the locator actually used and how it was chosen"
+    },
+    {
+      "canonical_json": "{\"kind\":\"click\"}",
+      "id": "qa-value:action_record",
+      "input": {
+        "kind": "click"
+      },
+      "rcv1": "rcv1:28c5bdf86ec3f9b048fc0fc10c12fc81e661c9a622d22b0a83dc9e20988fc004",
+      "sha256_hex": "28c5bdf86ec3f9b048fc0fc10c12fc81e661c9a622d22b0a83dc9e20988fc004",
+      "why": "the action taken; value digest only"
+    },
+    {
+      "canonical_json": "{\"declared\":\"url ends /saved\",\"observed\":\"url ends /saved\",\"result\":\"SATISFIED\"}",
+      "id": "qa-value:postcondition",
+      "input": {
+        "declared": "url ends /saved",
+        "observed": "url ends /saved",
+        "result": "SATISFIED"
+      },
+      "rcv1": "rcv1:ea952203b35b838651030c74a32418ac1c30c33f954d08f29099c2ec0b6aaaed",
+      "sha256_hex": "ea952203b35b838651030c74a32418ac1c30c33f954d08f29099c2ec0b6aaaed",
+      "why": "declared, observed, result"
+    },
+    {
+      "canonical_json": "{\"model_calls\":0,\"ms\":180,\"tokens\":0}",
+      "id": "qa-value:recovery_cost",
+      "input": {
+        "model_calls": 0,
+        "ms": 180,
+        "tokens": 0
+      },
+      "rcv1": "rcv1:8e864b6e4a1509107e0073ae5c10f012715be3f47feb4c4ddf42cd1500adfc5b",
+      "sha256_hex": "8e864b6e4a1509107e0073ae5c10f012715be3f47feb4c4ddf42cd1500adfc5b",
+      "why": "recovery cost (custody on the recovery record)"
+    },
+    {
+      "canonical_json": "{\"assertion_id\":\"a-url\",\"reason_code\":\"NOT_REACHED\"}",
+      "id": "qa-value:skipped_assertion",
+      "input": {
+        "assertion_id": "a-url",
+        "reason_code": "NOT_REACHED"
+      },
+      "rcv1": "rcv1:cec8bcc74295da7218c91b1893ecf0a8d53f224f994f19fb931f9035369b0f50",
+      "sha256_hex": "cec8bcc74295da7218c91b1893ecf0a8d53f224f994f19fb931f9035369b0f50",
+      "why": "a skipped assertion with its reason"
+    },
+    {
+      "canonical_json": "{\"component\":\"agent-harness\",\"version\":\"0.1.0\"}",
+      "id": "qa-value:version_pin",
+      "input": {
+        "component": "agent-harness",
+        "version": "0.1.0"
+      },
+      "rcv1": "rcv1:bb687f9b535dbdab2c8e74d194f814087b49f0b07652efc3e3f4c486f5e8c608",
+      "sha256_hex": "bb687f9b535dbdab2c8e74d194f814087b49f0b07652efc3e3f4c486f5e8c608",
+      "why": "a pinned dependency"
+    },
+    {
+      "canonical_json": "{\"model_id\":\"fake-1\",\"parameters\":{\"temperature\":\"0\"},\"provider\":\"fake\"}",
+      "id": "qa-value:model_ref",
+      "input": {
+        "model_id": "fake-1",
+        "parameters": {
+          "temperature": "0"
+        },
+        "provider": "fake"
+      },
+      "rcv1": "rcv1:d038c54ee90c6b8aca9fb0f7a6312cd8f754ceeb7359b2a6b283fe0d314e8adc",
+      "sha256_hex": "d038c54ee90c6b8aca9fb0f7a6312cd8f754ceeb7359b2a6b283fe0d314e8adc",
+      "why": "model identity; parameters are decimal strings, not floats"
+    },
+    {
+      "canonical_json": "{\"postcondition\":\"SATISFIED\",\"receipts\":[\"rcv1:f3cb21bbb77b5f3924619162bb42b15a16fffdea41e3a71300961bdcc7e50d61\"],\"result\":\"OK\",\"step_id\":\"s1\"}",
+      "id": "qa-value:step_result",
+      "input": {
+        "postcondition": "SATISFIED",
+        "receipts": [
+          "rcv1:f3cb21bbb77b5f3924619162bb42b15a16fffdea41e3a71300961bdcc7e50d61"
+        ],
+        "result": "OK",
+        "step_id": "s1"
+      },
+      "rcv1": "rcv1:d231f3ab2da7239f403814a03e338bcc41cc3a27ae5372f64b0cdab4d27c1ff4",
+      "sha256_hex": "d231f3ab2da7239f403814a03e338bcc41cc3a27ae5372f64b0cdab4d27c1ff4",
+      "why": "how a step ended, with its receipts"
+    },
+    {
+      "canonical_json": "{\"infrastructure_ms\":5400,\"model_calls\":0,\"tokens\":0}",
+      "id": "qa-value:counters",
+      "input": {
+        "infrastructure_ms": 5400,
+        "model_calls": 0,
+        "tokens": 0
+      },
+      "rcv1": "rcv1:0008e11a5797f55d96e84674706b33ac354413d2282c5322b0240d21b608a168",
+      "sha256_hex": "0008e11a5797f55d96e84674706b33ac354413d2282c5322b0240d21b608a168",
+      "why": "cost counters (custody on the manifest)"
+    },
+    {
+      "canonical_json": "{\"allow_downloads\":false,\"allow_file_choosers\":false,\"allow_popups\":false,\"egress_profile\":\"operator-default\",\"redaction_policy_id\":\"rcv1:000000000000000000000000000000000000000000000000000000000000001f\"}",
+      "id": "qa-value:session_profile",
+      "input": {
+        "allow_downloads": false,
+        "allow_file_choosers": false,
+        "allow_popups": false,
+        "egress_profile": "operator-default",
+        "redaction_policy_id": "rcv1:000000000000000000000000000000000000000000000000000000000000001f"
+      },
+      "rcv1": "rcv1:a74455362c83eb207d72683e782cd64fbdd2a88e1c3d2f9efc521c6b090c96c4",
+      "sha256_hex": "a74455362c83eb207d72683e782cd64fbdd2a88e1c3d2f9efc521c6b090c96c4",
+      "why": "downloads, popups and file choosers denied by default"
+    },
+    {
+      "canonical_json": "{\"session_id\":\"sess-1\"}",
+      "id": "qa-value:session_handle",
+      "input": {
+        "session_id": "sess-1"
+      },
+      "rcv1": "rcv1:2dc21dedfd4dfdde00918351c2942c83ab667ae9bfbf922e7407da65b92e6b45",
+      "sha256_hex": "2dc21dedfd4dfdde00918351c2942c83ab667ae9bfbf922e7407da65b92e6b45",
+      "why": "opaque session id"
+    },
+    {
+      "canonical_json": "{\"capture\":[\"A11Y_SNAPSHOT\",\"SCREENSHOT\"],\"phase\":\"AFTER\",\"step_id\":\"s1\"}",
+      "id": "qa-value:observe_request",
+      "input": {
+        "capture": [
+          "A11Y_SNAPSHOT",
+          "SCREENSHOT"
+        ],
+        "phase": "AFTER",
+        "step_id": "s1"
+      },
+      "rcv1": "rcv1:e70029fe0f02297f8abdc44bcd5a3bbb82213d46116a7a49e8f85d73152391c6",
+      "sha256_hex": "e70029fe0f02297f8abdc44bcd5a3bbb82213d46116a7a49e8f85d73152391c6",
+      "why": "what to capture"
+    },
+    {
+      "canonical_json": "{\"candidate_ref\":\"c1\",\"enabled\":true,\"name\":\"Save\",\"role\":\"button\",\"unique\":true,\"visible\":true}",
+      "id": "qa-value:locate_candidate",
+      "input": {
+        "candidate_ref": "c1",
+        "enabled": true,
+        "name": "Save",
+        "role": "button",
+        "unique": true,
+        "visible": true
+      },
+      "rcv1": "rcv1:991de416525725d08f384e3494ca953ae44f7ecef33e3d6254cd87fd32dc3c43",
+      "sha256_hex": "991de416525725d08f384e3494ca953ae44f7ecef33e3d6254cd87fd32dc3c43",
+      "why": "a sole candidate is unique"
+    },
+    {
+      "canonical_json": "{\"candidates\":[{\"candidate_ref\":\"c1\",\"enabled\":true,\"name\":\"Save\",\"role\":\"button\",\"unique\":true,\"visible\":true}]}",
+      "id": "qa-value:locate_result",
+      "input": {
+        "candidates": [
+          {
+            "candidate_ref": "c1",
+            "enabled": true,
+            "name": "Save",
+            "role": "button",
+            "unique": true,
+            "visible": true
+          }
+        ]
+      },
+      "rcv1": "rcv1:e97ede02cb65e0bb71e7f20e301bad6ec9b6d61c6f00a2d0422813e7cdedb409",
+      "sha256_hex": "e97ede02cb65e0bb71e7f20e301bad6ec9b6d61c6f00a2d0422813e7cdedb409",
+      "why": "every candidate, not the first"
+    },
+    {
+      "canonical_json": "{\"candidate_ref\":\"c1\",\"locator\":{\"frame_path\":[],\"role\":\"button\"},\"strategy\":\"AUTHORED\"}",
+      "id": "qa-value:resolved_target",
+      "input": {
+        "candidate_ref": "c1",
+        "locator": {
+          "frame_path": [],
+          "role": "button"
+        },
+        "strategy": "AUTHORED"
+      },
+      "rcv1": "rcv1:0d14c91adc7c9fe7e865982b35dcbc5b3244e1f9451d7173f3080fd3dc1508c8",
+      "sha256_hex": "0d14c91adc7c9fe7e865982b35dcbc5b3244e1f9451d7173f3080fd3dc1508c8",
+      "why": "what locate produced"
+    },
+    {
+      "canonical_json": "{\"action\":{\"kind\":\"click\"},\"idempotency_key\":\"idem-1\",\"policy_decision_ref\":\"rcv1:0000000000000000000000000000000000000000000000000000000000000009\",\"step_id\":\"s1\"}",
+      "id": "qa-value:action_request",
+      "input": {
+        "action": {
+          "kind": "click"
+        },
+        "idempotency_key": "idem-1",
+        "policy_decision_ref": "rcv1:0000000000000000000000000000000000000000000000000000000000000009",
+        "step_id": "s1"
+      },
+      "rcv1": "rcv1:da70d4d6d94a4110192fe0ef98763b88ffa15deb0d4927e29513ad11bce2d75c",
+      "sha256_hex": "da70d4d6d94a4110192fe0ef98763b88ffa15deb0d4927e29513ad11bce2d75c",
+      "why": "an action cannot be built without a decision"
+    },
+    {
+      "canonical_json": "{\"result\":\"OK\"}",
+      "id": "qa-value:action_outcome",
+      "input": {
+        "result": "OK"
+      },
+      "rcv1": "rcv1:f7d595a699860f394598b720a015537850464e5e469c0783005b3f126f2285b8",
+      "sha256_hex": "f7d595a699860f394598b720a015537850464e5e469c0783005b3f126f2285b8",
+      "why": "a raw result, no verdict"
+    },
+    {
+      "canonical_json": "{\"ok\":true,\"scope\":\"FIXTURE\"}",
+      "id": "qa-value:reset_result",
+      "input": {
+        "ok": true,
+        "scope": "FIXTURE"
+      },
+      "rcv1": "rcv1:7423ba1432d2722d94cf91e9a78a296f964f2465f185223a69df5f19187722fd",
+      "sha256_hex": "7423ba1432d2722d94cf91e9a78a296f964f2465f185223a69df5f19187722fd",
+      "why": "reset outcome"
+    },
+    {
+      "canonical_json": "{\"case_root_digest\":\"sha256:0000000000000000000000000000000000000000000000000000000000000001\",\"tier\":\"OFFLINE\"}",
+      "id": "qa-value:check_profile_offline",
+      "input": {
+        "case_root_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000001",
+        "tier": "OFFLINE"
+      },
+      "rcv1": "rcv1:1434b9c019cef9dc6a51a0e431f0bddefa8a3165eab7305ac1d5a5389195f5be",
+      "sha256_hex": "1434b9c019cef9dc6a51a0e431f0bddefa8a3165eab7305ac1d5a5389195f5be",
+      "why": "offline: no disposable proof"
+    },
+    {
+      "canonical_json": "{\"case_root_digest\":\"sha256:0000000000000000000000000000000000000000000000000000000000000001\",\"disposable_proof_ref\":\"rcv1:0000000000000000000000000000000000000000000000000000000000000002\",\"tier\":\"K\"}",
+      "id": "qa-value:check_profile_k",
+      "input": {
+        "case_root_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000001",
+        "disposable_proof_ref": "rcv1:0000000000000000000000000000000000000000000000000000000000000002",
+        "tier": "K"
+      },
+      "rcv1": "rcv1:e5bbb88a7f5af5a8593b429c7142f89a88bd93b316dc711ebae5d258a80f1be7",
+      "sha256_hex": "e5bbb88a7f5af5a8593b429c7142f89a88bd93b316dc711ebae5d258a80f1be7",
+      "why": "tier K requires the disposable-cluster proof"
+    },
+    {
+      "canonical_json": "{\"workspace_id\":\"ws-1\"}",
+      "id": "qa-value:workspace_handle",
+      "input": {
+        "workspace_id": "ws-1"
+      },
+      "rcv1": "rcv1:00bd2b3a5cd60ef8fb8ecf3c2cbf224c0239495a39a85614ade4280e2365a0f7",
+      "sha256_hex": "00bd2b3a5cd60ef8fb8ecf3c2cbf224c0239495a39a85614ade4280e2365a0f7",
+      "why": "opaque workspace id"
+    },
+    {
+      "canonical_json": "{\"content_digest\":\"sha256:0000000000000000000000000000000000000000000000000000000000000003\",\"ref\":{\"digest\":\"sha256:0000000000000000000000000000000000000000000000000000000000000002\",\"kind\":\"IMAGE_DIGEST\"}}",
+      "id": "qa-value:resolved_resource",
+      "input": {
+        "content_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000003",
+        "ref": {
+          "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000002",
+          "kind": "IMAGE_DIGEST"
+        }
+      },
+      "rcv1": "rcv1:2e4bf1ce84778b901c15051554e13b8d5becf091e4e47b729401bd4daa322c11",
+      "sha256_hex": "2e4bf1ce84778b901c15051554e13b8d5becf091e4e47b729401bd4daa322c11",
+      "why": "a reference and its digest"
+    },
+    {
+      "canonical_json": "{\"check_program_ref\":{\"id\":\"image-pinned\",\"program_hash\":\"sha256:0000000000000000000000000000000000000000000000000000000000000006\",\"version\":\"1.0.0\"},\"inputs\":[{\"digest\":\"sha256:0000000000000000000000000000000000000000000000000000000000000002\",\"kind\":\"IMAGE_DIGEST\"}],\"tier\":\"OFFLINE\"}",
+      "id": "qa-value:check_subject",
+      "input": {
+        "check_program_ref": {
+          "id": "image-pinned",
+          "program_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000006",
+          "version": "1.0.0"
+        },
+        "inputs": [
+          {
+            "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000002",
+            "kind": "IMAGE_DIGEST"
+          }
+        ],
+        "tier": "OFFLINE"
+      },
+      "rcv1": "rcv1:f2a7e0daff6c9d8e5e1080604305ec7afa464840b1a4096914b59eb21dd5be91",
+      "sha256_hex": "f2a7e0daff6c9d8e5e1080604305ec7afa464840b1a4096914b59eb21dd5be91",
+      "why": "program, inputs and tier; never an expected value"
+    },
+    {
+      "canonical_json": "{\"assertions\":[{\"assertion_id\":\"a-saved\",\"determinism\":\"DETERMINISTIC\",\"executor\":\"PLAYWRIGHT\",\"on_unresolvable\":\"INDETERMINATE\",\"predicate\":{\"expected\":\"Saved\",\"op\":\"EQUALS\"},\"requirement_ref\":\"REQ-SAVE-1\",\"schema_id\":\"runtime-contracts/qa/assertion-spec\",\"schema_version\":\"0.1\",\"subject\":{\"inputs\":[],\"kind\":\"UI_ELEMENT\",\"locator\":{\"frame_path\":[],\"test_id\":\"save-status\"},\"subject_alternates\":[]},\"verifier_id\":\"det-verifier\",\"verifier_version_range\":\">=1.0,<2\"},{\"assertion_id\":\"a-url\",\"determinism\":\"DETERMINISTIC\",\"executor\":\"PLAYWRIGHT\",\"on_unresolvable\":\"INDETERMINATE\",\"predicate\":{\"expected\":\"/saved$\",\"op\":\"MATCHES\"},\"schema_id\":\"runtime-contracts/qa/assertion-spec\",\"schema_version\":\"0.1\",\"subject\":{\"inputs\":[],\"kind\":\"URL\",\"pattern\":\"/saved$\",\"subject_alternates\":[]},\"verifier_id\":\"det-verifier\",\"verifier_version_range\":\">=1.0,<2\"}],\"schema_id\":\"runtime-contracts/qa/assertion-set\",\"schema_version\":\"0.1\"}",
+      "id": "qa-assertion-set:reference",
+      "input": {
+        "assertions": [
+          {
+            "assertion_id": "a-saved",
+            "determinism": "DETERMINISTIC",
+            "executor": "PLAYWRIGHT",
+            "on_unresolvable": "INDETERMINATE",
+            "predicate": {
+              "expected": "Saved",
+              "op": "EQUALS"
+            },
+            "requirement_ref": "REQ-SAVE-1",
+            "schema_id": "runtime-contracts/qa/assertion-spec",
+            "schema_version": "0.1",
+            "subject": {
+              "inputs": [],
+              "kind": "UI_ELEMENT",
+              "locator": {
+                "frame_path": [],
+                "test_id": "save-status"
+              },
+              "subject_alternates": []
+            },
+            "verifier_id": "det-verifier",
+            "verifier_version_range": ">=1.0,<2"
+          },
+          {
+            "assertion_id": "a-url",
+            "determinism": "DETERMINISTIC",
+            "executor": "PLAYWRIGHT",
+            "on_unresolvable": "INDETERMINATE",
+            "predicate": {
+              "expected": "/saved$",
+              "op": "MATCHES"
+            },
+            "schema_id": "runtime-contracts/qa/assertion-spec",
+            "schema_version": "0.1",
+            "subject": {
+              "inputs": [],
+              "kind": "URL",
+              "pattern": "/saved$",
+              "subject_alternates": []
+            },
+            "verifier_id": "det-verifier",
+            "verifier_version_range": ">=1.0,<2"
+          }
+        ],
+        "schema_id": "runtime-contracts/qa/assertion-set",
+        "schema_version": "0.1"
+      },
+      "rcv1": "rcv1:94c9e0bd652146534232836c1de1cea4d1aab066939f8e0755f8b930a2898858",
+      "sha256_hex": "94c9e0bd652146534232836c1de1cea4d1aab066939f8e0755f8b930a2898858",
+      "why": "the reference set"
+    },
+    {
+      "canonical_json": "{\"assertions\":[{\"assertion_id\":\"a-saved\",\"determinism\":\"DETERMINISTIC\",\"executor\":\"PLAYWRIGHT\",\"on_unresolvable\":\"INDETERMINATE\",\"predicate\":{\"expected\":\"Saved\",\"op\":\"EQUALS\"},\"requirement_ref\":\"REQ-SAVE-1\",\"schema_id\":\"runtime-contracts/qa/assertion-spec\",\"schema_version\":\"0.1\",\"subject\":{\"inputs\":[],\"kind\":\"UI_ELEMENT\",\"locator\":{\"frame_path\":[],\"test_id\":\"save-status\"},\"subject_alternates\":[]},\"verifier_id\":\"det-verifier\",\"verifier_version_range\":\">=1.0,<2\"},{\"assertion_id\":\"a-url\",\"determinism\":\"DETERMINISTIC\",\"executor\":\"PLAYWRIGHT\",\"on_unresolvable\":\"INDETERMINATE\",\"predicate\":{\"expected\":\"/saved$\",\"op\":\"MATCHES\"},\"schema_id\":\"runtime-contracts/qa/assertion-spec\",\"schema_version\":\"0.1\",\"subject\":{\"inputs\":[],\"kind\":\"URL\",\"pattern\":\"/saved$\",\"subject_alternates\":[]},\"verifier_id\":\"det-verifier\",\"verifier_version_range\":\">=1.0,<2\"}],\"schema_id\":\"runtime-contracts/qa/assertion-set\",\"schema_version\":\"0.1\"}",
+      "id": "qa-assertion-set:order_variation",
+      "input": {
+        "assertions": [
+          {
+            "assertion_id": "a-saved",
+            "determinism": "DETERMINISTIC",
+            "executor": "PLAYWRIGHT",
+            "on_unresolvable": "INDETERMINATE",
+            "predicate": {
+              "expected": "Saved",
+              "op": "EQUALS"
+            },
+            "requirement_ref": "REQ-SAVE-1",
+            "schema_id": "runtime-contracts/qa/assertion-spec",
+            "schema_version": "0.1",
+            "subject": {
+              "inputs": [],
+              "kind": "UI_ELEMENT",
+              "locator": {
+                "frame_path": [],
+                "test_id": "save-status"
+              },
+              "subject_alternates": []
+            },
+            "verifier_id": "det-verifier",
+            "verifier_version_range": ">=1.0,<2"
+          },
+          {
+            "assertion_id": "a-url",
+            "determinism": "DETERMINISTIC",
+            "executor": "PLAYWRIGHT",
+            "on_unresolvable": "INDETERMINATE",
+            "predicate": {
+              "expected": "/saved$",
+              "op": "MATCHES"
+            },
+            "schema_id": "runtime-contracts/qa/assertion-spec",
+            "schema_version": "0.1",
+            "subject": {
+              "inputs": [],
+              "kind": "URL",
+              "pattern": "/saved$",
+              "subject_alternates": []
+            },
+            "verifier_id": "det-verifier",
+            "verifier_version_range": ">=1.0,<2"
+          }
+        ],
+        "schema_id": "runtime-contracts/qa/assertion-set",
+        "schema_version": "0.1"
+      },
+      "rcv1": "rcv1:94c9e0bd652146534232836c1de1cea4d1aab066939f8e0755f8b930a2898858",
+      "sha256_hex": "94c9e0bd652146534232836c1de1cea4d1aab066939f8e0755f8b930a2898858",
+      "why": "listing order is a property of the builder, not the set"
+    },
+    {
+      "canonical_json": "{\"assertions\":[{\"assertion_id\":\"a-saved\",\"determinism\":\"DETERMINISTIC\",\"executor\":\"PLAYWRIGHT\",\"on_unresolvable\":\"INDETERMINATE\",\"predicate\":{\"expected\":\"caf\u00e9\",\"op\":\"EQUALS\"},\"requirement_ref\":\"REQ-SAVE-1\",\"schema_id\":\"runtime-contracts/qa/assertion-spec\",\"schema_version\":\"0.1\",\"subject\":{\"inputs\":[],\"kind\":\"UI_ELEMENT\",\"locator\":{\"frame_path\":[],\"test_id\":\"save-status\"},\"subject_alternates\":[]},\"verifier_id\":\"det-verifier\",\"verifier_version_range\":\">=1.0,<2\"}],\"schema_id\":\"runtime-contracts/qa/assertion-set\",\"schema_version\":\"0.1\"}",
+      "id": "qa-assertion-set:unicode_nfc",
+      "input": {
+        "assertions": [
+          {
+            "assertion_id": "a-saved",
+            "determinism": "DETERMINISTIC",
+            "executor": "PLAYWRIGHT",
+            "on_unresolvable": "INDETERMINATE",
+            "predicate": {
+              "expected": "caf\u00e9",
+              "op": "EQUALS"
+            },
+            "requirement_ref": "REQ-SAVE-1",
+            "schema_id": "runtime-contracts/qa/assertion-spec",
+            "schema_version": "0.1",
+            "subject": {
+              "inputs": [],
+              "kind": "UI_ELEMENT",
+              "locator": {
+                "frame_path": [],
+                "test_id": "save-status"
+              },
+              "subject_alternates": []
+            },
+            "verifier_id": "det-verifier",
+            "verifier_version_range": ">=1.0,<2"
+          }
+        ],
+        "schema_id": "runtime-contracts/qa/assertion-set",
+        "schema_version": "0.1"
+      },
+      "rcv1": "rcv1:1571f824d8fc1c8a6e67722cb067ec52ab16f04d1a6e5e1f75ae05144ec3c720",
+      "sha256_hex": "1571f824d8fc1c8a6e67722cb067ec52ab16f04d1a6e5e1f75ae05144ec3c720",
+      "why": "expected written in NFC"
+    },
+    {
+      "canonical_json": "{\"assertions\":[{\"assertion_id\":\"a-saved\",\"determinism\":\"DETERMINISTIC\",\"executor\":\"PLAYWRIGHT\",\"on_unresolvable\":\"INDETERMINATE\",\"predicate\":{\"expected\":\"caf\u00e9\",\"op\":\"EQUALS\"},\"requirement_ref\":\"REQ-SAVE-1\",\"schema_id\":\"runtime-contracts/qa/assertion-spec\",\"schema_version\":\"0.1\",\"subject\":{\"inputs\":[],\"kind\":\"UI_ELEMENT\",\"locator\":{\"frame_path\":[],\"test_id\":\"save-status\"},\"subject_alternates\":[]},\"verifier_id\":\"det-verifier\",\"verifier_version_range\":\">=1.0,<2\"}],\"schema_id\":\"runtime-contracts/qa/assertion-set\",\"schema_version\":\"0.1\"}",
+      "id": "qa-assertion-set:unicode_nfd",
+      "input": {
+        "assertions": [
+          {
+            "assertion_id": "a-saved",
+            "determinism": "DETERMINISTIC",
+            "executor": "PLAYWRIGHT",
+            "on_unresolvable": "INDETERMINATE",
+            "predicate": {
+              "expected": "cafe\u0301",
+              "op": "EQUALS"
+            },
+            "requirement_ref": "REQ-SAVE-1",
+            "schema_id": "runtime-contracts/qa/assertion-spec",
+            "schema_version": "0.1",
+            "subject": {
+              "inputs": [],
+              "kind": "UI_ELEMENT",
+              "locator": {
+                "frame_path": [],
+                "test_id": "save-status"
+              },
+              "subject_alternates": []
+            },
+            "verifier_id": "det-verifier",
+            "verifier_version_range": ">=1.0,<2"
+          }
+        ],
+        "schema_id": "runtime-contracts/qa/assertion-set",
+        "schema_version": "0.1"
+      },
+      "rcv1": "rcv1:1571f824d8fc1c8a6e67722cb067ec52ab16f04d1a6e5e1f75ae05144ec3c720",
+      "sha256_hex": "1571f824d8fc1c8a6e67722cb067ec52ab16f04d1a6e5e1f75ae05144ec3c720",
+      "why": "expected written in NFD hashes as NFC"
+    },
+    {
+      "canonical_json": "{\"assertions\":[{\"assertion_id\":\"a-saved\",\"determinism\":\"DETERMINISTIC\",\"executor\":\"PLAYWRIGHT\",\"on_unresolvable\":\"INDETERMINATE\",\"predicate\":{\"expected\":\"Different\",\"op\":\"EQUALS\"},\"requirement_ref\":\"REQ-SAVE-1\",\"schema_id\":\"runtime-contracts/qa/assertion-spec\",\"schema_version\":\"0.1\",\"subject\":{\"inputs\":[],\"kind\":\"UI_ELEMENT\",\"locator\":{\"frame_path\":[],\"test_id\":\"save-status\"},\"subject_alternates\":[]},\"verifier_id\":\"det-verifier\",\"verifier_version_range\":\">=1.0,<2\"},{\"assertion_id\":\"a-url\",\"determinism\":\"DETERMINISTIC\",\"executor\":\"PLAYWRIGHT\",\"on_unresolvable\":\"INDETERMINATE\",\"predicate\":{\"expected\":\"/saved$\",\"op\":\"MATCHES\"},\"schema_id\":\"runtime-contracts/qa/assertion-spec\",\"schema_version\":\"0.1\",\"subject\":{\"inputs\":[],\"kind\":\"URL\",\"pattern\":\"/saved$\",\"subject_alternates\":[]},\"verifier_id\":\"det-verifier\",\"verifier_version_range\":\">=1.0,<2\"}],\"schema_id\":\"runtime-contracts/qa/assertion-set\",\"schema_version\":\"0.1\"}",
+      "id": "qa-assertion-set:expected_changed",
+      "input": {
+        "assertions": [
+          {
+            "assertion_id": "a-saved",
+            "determinism": "DETERMINISTIC",
+            "executor": "PLAYWRIGHT",
+            "on_unresolvable": "INDETERMINATE",
+            "predicate": {
+              "expected": "Different",
+              "op": "EQUALS"
+            },
+            "requirement_ref": "REQ-SAVE-1",
+            "schema_id": "runtime-contracts/qa/assertion-spec",
+            "schema_version": "0.1",
+            "subject": {
+              "inputs": [],
+              "kind": "UI_ELEMENT",
+              "locator": {
+                "frame_path": [],
+                "test_id": "save-status"
+              },
+              "subject_alternates": []
+            },
+            "verifier_id": "det-verifier",
+            "verifier_version_range": ">=1.0,<2"
+          },
+          {
+            "assertion_id": "a-url",
+            "determinism": "DETERMINISTIC",
+            "executor": "PLAYWRIGHT",
+            "on_unresolvable": "INDETERMINATE",
+            "predicate": {
+              "expected": "/saved$",
+              "op": "MATCHES"
+            },
+            "schema_id": "runtime-contracts/qa/assertion-spec",
+            "schema_version": "0.1",
+            "subject": {
+              "inputs": [],
+              "kind": "URL",
+              "pattern": "/saved$",
+              "subject_alternates": []
+            },
+            "verifier_id": "det-verifier",
+            "verifier_version_range": ">=1.0,<2"
+          }
+        ],
+        "schema_id": "runtime-contracts/qa/assertion-set",
+        "schema_version": "0.1"
+      },
+      "rcv1": "rcv1:38729284a68ab99bf886544e2abfbf6fcfdafc22c33507dbeb3d3c226a5c58c0",
+      "sha256_hex": "38729284a68ab99bf886544e2abfbf6fcfdafc22c33507dbeb3d3c226a5c58c0",
+      "why": "changing expected changes the set hash"
+    },
+    {
+      "canonical_json": "{\"assertions\":[{\"assertion_id\":\"a-saved\",\"determinism\":\"DETERMINISTIC\",\"executor\":\"PLAYWRIGHT\",\"on_unresolvable\":\"INDETERMINATE\",\"predicate\":{\"expected\":\"Saved\",\"op\":\"EQUALS\"},\"requirement_ref\":\"REQ-SAVE-1\",\"schema_id\":\"runtime-contracts/qa/assertion-spec\",\"schema_version\":\"0.1\",\"subject\":{\"inputs\":[],\"kind\":\"UI_ELEMENT\",\"locator\":{\"frame_path\":[\"f\"],\"test_id\":\"save-status\"},\"subject_alternates\":[]},\"verifier_id\":\"det-verifier\",\"verifier_version_range\":\">=1.0,<2\"},{\"assertion_id\":\"a-url\",\"determinism\":\"DETERMINISTIC\",\"executor\":\"PLAYWRIGHT\",\"on_unresolvable\":\"INDETERMINATE\",\"predicate\":{\"expected\":\"/saved$\",\"op\":\"MATCHES\"},\"schema_id\":\"runtime-contracts/qa/assertion-spec\",\"schema_version\":\"0.1\",\"subject\":{\"inputs\":[],\"kind\":\"URL\",\"pattern\":\"/saved$\",\"subject_alternates\":[]},\"verifier_id\":\"det-verifier\",\"verifier_version_range\":\">=1.0,<2\"}],\"schema_id\":\"runtime-contracts/qa/assertion-set\",\"schema_version\":\"0.1\"}",
+      "id": "qa-assertion-set:locator_descriptor_changed",
+      "input": {
+        "assertions": [
+          {
+            "assertion_id": "a-saved",
+            "determinism": "DETERMINISTIC",
+            "executor": "PLAYWRIGHT",
+            "on_unresolvable": "INDETERMINATE",
+            "predicate": {
+              "expected": "Saved",
+              "op": "EQUALS"
+            },
+            "requirement_ref": "REQ-SAVE-1",
+            "schema_id": "runtime-contracts/qa/assertion-spec",
+            "schema_version": "0.1",
+            "subject": {
+              "inputs": [],
+              "kind": "UI_ELEMENT",
+              "locator": {
+                "frame_path": [
+                  "f"
+                ],
+                "test_id": "save-status"
+              },
+              "subject_alternates": []
+            },
+            "verifier_id": "det-verifier",
+            "verifier_version_range": ">=1.0,<2"
+          },
+          {
+            "assertion_id": "a-url",
+            "determinism": "DETERMINISTIC",
+            "executor": "PLAYWRIGHT",
+            "on_unresolvable": "INDETERMINATE",
+            "predicate": {
+              "expected": "/saved$",
+              "op": "MATCHES"
+            },
+            "schema_id": "runtime-contracts/qa/assertion-spec",
+            "schema_version": "0.1",
+            "subject": {
+              "inputs": [],
+              "kind": "URL",
+              "pattern": "/saved$",
+              "subject_alternates": []
+            },
+            "verifier_id": "det-verifier",
+            "verifier_version_range": ">=1.0,<2"
+          }
+        ],
+        "schema_id": "runtime-contracts/qa/assertion-set",
+        "schema_version": "0.1"
+      },
+      "rcv1": "rcv1:7d1a32f5b6fbc7e7915487d3e4ec0eab2a3def1a93c7e44388e160287e4950c9",
+      "sha256_hex": "7d1a32f5b6fbc7e7915487d3e4ec0eab2a3def1a93c7e44388e160287e4950c9",
+      "why": "the frozen locator is part of the assertion"
+    },
+    {
+      "canonical_json": "{\"assertions\":[{\"assertion_id\":\"a-saved\",\"determinism\":\"DETERMINISTIC\",\"executor\":\"PLAYWRIGHT\",\"on_unresolvable\":\"INDETERMINATE\",\"predicate\":{\"expected\":\"Saved\",\"op\":\"EQUALS\"},\"requirement_ref\":\"REQ-OTHER\",\"schema_id\":\"runtime-contracts/qa/assertion-spec\",\"schema_version\":\"0.1\",\"subject\":{\"inputs\":[],\"kind\":\"UI_ELEMENT\",\"locator\":{\"frame_path\":[],\"test_id\":\"save-status\"},\"subject_alternates\":[]},\"verifier_id\":\"det-verifier\",\"verifier_version_range\":\">=1.0,<2\"},{\"assertion_id\":\"a-url\",\"determinism\":\"DETERMINISTIC\",\"executor\":\"PLAYWRIGHT\",\"on_unresolvable\":\"INDETERMINATE\",\"predicate\":{\"expected\":\"/saved$\",\"op\":\"MATCHES\"},\"schema_id\":\"runtime-contracts/qa/assertion-spec\",\"schema_version\":\"0.1\",\"subject\":{\"inputs\":[],\"kind\":\"URL\",\"pattern\":\"/saved$\",\"subject_alternates\":[]},\"verifier_id\":\"det-verifier\",\"verifier_version_range\":\">=1.0,<2\"}],\"schema_id\":\"runtime-contracts/qa/assertion-set\",\"schema_version\":\"0.1\"}",
+      "id": "qa-assertion-set:requirement_ref_changed",
+      "input": {
+        "assertions": [
+          {
+            "assertion_id": "a-saved",
+            "determinism": "DETERMINISTIC",
+            "executor": "PLAYWRIGHT",
+            "on_unresolvable": "INDETERMINATE",
+            "predicate": {
+              "expected": "Saved",
+              "op": "EQUALS"
+            },
+            "requirement_ref": "REQ-OTHER",
+            "schema_id": "runtime-contracts/qa/assertion-spec",
+            "schema_version": "0.1",
+            "subject": {
+              "inputs": [],
+              "kind": "UI_ELEMENT",
+              "locator": {
+                "frame_path": [],
+                "test_id": "save-status"
+              },
+              "subject_alternates": []
+            },
+            "verifier_id": "det-verifier",
+            "verifier_version_range": ">=1.0,<2"
+          },
+          {
+            "assertion_id": "a-url",
+            "determinism": "DETERMINISTIC",
+            "executor": "PLAYWRIGHT",
+            "on_unresolvable": "INDETERMINATE",
+            "predicate": {
+              "expected": "/saved$",
+              "op": "MATCHES"
+            },
+            "schema_id": "runtime-contracts/qa/assertion-spec",
+            "schema_version": "0.1",
+            "subject": {
+              "inputs": [],
+              "kind": "URL",
+              "pattern": "/saved$",
+              "subject_alternates": []
+            },
+            "verifier_id": "det-verifier",
+            "verifier_version_range": ">=1.0,<2"
+          }
+        ],
+        "schema_id": "runtime-contracts/qa/assertion-set",
+        "schema_version": "0.1"
+      },
+      "rcv1": "rcv1:cd3a1b7a415a04f221a8fa83bd3c19c8687edbcc2125af470fe25144287999ac",
+      "sha256_hex": "cd3a1b7a415a04f221a8fa83bd3c19c8687edbcc2125af470fe25144287999ac",
+      "why": "requirement_ref is hashed"
+    },
+    {
+      "canonical_json": "{\"assertions\":[{\"assertion_id\":\"a-saved\",\"determinism\":\"DETERMINISTIC\",\"executor\":\"PLAYWRIGHT\",\"on_unresolvable\":\"INDETERMINATE\",\"predicate\":{\"expected\":\"Saved\",\"op\":\"EQUALS\"},\"schema_id\":\"runtime-contracts/qa/assertion-spec\",\"schema_version\":\"0.1\",\"subject\":{\"inputs\":[],\"kind\":\"UI_ELEMENT\",\"locator\":{\"frame_path\":[],\"test_id\":\"save-status\"},\"subject_alternates\":[]},\"verifier_id\":\"det-verifier\",\"verifier_version_range\":\">=1.0,<2\"},{\"assertion_id\":\"a-url\",\"determinism\":\"DETERMINISTIC\",\"executor\":\"PLAYWRIGHT\",\"on_unresolvable\":\"INDETERMINATE\",\"predicate\":{\"expected\":\"/saved$\",\"op\":\"MATCHES\"},\"schema_id\":\"runtime-contracts/qa/assertion-spec\",\"schema_version\":\"0.1\",\"subject\":{\"inputs\":[],\"kind\":\"URL\",\"pattern\":\"/saved$\",\"subject_alternates\":[]},\"verifier_id\":\"det-verifier\",\"verifier_version_range\":\">=1.0,<2\"}],\"schema_id\":\"runtime-contracts/qa/assertion-set\",\"schema_version\":\"0.1\"}",
+      "id": "qa-assertion-set:requirement_ref_removed",
+      "input": {
+        "assertions": [
+          {
+            "assertion_id": "a-saved",
+            "determinism": "DETERMINISTIC",
+            "executor": "PLAYWRIGHT",
+            "on_unresolvable": "INDETERMINATE",
+            "predicate": {
+              "expected": "Saved",
+              "op": "EQUALS"
+            },
+            "schema_id": "runtime-contracts/qa/assertion-spec",
+            "schema_version": "0.1",
+            "subject": {
+              "inputs": [],
+              "kind": "UI_ELEMENT",
+              "locator": {
+                "frame_path": [],
+                "test_id": "save-status"
+              },
+              "subject_alternates": []
+            },
+            "verifier_id": "det-verifier",
+            "verifier_version_range": ">=1.0,<2"
+          },
+          {
+            "assertion_id": "a-url",
+            "determinism": "DETERMINISTIC",
+            "executor": "PLAYWRIGHT",
+            "on_unresolvable": "INDETERMINATE",
+            "predicate": {
+              "expected": "/saved$",
+              "op": "MATCHES"
+            },
+            "schema_id": "runtime-contracts/qa/assertion-spec",
+            "schema_version": "0.1",
+            "subject": {
+              "inputs": [],
+              "kind": "URL",
+              "pattern": "/saved$",
+              "subject_alternates": []
+            },
+            "verifier_id": "det-verifier",
+            "verifier_version_range": ">=1.0,<2"
+          }
+        ],
+        "schema_id": "runtime-contracts/qa/assertion-set",
+        "schema_version": "0.1"
+      },
+      "rcv1": "rcv1:d9566320f66999ee39807a997b7e6a3435ce95c095e28922aab62d334d3f53d7",
+      "sha256_hex": "d9566320f66999ee39807a997b7e6a3435ce95c095e28922aab62d334d3f53d7",
+      "why": "removing requirement_ref changes the hash"
+    },
+    {
+      "canonical_json": "{\"assertions\":[{\"assertion_id\":\"a-saved\",\"determinism\":\"DETERMINISTIC\",\"executor\":\"PLAYWRIGHT\",\"on_unresolvable\":\"INDETERMINATE\",\"predicate\":{\"expected\":\"Saved\",\"op\":\"CONTAINS\"},\"requirement_ref\":\"REQ-SAVE-1\",\"schema_id\":\"runtime-contracts/qa/assertion-spec\",\"schema_version\":\"0.1\",\"subject\":{\"inputs\":[],\"kind\":\"UI_ELEMENT\",\"locator\":{\"frame_path\":[],\"test_id\":\"save-status\"},\"subject_alternates\":[]},\"verifier_id\":\"det-verifier\",\"verifier_version_range\":\">=1.0,<2\"},{\"assertion_id\":\"a-url\",\"determinism\":\"DETERMINISTIC\",\"executor\":\"PLAYWRIGHT\",\"on_unresolvable\":\"INDETERMINATE\",\"predicate\":{\"expected\":\"/saved$\",\"op\":\"MATCHES\"},\"schema_id\":\"runtime-contracts/qa/assertion-spec\",\"schema_version\":\"0.1\",\"subject\":{\"inputs\":[],\"kind\":\"URL\",\"pattern\":\"/saved$\",\"subject_alternates\":[]},\"verifier_id\":\"det-verifier\",\"verifier_version_range\":\">=1.0,<2\"}],\"schema_id\":\"runtime-contracts/qa/assertion-set\",\"schema_version\":\"0.1\"}",
+      "id": "qa-assertion-set:operator_changed",
+      "input": {
+        "assertions": [
+          {
+            "assertion_id": "a-saved",
+            "determinism": "DETERMINISTIC",
+            "executor": "PLAYWRIGHT",
+            "on_unresolvable": "INDETERMINATE",
+            "predicate": {
+              "expected": "Saved",
+              "op": "CONTAINS"
+            },
+            "requirement_ref": "REQ-SAVE-1",
+            "schema_id": "runtime-contracts/qa/assertion-spec",
+            "schema_version": "0.1",
+            "subject": {
+              "inputs": [],
+              "kind": "UI_ELEMENT",
+              "locator": {
+                "frame_path": [],
+                "test_id": "save-status"
+              },
+              "subject_alternates": []
+            },
+            "verifier_id": "det-verifier",
+            "verifier_version_range": ">=1.0,<2"
+          },
+          {
+            "assertion_id": "a-url",
+            "determinism": "DETERMINISTIC",
+            "executor": "PLAYWRIGHT",
+            "on_unresolvable": "INDETERMINATE",
+            "predicate": {
+              "expected": "/saved$",
+              "op": "MATCHES"
+            },
+            "schema_id": "runtime-contracts/qa/assertion-spec",
+            "schema_version": "0.1",
+            "subject": {
+              "inputs": [],
+              "kind": "URL",
+              "pattern": "/saved$",
+              "subject_alternates": []
+            },
+            "verifier_id": "det-verifier",
+            "verifier_version_range": ">=1.0,<2"
+          }
+        ],
+        "schema_id": "runtime-contracts/qa/assertion-set",
+        "schema_version": "0.1"
+      },
+      "rcv1": "rcv1:96e7d5d9afe5b83392bdc595ba6f3177a36c64b6a46542b85e0f6236820d336f",
+      "sha256_hex": "96e7d5d9afe5b83392bdc595ba6f3177a36c64b6a46542b85e0f6236820d336f",
+      "why": "the predicate op is hashed"
+    },
+    {
+      "canonical_json": "{\"assertions\":[{\"assertion_id\":\"a-image-pinned\",\"check_program_ref\":{\"id\":\"image-pinned\",\"program_hash\":\"sha256:0000000000000000000000000000000000000000000000000000000000000006\",\"version\":\"1.0.0\"},\"determinism\":\"DETERMINISTIC\",\"executor\":\"SCRIPT\",\"on_unresolvable\":\"INDETERMINATE\",\"predicate\":{\"expected\":\"pinned\",\"op\":\"EQUALS\"},\"requirement_ref\":\"REQ-IMG-1\",\"schema_id\":\"runtime-contracts/qa/assertion-spec\",\"schema_version\":\"0.1\",\"subject\":{\"inputs\":[{\"digest\":\"sha256:0000000000000000000000000000000000000000000000000000000000000005\",\"kind\":\"IMAGE_DIGEST\"}],\"kind\":\"RESOURCE_INPUTS\",\"subject_alternates\":[]},\"verifier_id\":\"det-verifier\",\"verifier_version_range\":\">=1.0,<2\"}],\"schema_id\":\"runtime-contracts/qa/assertion-set\",\"schema_version\":\"0.1\"}",
+      "id": "qa-assertion-set:script_assertion",
+      "input": {
+        "assertions": [
+          {
+            "assertion_id": "a-image-pinned",
+            "check_program_ref": {
+              "id": "image-pinned",
+              "program_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000006",
+              "version": "1.0.0"
+            },
+            "determinism": "DETERMINISTIC",
+            "executor": "SCRIPT",
+            "on_unresolvable": "INDETERMINATE",
+            "predicate": {
+              "expected": "pinned",
+              "op": "EQUALS"
+            },
+            "requirement_ref": "REQ-IMG-1",
+            "schema_id": "runtime-contracts/qa/assertion-spec",
+            "schema_version": "0.1",
+            "subject": {
+              "inputs": [
+                {
+                  "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000005",
+                  "kind": "IMAGE_DIGEST"
+                }
+              ],
+              "kind": "RESOURCE_INPUTS",
+              "subject_alternates": []
+            },
+            "verifier_id": "det-verifier",
+            "verifier_version_range": ">=1.0,<2"
+          }
+        ],
+        "schema_id": "runtime-contracts/qa/assertion-set",
+        "schema_version": "0.1"
+      },
+      "rcv1": "rcv1:6b5b1c83ef48b43d6536bfe63e7e87f7835ae653b3fb455ff2aff9b7016b55c1",
+      "sha256_hex": "6b5b1c83ef48b43d6536bfe63e7e87f7835ae653b3fb455ff2aff9b7016b55c1",
+      "why": "a SCRIPT assertion with its program pinned"
+    },
+    {
+      "canonical_json": "{\"assertions\":[{\"assertion_id\":\"a-image-pinned\",\"check_program_ref\":{\"id\":\"image-pinned\",\"program_hash\":\"sha256:000000000000000000000000000000000000000000000000000000000000004d\",\"version\":\"1.0.0\"},\"determinism\":\"DETERMINISTIC\",\"executor\":\"SCRIPT\",\"on_unresolvable\":\"INDETERMINATE\",\"predicate\":{\"expected\":\"pinned\",\"op\":\"EQUALS\"},\"requirement_ref\":\"REQ-IMG-1\",\"schema_id\":\"runtime-contracts/qa/assertion-spec\",\"schema_version\":\"0.1\",\"subject\":{\"inputs\":[{\"digest\":\"sha256:0000000000000000000000000000000000000000000000000000000000000005\",\"kind\":\"IMAGE_DIGEST\"}],\"kind\":\"RESOURCE_INPUTS\",\"subject_alternates\":[]},\"verifier_id\":\"det-verifier\",\"verifier_version_range\":\">=1.0,<2\"}],\"schema_id\":\"runtime-contracts/qa/assertion-set\",\"schema_version\":\"0.1\"}",
+      "id": "qa-assertion-set:script_program_changed",
+      "input": {
+        "assertions": [
+          {
+            "assertion_id": "a-image-pinned",
+            "check_program_ref": {
+              "id": "image-pinned",
+              "program_hash": "sha256:000000000000000000000000000000000000000000000000000000000000004d",
+              "version": "1.0.0"
+            },
+            "determinism": "DETERMINISTIC",
+            "executor": "SCRIPT",
+            "on_unresolvable": "INDETERMINATE",
+            "predicate": {
+              "expected": "pinned",
+              "op": "EQUALS"
+            },
+            "requirement_ref": "REQ-IMG-1",
+            "schema_id": "runtime-contracts/qa/assertion-spec",
+            "schema_version": "0.1",
+            "subject": {
+              "inputs": [
+                {
+                  "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000005",
+                  "kind": "IMAGE_DIGEST"
+                }
+              ],
+              "kind": "RESOURCE_INPUTS",
+              "subject_alternates": []
+            },
+            "verifier_id": "det-verifier",
+            "verifier_version_range": ">=1.0,<2"
+          }
+        ],
+        "schema_id": "runtime-contracts/qa/assertion-set",
+        "schema_version": "0.1"
+      },
+      "rcv1": "rcv1:fc0301d4199cab166b53fb7ced0e95e79716a826dc85126f8be36750bcc7ac37",
+      "sha256_hex": "fc0301d4199cab166b53fb7ced0e95e79716a826dc85126f8be36750bcc7ac37",
+      "why": "check_program_ref.program_hash is hashed: a different program is a different assertion"
+    },
+    {
+      "canonical_json": "{\"assertions\":[{\"assertion_id\":\"a-saved\",\"check_program_ref\":{\"id\":\"image-pinned\",\"program_hash\":\"sha256:0000000000000000000000000000000000000000000000000000000000000006\",\"version\":\"1.0.0\"},\"determinism\":\"DETERMINISTIC\",\"executor\":\"SCRIPT\",\"on_unresolvable\":\"INDETERMINATE\",\"predicate\":{\"expected\":\"pinned\",\"op\":\"EQUALS\"},\"requirement_ref\":\"REQ-IMG-1\",\"schema_id\":\"runtime-contracts/qa/assertion-spec\",\"schema_version\":\"0.1\",\"subject\":{\"inputs\":[{\"digest\":\"sha256:0000000000000000000000000000000000000000000000000000000000000005\",\"kind\":\"IMAGE_DIGEST\"}],\"kind\":\"RESOURCE_INPUTS\",\"subject_alternates\":[]},\"verifier_id\":\"det-verifier\",\"verifier_version_range\":\">=1.0,<2\"}],\"schema_id\":\"runtime-contracts/qa/assertion-set\",\"schema_version\":\"0.1\"}",
+      "id": "qa-assertion-set:script_replaces_playwright",
+      "input": {
+        "assertions": [
+          {
+            "assertion_id": "a-saved",
+            "check_program_ref": {
+              "id": "image-pinned",
+              "program_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000006",
+              "version": "1.0.0"
+            },
+            "determinism": "DETERMINISTIC",
+            "executor": "SCRIPT",
+            "on_unresolvable": "INDETERMINATE",
+            "predicate": {
+              "expected": "pinned",
+              "op": "EQUALS"
+            },
+            "requirement_ref": "REQ-IMG-1",
+            "schema_id": "runtime-contracts/qa/assertion-spec",
+            "schema_version": "0.1",
+            "subject": {
+              "inputs": [
+                {
+                  "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000005",
+                  "kind": "IMAGE_DIGEST"
+                }
+              ],
+              "kind": "RESOURCE_INPUTS",
+              "subject_alternates": []
+            },
+            "verifier_id": "det-verifier",
+            "verifier_version_range": ">=1.0,<2"
+          }
+        ],
+        "schema_id": "runtime-contracts/qa/assertion-set",
+        "schema_version": "0.1"
+      },
+      "rcv1": "rcv1:8e58f1a81fdf0cf7643530d2260da86d048c5ebb15a9ab0c2ed52c93358ae8be",
+      "sha256_hex": "8e58f1a81fdf0cf7643530d2260da86d048c5ebb15a9ab0c2ed52c93358ae8be",
+      "why": "changing the executor changes the set hash"
+    }
+  ]
+}
