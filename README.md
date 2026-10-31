@@ -16,12 +16,12 @@ Context Runtime  ->  ReDevOps RAG  ->  Sidekick  ->  Application logic
 **Who it's for.** Developers building or reading the ReDevOps reference applications, and anyone who wants a minimal
 approval/sandbox/guardrail skeleton. Not a Mission runtime; see [OVERLAP](#overlap).
 
-**Maturity: alpha / experimental.** Version 0.1.0, one tag (`v0.1.0`). The shipped agent loop is a minimal single-step stub,
+**Maturity: alpha / experimental.** Version 0.1.0, one tag (`v0.1.0`). `Agent.run` is a minimal single-step stub (`agent_harness.loop.run_loop` is a multi-turn tool-calling loop with hard limits),
 the example runs offline against a stub client, and the sandbox is documented as *not* full isolation. See [STATUS.md](STATUS.md).
 
 **Ownership, overlap and support status.** Owned by ReDevOps. Status: **experimental, low activity** (last commit 2026-09-25;
-10 commits between 2026-07-15 and 2026-10-15 per the GitHub API). Primary consumer: in the clones checked
-(`agentic-os` and the other repos in this org's working set) no code does `import agent_harness`. [`agentic-os`](https://github.com/redevops-io/agentic-os)
+10 commits between 2026-07-15 and 2026-10-15 per the GitHub API). Primary consumer: Context Runtime's `context_runtime.integrations.agent_harness`
+module implements this package's `ContextManager` interface (`agent_harness/context.py`: "the dependency points from context-runtime to here"); that import lives in Context Runtime, not in this repository. [`agentic-os`](https://github.com/redevops-io/agentic-os)
 describes it in `docs/architecture.md` and `agentic_os/stack_knowledge.py`, mentions it in app comments, and its NVIDIA NIM profile
 refers to `agent_harness.nim`; the "agent layer" that wires it is not in this repository. Questions and bug reports: GitHub Issues
 ([CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md)).
@@ -52,9 +52,9 @@ The `OPENAI_BASE_URL` / `OPENAI_API_KEY` / `MODEL` environment variables only ta
 **Evidence.** [`tests/`](tests) (Internally reproduced: run locally, 159 passed with the optional conformance extras installed; a tests workflow is defined in `.github/workflows/tests.yml`, plus a secret scan; its run history was not checked).
 No benchmark or performance numbers are claimed.
 
-**Limitations.** Stub LLM client; single-step agent loop; sandbox is soft confinement; tool schemas are stored for export, not validated at call time.
+**Limitations.** Stub LLM client; `Agent.run` is a single-step stub (the multi-turn loop is `agent_harness.loop.run_loop`); sandbox is soft confinement; tool schemas are stored for export, not validated at call time.
 
-**Docs.** [docs/architecture.md](docs/architecture.md), [docs/configuration.md](docs/configuration.md), [docs/harness2.md](docs/harness2.md) (Harness² file-tree spec and validators; groundwork only, no benchmark results), [docs/spend.md](docs/spend.md) (per-provider dollar caps and a metering proxy for paid calls), [docs/context.md](docs/context.md) (context management interface; lossless compaction via context-runtime), [docs/bench.md](docs/bench.md) (benchmark runner, evaluation rules and the preflight selfcheck).
+**Docs.** [docs/architecture.md](docs/architecture.md), [docs/configuration.md](docs/configuration.md), [docs/harness2.md](docs/harness2.md) (Harness² file-tree spec and validators; groundwork only, no benchmark results), [docs/spend.md](docs/spend.md) (per-provider dollar caps and a metering proxy for paid calls), [docs/context.md](docs/context.md) (context management interface; lossless compaction via context-runtime), [docs/bench.md](docs/bench.md) (benchmark runner, evaluation rules and the preflight selfcheck), [docs/qa.md](docs/qa.md) (the optional QA module, Python 3.11+; compatibility statement), [docs/QA_RELEASE_CHECKLIST.md](docs/QA_RELEASE_CHECKLIST.md) (release preparation for the QA module), [docs/CHANGELOG.md](docs/CHANGELOG.md).
 
 ## Quickstart (original text)
 
@@ -71,6 +71,10 @@ python -m examples.tiny_agent
 ```python
 from agent_harness import llm, tools, command_policy, sandbox, guardrails
 ```
+
+## QA module (optional, Python 3.11+)
+
+`agent_harness.qa` is a neutral, standard-library-only module for running one reviewed UI test spec in one isolated session and sealing the result as a tamper-evident record: records, ports, `canon-v1` hashing, a deterministic verifier and classifier, a fail-closed action policy, bounded recovery, an egress policy, redaction and evidence integrity checks. It makes no model calls, opens no socket and drives no browser; those are supplied through its ports. `import agent_harness` never imports it, and `import agent_harness.qa` on Python 3.10 fails with a clear message. See [docs/qa.md](docs/qa.md). Install with `pip install -e ".[qa]"` (the extra is empty).
 
 ## Architecture
 
