@@ -81,7 +81,9 @@ def test_the_expected_files_exist():
                                           "limits.py", "policy.py", "receipts.py", "run_errors.py", "runner.py",
                                           "runstate.py",
                                           # deterministic recovery
-                                          "recovery.py"}
+                                          "recovery.py",
+                                          # model-candidate recovery
+                                          "recovery_model.py"}
 
 
 @pytest.mark.parametrize("path", QA_FILES, ids=lambda p: p.name)

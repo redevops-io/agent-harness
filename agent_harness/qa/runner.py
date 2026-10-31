@@ -33,6 +33,12 @@ What it guarantees, and where:
   call; only then is a recovery planned (modes the step permits, caps, the idempotency guard), run, and judged by the
   *step's own* postcondition check: the ``FaultRecovery`` record references the detection by hash and is sealed second.
   Without an engine the retry/hook behaviour is unchanged.
+* **Model-candidate recovery (opt-in twice).** Given a ``ModelRecoveryEngine`` (``recovery_model.py``) and
+  ``model_recovery_enabled``, a step that permits ``MODEL_CANDIDATE`` may, after the deterministic rungs, ask a model for
+  *candidate locators only*. Every candidate is verified by the same deterministic selector as deterministic recovery and re-checked here;
+  the model's cost (calls, tokens, milliseconds) is recorded on the ``FaultRecovery`` and charged to the run budget, the
+  hash and size of each request and raw response are evidence events, and a run that used a recovered locator never
+  ends ``PASS`` or ``PRODUCT_FAIL``.
 * **Untrusted content.** Observed content (URLs, DOM text, titles, adapter detail strings) is stored as evidence and
   hashed into state hashes; it is never an input to the policy, to the spec or to the assertion set.
 
@@ -72,7 +78,8 @@ from .records import (ActionOutcome, ActionReceipt, ActionRequest, AssertionResu
                       StepResult, TargetKind, TestSpec, ToolRef, VersionPin, WorkspaceHandle, Executor)
 from .records import Checkpoint, FaultDetection, FaultEvent, FaultRecovery, RecoveryCost, RecoveryResult, ResetResult
 from .records import ResetScope, SuppressedReason
-from .recovery import ENVIRONMENT_STRATEGIES, DeterministicRecovery, FaultInputs
+from .recovery import ENVIRONMENT_STRATEGIES, MAX_REASONS, DeterministicRecovery, FaultInputs
+from .recovery_model import ModelLedger
 from .run_errors import (BudgetExceeded, DeadlineExceeded, EvidenceUnavailable, IllegalTransition, ReceiptChainBroken,
                          RunCancelled)
 from .runstate import OUTCOME_STATE, RunState, RunStateMachine
@@ -192,6 +199,8 @@ class _Pending:
     attempts: int = 0                    # recovery attempts made for this fault (a plain retry may repeat)
     considered: int = 0
     rejected: Tuple[str, ...] = ()
+    model_calls: int = 0                 # what the model rounds of this fault cost
+    tokens: int = 0
 
 
 @dataclass
@@ -229,6 +238,10 @@ class _Ctx:
     recovered_locator_steps: Set[str] = field(default_factory=set)
     fresh_before: Optional[Observation] = None
     stale_cleanup: Signal = Signal.OK     # the lost session an environment recovery replaced was not verifiably closed
+    model_ledger: ModelLedger = field(default_factory=ModelLedger)      # model usage by step, for this run
+
+
+_MISS = object()      # a deferred semantic miss (a model round may follow); never leaves the runner
 
 
 def _same_label(authored: Optional[str], found: Optional[str]) -> bool:
@@ -739,7 +752,8 @@ class QARunner:
             detection_ref=p.detection_ref, attempted=attempted, strategy=p.strategy, result=result,
             postcondition_verified=verified, attempts=max(1, p.attempts) if attempted else 0,
             candidates_considered=p.considered,
-            candidates_rejected_reasons=p.rejected, suppressed_reason=suppressed, cost=RecoveryCost(ms=elapsed))
+            candidates_rejected_reasons=p.rejected, suppressed_reason=suppressed,
+            cost=RecoveryCost(ms=elapsed, model_calls=p.model_calls, tokens=p.tokens))
         event = FaultEvent(fault_event_id=bounded_id("fault", c.run_id, p.sequence), step_id=p.step_id,
                            sequence=p.sequence, detection=p.detection, recovery=recovery)
         if attempted:
@@ -800,7 +814,8 @@ class QARunner:
             step_attempts_used=c.step_recovery_attempts.get(step.step_id, 0) + (open_.attempts if open_ else 0),
             step_recovery_ms=c.step_recovery_ms.get(step.step_id, 0) + in_flight_ms, tried=tried,
             prior_steps=prior, has_fixture=bool(c.spec.fixtures),
-            prior_used_recovered_locator=any(p.step_id in c.recovered_locator_steps for p in prior))
+            prior_used_recovered_locator=any(p.step_id in c.recovered_locator_steps for p in prior),
+            model_calls_left=c.budgets.model_calls_left, model_tokens_left=c.budgets.tokens_left)
 
     def _engine_failure(self, c: _Ctx, step: Step, made: _Attempt, override: Optional[ResolvedTarget],
                         timer: Any) -> Any:
@@ -812,7 +827,7 @@ class QARunner:
         if pending is not None:                           # a plain retry met the same fault again: plan the next attempt
             strategy, applied, suppressed = self._plan(c, step, error, made)
             if strategy is RecoveryStrategy.RETRY_SAME and self._allowed(step, strategy):
-                return self._begin(c, step, pending, strategy, override)
+                return self._begin(c, step, pending, strategy, override, made)
             if applied:
                 self._seal_recovery(c, pending, attempted=True, result=RecoveryResult.NOT_RECOVERED, verified=False)
                 return "applied"
@@ -841,7 +856,7 @@ class QARunner:
             self._seal_recovery(c, pending, attempted=False, result=RecoveryResult.NOT_ATTEMPTED, verified=False,
                                 suppressed=suppressed)
             return None
-        return self._begin(c, step, pending, strategy, override)
+        return self._begin(c, step, pending, strategy, override, made)
 
     def _plan(self, c: _Ctx, step: Step, error: QAAdapterError, made: _Attempt) -> Tuple[RecoveryStrategy, bool,
                                                                                        SuppressedReason]:
@@ -852,9 +867,11 @@ class QARunner:
         except Exception:
             return RecoveryStrategy.NONE, False, SuppressedReason.NOT_PERMITTED
         usable = {RecoveryStrategy.RETRY_SAME, RecoveryStrategy.SEMANTIC_LOCATOR} | ENVIRONMENT_STRATEGIES
+        if self._model_engine():
+            usable = usable | {RecoveryStrategy.MODEL_CANDIDATE}       # needs the engine and the configuration
         if not isinstance(suppressed, SuppressedReason):
             suppressed = SuppressedReason.NOT_PERMITTED
-        if strategy not in usable:                        # ``MODEL_CANDIDATE`` is added by the model-candidate engine; ``ESCALATE_REVIEW`` is not a mode
+        if strategy not in usable:                        # ``ESCALATE_REVIEW`` is not a mode
             return (RecoveryStrategy.NONE, applied,
                     suppressed if suppressed is not SuppressedReason.NONE else SuppressedReason.NOT_PERMITTED)
         return strategy, applied, suppressed
@@ -862,12 +879,19 @@ class QARunner:
     def _enabled(self) -> bool:
         return bool(self._cfg.recovery_enabled and not self._engine.kill_switch.engaged)
 
+    def _model_engine(self) -> bool:
+        """Model recovery can run: the configuration opted in and the engine can select model candidates."""
+        return bool(self._cfg.model_recovery_enabled
+                    and all(callable(getattr(self._engine, m, None)) for m in ("select_model_locator", "new_ledger_spend")))
+
     def _allowed(self, step: Step, strategy: RecoveryStrategy) -> bool:
         """The runner's own re-check of the engine's plan: enabled, not killed, and the step permits the mode."""
+        if strategy is RecoveryStrategy.MODEL_CANDIDATE and not self._model_engine():
+            return False
         return self._enabled() and PermittedRecovery(strategy.value) in step.permitted_recovery
 
     def _begin(self, c: _Ctx, step: Step, pending: _Pending, strategy: RecoveryStrategy,
-               override: Optional[ResolvedTarget]) -> Any:
+               override: Optional[ResolvedTarget], made: Optional[_Attempt] = None) -> Any:
         """Charge the budget, enter ``RECOVERABLE`` and start the chosen mode."""
         try:
             if strategy is RecoveryStrategy.RETRY_SAME:
@@ -884,11 +908,52 @@ class QARunner:
         c.machine.to(RunState.RECOVERABLE)
         if strategy is RecoveryStrategy.RETRY_SAME:
             return (override, None)
+        if strategy is RecoveryStrategy.MODEL_CANDIDATE:
+            return self._semantic_recovery(c, step, pending, model=True)
         if strategy is RecoveryStrategy.SEMANTIC_LOCATOR:
-            return self._semantic_recovery(c, step, pending)
+            got = self._semantic_recovery(c, step, pending, defer=made is not None and self._model_next(step))
+            if got is not _MISS:
+                return got
+            return self._model_after_semantic(c, step, pending, made)
         return self._environment_recovery(c, step, pending)
 
-    def _semantic_recovery(self, c: _Ctx, step: Step, p: _Pending) -> Any:
+    def _model_next(self, step: Step) -> bool:
+        """A model round may follow a semantic miss: opted in, the step permits it and nothing has stopped recovery."""
+        return (self._model_engine() and self._enabled()
+                and PermittedRecovery.MODEL_CANDIDATE in step.permitted_recovery)
+
+    def _model_after_semantic(self, c: _Ctx, step: Step, p: _Pending, made: _Attempt) -> Any:
+        """The deterministic alternates found nothing and the fault is still open: plan again. Only a plan that names
+        ``MODEL_CANDIDATE`` (caps, budget, kill switch and the step's permission all allow it) starts a model round;
+        anything else seals the semantic miss."""
+        strategy, _applied, suppressed = self._plan(c, step, made.error, made)
+        if strategy is RecoveryStrategy.MODEL_CANDIDATE and self._allowed(step, strategy):
+            try:
+                c.budgets.charge_recovery_attempt()
+            except BudgetExceeded:
+                suppressed = SuppressedReason.BUDGET_EXHAUSTED
+            else:
+                p.strategy = strategy
+                p.attempts += 1
+                return self._semantic_recovery(c, step, p, model=True)
+        self._seal_recovery(c, p, attempted=True, verified=False, result=RecoveryResult.NOT_RECOVERED,
+                            suppressed=suppressed if strategy is RecoveryStrategy.NONE else SuppressedReason.NONE)
+        return None
+
+    def _account_model(self, c: _Ctx, step: Step, p: _Pending, spend: Any) -> None:
+        """What a model round cost, recorded even when the round ended in an exception: its request and response
+        events (hash and size only), the fault's cost, the run's ledger and the run budget."""
+        for kind, payload in spend.events:
+            self._emit(c, kind, payload)
+        p.model_calls += spend.calls
+        p.tokens += spend.tokens
+        c.model_ledger.commit(step.step_id, spend)
+        c.budgets.charge_model(spend.calls, spend.tokens)
+
+    def _semantic_recovery(self, c: _Ctx, step: Step, p: _Pending, *, model: bool = False,
+                           defer: bool = False) -> Any:
+        """Locator recovery, deterministic (``model`` false) or by model candidates; both are verified by the
+        same selector and re-checked below. ``defer`` leaves a miss unsealed (``_MISS``) so a model round can follow."""
         fresh = self._observe(c, step, Phase.BEFORE)             # a fresh observation, taken after the detection
         c.fresh_before = fresh
         p.did_work = True
@@ -903,11 +968,24 @@ class QARunner:
 
         def within_time() -> bool:
             return spent + max(0, self._clock.monotonic_ms() - p.started_ms) < limit
-        selection = self._engine.select_locator(step, fresh, locate, within_time)    # RecoveryPayloadRejected passes
-        p.considered = int(selection.considered)
-        p.rejected = tuple(selection.rejected) + ((selection.refusal,) if selection.refusal else ())
+        wanted = LocatorStrategy.MODEL_CANDIDATE if model else LocatorStrategy.SEMANTIC_ALTERNATE
+        if model:
+            spend = self._engine.new_ledger_spend(c.model_ledger, step, c.budgets)
+            try:
+                selection = self._engine.select_model_locator(step, fresh, locate, within_time, spend)
+            finally:
+                self._account_model(c, step, p, spend)
+            p.considered += int(selection.considered)
+            p.rejected = (p.rejected + tuple(selection.rejected) + ((selection.refusal,) if selection.refusal else ())
+                          )[:MAX_REASONS]
+        else:
+            selection = self._engine.select_locator(step, fresh, locate, within_time)    # RecoveryPayloadRejected passes
+            p.considered = int(selection.considered)
+            p.rejected = tuple(selection.rejected) + ((selection.refusal,) if selection.refusal else ())
         target = selection.target
-        if type(target) is not ResolvedTarget or target.strategy is not LocatorStrategy.SEMANTIC_ALTERNATE:
+        if type(target) is not ResolvedTarget or target.strategy is not wanted:
+            if defer and not selection.aborted:
+                return _MISS
             self._seal_recovery(c, p, attempted=True, verified=False, result=(
                 RecoveryResult.ABORTED if selection.aborted else RecoveryResult.NOT_RECOVERED))
             return None
@@ -927,6 +1005,9 @@ class QARunner:
             return None
         c.locator_recovery_used = True
         c.recovered_locator_steps.add(step.step_id)
+        if model:
+            return (target, "model candidate: unique role+name match verified deterministically, similarity %d/1000"
+                    % selection.score)
         return (target, "semantic locator: unique role+name match, similarity %d/1000" % selection.score)
 
     def _environment_recovery(self, c: _Ctx, step: Step, p: _Pending) -> Any:
