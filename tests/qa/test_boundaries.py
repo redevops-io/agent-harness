@@ -79,7 +79,9 @@ def test_the_expected_files_exist():
                                           # the single-run executor
                                           "checkpoint.py", "cleanup.py", "clock.py", "hooks.py", "idempotency.py",
                                           "limits.py", "policy.py", "receipts.py", "run_errors.py", "runner.py",
-                                          "runstate.py"}
+                                          "runstate.py",
+                                          # deterministic recovery
+                                          "recovery.py"}
 
 
 @pytest.mark.parametrize("path", QA_FILES, ids=lambda p: p.name)

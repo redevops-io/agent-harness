@@ -11,6 +11,7 @@ from .test_boundaries import QA, imports_of, qa_internal_imports
 RUNNER_MODULES = ["checkpoint", "cleanup", "clock", "hooks", "idempotency", "limits", "policy", "receipts", "run_errors",
               "runner", "runstate"]
 BASE_MODULES = ["canon", "classify", "errors", "ports", "records", "recovery_types", "schemas", "specstore", "verifier"]
+LATER_MODULES = ["recovery"]          # the runner is the one single-run module that may import it
 
 
 def top(names):
@@ -31,7 +32,7 @@ def closure(start):
 @pytest.mark.parametrize("name", RUNNER_MODULES)
 def test_every_runner_module_exists_and_imports_only_qa_modules_inside_the_package(name):
     assert (QA / f"{name}.py").is_file()
-    assert top(qa_internal_imports(f"{name}.py")) <= set(RUNNER_MODULES + BASE_MODULES)
+    assert top(qa_internal_imports(f"{name}.py")) <= set(RUNNER_MODULES + BASE_MODULES + (LATER_MODULES if name == "runner" else []))
 
 
 def test_base_modules_do_not_import_any_runner_module():
