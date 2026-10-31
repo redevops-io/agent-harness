@@ -11,7 +11,7 @@ from .test_boundaries import QA, imports_of, qa_internal_imports
 RUNNER_MODULES = ["checkpoint", "cleanup", "clock", "hooks", "idempotency", "limits", "policy", "receipts", "run_errors",
               "runner", "runstate"]
 BASE_MODULES = ["canon", "classify", "errors", "ports", "records", "recovery_types", "schemas", "specstore", "verifier"]
-LATER_MODULES = ["recovery", "recovery_model"]   # the runner is the one single-run module that may import them
+LATER_MODULES = ["recovery", "recovery_model", "blobs", "egress", "vault"]   # the runner is the one single-run module that may import them
 
 
 def top(names):
