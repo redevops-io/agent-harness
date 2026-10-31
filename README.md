@@ -16,7 +16,7 @@ Context Runtime  ->  ReDevOps RAG  ->  Sidekick  ->  Application logic
 **Who it's for.** Developers building or reading the ReDevOps reference applications, and anyone who wants a minimal
 approval/sandbox/guardrail skeleton. Not a Mission runtime; see [OVERLAP](#overlap).
 
-**Maturity: alpha / experimental.** Version 0.1.0, one tag (`v0.1.0`). `Agent.run` is a minimal single-step stub (`agent_harness.loop.run_loop` is a multi-turn tool-calling loop with hard limits),
+**Maturity: alpha / experimental.** Version 0.2.0, two tags (`v0.1.0`, `v0.2.0`). `Agent.run` is a minimal single-step stub (`agent_harness.loop.run_loop` is a multi-turn tool-calling loop with hard limits),
 the example runs offline against a stub client, and the sandbox is documented as *not* full isolation. See [STATUS.md](STATUS.md).
 
 **Ownership, overlap and support status.** Owned by ReDevOps. Status: **experimental, low activity** (last commit 2026-09-25;
@@ -32,7 +32,7 @@ This project is **not published on PyPI by ReDevOps**. The name `agent-harness` 
 project (version 0.1.10 when checked); **never run `pip install agent-harness`**. Install from git or from a clone:
 
 ```bash
-pip install "git+https://github.com/redevops-io/agent-harness@v0.1.0"
+pip install "git+https://github.com/redevops-io/agent-harness@v0.2.0"
 # or, from a clone
 git clone https://github.com/redevops-io/agent-harness && cd agent-harness && pip install -e .
 ```

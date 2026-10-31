@@ -183,24 +183,25 @@ def test_in_page_anchors_into_the_qa_doc_exist():
 # CHANGELOG and the release checklist: preparation only
 # ---------------------------------------------------------------------------------------------------------------
 
-def test_the_changelog_has_an_unreleased_entry():
+def test_the_changelog_has_the_dated_release_entry():
     text = read(DOCS / "CHANGELOG.md")
-    assert re.search(r"^## \[Unreleased\]$", text, flags=re.M)
-    assert "nothing below is\nreleased" in text
+    assert re.search(r"^## \[0\.2\.0\] - 2026-10-31$", text, flags=re.M)
+    assert "(tag `v0.2.0`; the previous tag is `v0.1.0`)" in text
+    assert not re.search(r"^## \[Unreleased\]$", text, flags=re.M)
 
 
-def test_the_checklist_states_that_this_is_preparation_and_the_tag_is_only_proposed():
+def test_the_checklist_records_the_release_and_that_the_tag_was_authorised():
     checklist = read(DOCS / "QA_RELEASE_CHECKLIST.md")
-    assert "preparation only" in checklist
-    assert "`v0.2.0` is a proposed target, not an authorised one" in checklist
-    assert "No tag is created" in checklist
+    assert "released as `v0.2.0` on 2026-10-31" in checklist
+    assert "The tag `v0.2.0` was authorised by the maintainer on 2026-10-31" in checklist
+    assert "preparation only" not in checklist
 
 
 def test_the_checklist_carries_every_required_precondition():
     text = read(DOCS / "QA_RELEASE_CHECKLIST.md")
     for needle in ("Maintainer approval", "compat-receipt/1", "exact pins", "3.10, 3.11 and 3.12", "Boundary tests green",
                    "No-secrets scan", "6b8ba3a", "Unrelated commits on\n`main` are not included", "netpolicy.py", "bench/",
-                   "stale", "`result = PASS`", "skipped_tests = 0", "`pyproject.toml` keeps `version = \"0.1.0\"`"):
+                   "stale", "`result = PASS`", "skipped_tests = 0", "Version bump at release time only"):
         assert needle in text, needle
 
 
