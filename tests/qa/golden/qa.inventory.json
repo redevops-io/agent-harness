@@ -1,0 +1,2273 @@
+{
+  "api_versions": {
+    "CheckAdapter": "qa-check-adapter/1",
+    "QAAdapter": "qa-adapter/1"
+  },
+  "contract": "qa/v1",
+  "enums": {
+    "ActionKind": [
+      "click",
+      "fill",
+      "press",
+      "select",
+      "check",
+      "uncheck",
+      "hover",
+      "navigate",
+      "resolve"
+    ],
+    "CaptureKind": [
+      "SCREENSHOT",
+      "A11Y_SNAPSHOT",
+      "DOM_META",
+      "NETWORK_EXCERPT",
+      "CONSOLE_EXCERPT",
+      "TRACE"
+    ],
+    "CheckTier": [
+      "OFFLINE",
+      "K"
+    ],
+    "ClaimedClass": [
+      "BENIGN_DRIFT",
+      "PRODUCT_DEFECT_SUSPECTED",
+      "ENVIRONMENT",
+      "UNKNOWN"
+    ],
+    "ClassHint": [
+      "BENIGN_DRIFT_CANDIDATE",
+      "BENIGN_DRIFT_OR_ENVIRONMENT",
+      "ENVIRONMENT_OR_BENIGN",
+      "ENVIRONMENT_OR_POLICY",
+      "ENVIRONMENT",
+      "INCONCLUSIVE",
+      "POLICY",
+      "INTEGRITY",
+      "TEST_DEFECT"
+    ],
+    "CoverageContract": [
+      "FULL",
+      "SUBSET"
+    ],
+    "Determinism": [
+      "DETERMINISTIC",
+      "NON_DETERMINISTIC"
+    ],
+    "ErrorCategory": [
+      "LOCATOR",
+      "ACTION",
+      "SESSION",
+      "NETWORK",
+      "POLICY",
+      "ENVIRONMENT",
+      "INTEGRITY",
+      "SPEC"
+    ],
+    "EvidenceLevel": [
+      "MINIMAL",
+      "STANDARD",
+      "FULL"
+    ],
+    "Executor": [
+      "PLAYWRIGHT",
+      "SCRIPT"
+    ],
+    "FaultSignal": [
+      "NONE",
+      "LOCATOR_NOT_FOUND",
+      "LOCATOR_AMBIGUOUS",
+      "ACTION_TIMEOUT",
+      "TRANSITION_NOT_OBSERVED",
+      "ASSERTION_FAILED",
+      "ASSERTION_UNRESOLVABLE",
+      "ENV_UNHEALTHY",
+      "POLICY_DENIED",
+      "NETWORK_BLOCKED",
+      "UNEXPECTED_OVERLAY",
+      "SESSION_LOST"
+    ],
+    "Idempotency": [
+      "IDEMPOTENT",
+      "AT_MOST_ONCE",
+      "UNKNOWN"
+    ],
+    "LocateMode": [
+      "EXACT",
+      "SEMANTIC"
+    ],
+    "LocatorStrategy": [
+      "AUTHORED",
+      "SEMANTIC_ALTERNATE",
+      "MODEL_CANDIDATE"
+    ],
+    "Outcome": [
+      "PASS",
+      "PRODUCT_FAIL",
+      "TEST_DEFECT",
+      "ENVIRONMENT_FAIL",
+      "INCONCLUSIVE"
+    ],
+    "PermittedRecovery": [
+      "RETRY_SAME",
+      "SEMANTIC_LOCATOR",
+      "MODEL_CANDIDATE",
+      "RESET_FIXTURE",
+      "CHECKPOINT_RESUME"
+    ],
+    "Phase": [
+      "BEFORE",
+      "AFTER"
+    ],
+    "PolicyDecisionKind": [
+      "ALLOW",
+      "DENY",
+      "REQUIRE_APPROVAL"
+    ],
+    "PostconditionResult": [
+      "SATISFIED",
+      "NOT_SATISFIED",
+      "NOT_EVALUATED"
+    ],
+    "PredicateOp": [
+      "EQUALS",
+      "NOT_EQUALS",
+      "CONTAINS",
+      "MATCHES",
+      "EXISTS",
+      "ABSENT",
+      "LESS_THAN",
+      "GREATER_THAN"
+    ],
+    "RecoveryResult": [
+      "NOT_ATTEMPTED",
+      "RECOVERED",
+      "NOT_RECOVERED",
+      "ABORTED"
+    ],
+    "RecoveryStrategy": [
+      "NONE",
+      "RETRY_SAME",
+      "SEMANTIC_LOCATOR",
+      "MODEL_CANDIDATE",
+      "RESET_FIXTURE",
+      "CHECKPOINT_RESUME",
+      "ESCALATE_REVIEW"
+    ],
+    "ResetScope": [
+      "CONTEXT",
+      "FIXTURE",
+      "ENVIRONMENT"
+    ],
+    "Resolution": [
+      "RESOLVED",
+      "UNRESOLVED",
+      "AMBIGUOUS"
+    ],
+    "ResourceKind": [
+      "MANIFEST_PATH",
+      "IMAGE_DIGEST",
+      "NAMESPACE_OBJECT"
+    ],
+    "ResultCode": [
+      "OK",
+      "LOCATOR_NOT_FOUND",
+      "LOCATOR_AMBIGUOUS",
+      "TARGET_NOT_ACTIONABLE",
+      "ACTION_TIMEOUT",
+      "UNEXPECTED_DIALOG",
+      "SESSION_LOST",
+      "NAVIGATION_DENIED",
+      "ACTION_BLOCKED_BY_POLICY",
+      "ENVIRONMENT_UNHEALTHY",
+      "ADAPTER_CRASH",
+      "BROWSER_CRASH",
+      "RESET_FAILED",
+      "RESOURCE_LIMIT_EXCEEDED",
+      "REDACTION_FAILED",
+      "UNSUPPORTED_OPERATION"
+    ],
+    "RetrySafety": [
+      "SAFE",
+      "UNSAFE",
+      "SAFE_WITH_IDEMPOTENCY_KEY"
+    ],
+    "ReviewDecision": [
+      "ACCEPT",
+      "REJECT",
+      "REQUEST_CHANGE"
+    ],
+    "SideEffect": [
+      "NONE",
+      "READS_EXTERNAL",
+      "WRITES_INTERNAL",
+      "WRITES_EXTERNAL",
+      "NOTIFIES_HUMAN",
+      "SPENDS_MONEY"
+    ],
+    "SkipReason": [
+      "NOT_REACHED",
+      "PRECONDITION_UNMET",
+      "POLICY_DENIED",
+      "BUDGET_EXHAUSTED",
+      "SUBJECT_UNRESOLVED",
+      "ENVIRONMENT",
+      "HALTED_INTEGRITY"
+    ],
+    "SubjectKind": [
+      "UI_ELEMENT",
+      "URL",
+      "RESPONSE",
+      "RESOURCE_INPUTS"
+    ],
+    "SuppressedReason": [
+      "NONE",
+      "NOT_PERMITTED",
+      "NON_IDEMPOTENT",
+      "POLICY_DENIED",
+      "BUDGET_EXHAUSTED",
+      "KILL_SWITCH"
+    ],
+    "TargetKind": [
+      "ui",
+      "resource"
+    ],
+    "Verdict": [
+      "PASS",
+      "FAIL",
+      "INDETERMINATE",
+      "NOT_APPLICABLE"
+    ]
+  },
+  "protocols": {
+    "BlobStore": {
+      "attributes": [],
+      "methods": {
+        "exists": {
+          "parameters": [
+            "digest"
+          ],
+          "returns": "bool"
+        },
+        "get": {
+          "parameters": [
+            "digest"
+          ],
+          "returns": "bytes"
+        },
+        "put": {
+          "parameters": [
+            "data",
+            "media_type"
+          ],
+          "returns": "str"
+        },
+        "size": {
+          "parameters": [
+            "digest"
+          ],
+          "returns": "int"
+        }
+      }
+    },
+    "CheckAdapter": {
+      "attributes": [
+        "adapter_id",
+        "adapter_version",
+        "api_version"
+      ],
+      "methods": {
+        "capture": {
+          "parameters": [
+            "w",
+            "kinds"
+          ],
+          "returns": "Sequence[EvidenceRef]"
+        },
+        "close_workspace": {
+          "parameters": [
+            "w"
+          ],
+          "returns": "CleanupReport"
+        },
+        "open_workspace": {
+          "parameters": [
+            "profile"
+          ],
+          "returns": "WorkspaceHandle"
+        },
+        "reset": {
+          "parameters": [
+            "w",
+            "scope"
+          ],
+          "returns": "ResetResult"
+        },
+        "resolve": {
+          "parameters": [
+            "w",
+            "ref"
+          ],
+          "returns": "ResolvedResource"
+        },
+        "run_check": {
+          "parameters": [
+            "w",
+            "subject"
+          ],
+          "returns": "ObservedValue"
+        }
+      }
+    },
+    "QAAdapter": {
+      "attributes": [
+        "adapter_id",
+        "adapter_version",
+        "api_version"
+      ],
+      "methods": {
+        "act": {
+          "parameters": [
+            "s",
+            "action",
+            "target"
+          ],
+          "returns": "ActionOutcome"
+        },
+        "assert_": {
+          "parameters": [
+            "s",
+            "subject"
+          ],
+          "returns": "ObservedValue"
+        },
+        "capture": {
+          "parameters": [
+            "s",
+            "kinds"
+          ],
+          "returns": "Sequence[EvidenceRef]"
+        },
+        "close_session": {
+          "parameters": [
+            "s"
+          ],
+          "returns": "CleanupReport"
+        },
+        "locate": {
+          "parameters": [
+            "s",
+            "target",
+            "mode"
+          ],
+          "returns": "LocateResult"
+        },
+        "observe": {
+          "parameters": [
+            "s",
+            "req"
+          ],
+          "returns": "Observation"
+        },
+        "open_session": {
+          "parameters": [
+            "profile"
+          ],
+          "returns": "SessionHandle"
+        },
+        "reset": {
+          "parameters": [
+            "s",
+            "scope"
+          ],
+          "returns": "ResetResult"
+        }
+      }
+    },
+    "Redactor": {
+      "attributes": [
+        "policy_id"
+      ],
+      "methods": {
+        "redact": {
+          "parameters": [
+            "data",
+            "media_type"
+          ],
+          "returns": "bytes"
+        }
+      }
+    }
+  },
+  "records": {
+    "ActionReceipt": {
+      "fields": {
+        "action": {
+          "custody": false,
+          "required": true,
+          "type": "ActionRecord"
+        },
+        "attempt": {
+          "custody": false,
+          "required": true,
+          "type": "int[minimum=1]"
+        },
+        "duration_ms": {
+          "custody": true,
+          "required": false,
+          "type": "Optional[int[minimum=0]]"
+        },
+        "execution_binding": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[pattern=rcv1:[0-9a-f]{64}]]"
+        },
+        "idempotency_key": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        },
+        "locator_used": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[LocatorUsed]"
+        },
+        "policy_decision_ref": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=rcv1:[0-9a-f]{64}]"
+        },
+        "postcondition": {
+          "custody": false,
+          "required": true,
+          "type": "Postcondition"
+        },
+        "receipt_id": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        },
+        "recovery_rationale": {
+          "custody": true,
+          "required": false,
+          "type": "Optional[str[max_length=4096]]"
+        },
+        "resource_used": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[ResourceRef]"
+        },
+        "result": {
+          "custody": false,
+          "required": true,
+          "type": "ResultCode"
+        },
+        "run_id": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        },
+        "state_after_hash": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=rcv1:[0-9a-f]{64}]"
+        },
+        "state_before_hash": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=rcv1:[0-9a-f]{64}]"
+        },
+        "step_id": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        },
+        "tool": {
+          "custody": false,
+          "required": true,
+          "type": "ToolRef"
+        }
+      },
+      "schema_id": "runtime-contracts/qa/action-receipt",
+      "schema_version": "0.1"
+    },
+    "AssertionResult": {
+      "fields": {
+        "actual": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[Json[max_json_bytes=16384]]"
+        },
+        "actual_digest": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[pattern=rcv1:[0-9a-f]{64}]]"
+        },
+        "assertion_id": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        },
+        "assertion_set_hash": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=rcv1:[0-9a-f]{64}]"
+        },
+        "check": {
+          "custody": false,
+          "required": true,
+          "type": "Check"
+        },
+        "evaluated_at": {
+          "custody": true,
+          "required": false,
+          "type": "Optional[str[max_length=512]]"
+        },
+        "executor": {
+          "custody": false,
+          "required": true,
+          "type": "Executor"
+        },
+        "expected_hash": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=rcv1:[0-9a-f]{64}]"
+        },
+        "observation_id": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]]"
+        },
+        "reason_code": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[pattern=[A-Z][A-Z0-9_]{0,63}]]"
+        },
+        "verifier": {
+          "custody": false,
+          "required": true,
+          "type": "ComponentRef"
+        }
+      },
+      "schema_id": "runtime-contracts/qa/assertion-result",
+      "schema_version": "0.1"
+    },
+    "AssertionSpec": {
+      "fields": {
+        "assertion_id": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        },
+        "check_program_ref": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[CheckProgramRef]"
+        },
+        "determinism": {
+          "custody": false,
+          "required": false,
+          "type": "Determinism"
+        },
+        "executor": {
+          "custody": false,
+          "required": true,
+          "type": "Executor"
+        },
+        "on_unresolvable": {
+          "custody": false,
+          "required": false,
+          "type": "Verdict"
+        },
+        "predicate": {
+          "custody": false,
+          "required": true,
+          "type": "Predicate"
+        },
+        "requirement_ref": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[pattern=[A-Za-z0-9._:/-]{1,128}]]"
+        },
+        "subject": {
+          "custody": false,
+          "required": true,
+          "type": "AssertionSubject"
+        },
+        "verifier_id": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        },
+        "verifier_version_range": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9.<>=!~,*+ -]{1,64}]"
+        }
+      },
+      "schema_id": "runtime-contracts/qa/assertion-spec",
+      "schema_version": "0.1"
+    },
+    "Checkpoint": {
+      "fields": {
+        "checkpoint_id": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        },
+        "fixture_snapshot_id": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]]"
+        },
+        "run_id": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        },
+        "state_hash": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=rcv1:[0-9a-f]{64}]"
+        },
+        "step_index": {
+          "custody": false,
+          "required": true,
+          "type": "int[minimum=0]"
+        },
+        "taken_at": {
+          "custody": true,
+          "required": false,
+          "type": "Optional[str[max_length=512]]"
+        }
+      },
+      "schema_id": "runtime-contracts/qa/checkpoint",
+      "schema_version": "0.1"
+    },
+    "CleanupReport": {
+      "fields": {
+        "closed_at": {
+          "custody": true,
+          "required": false,
+          "type": "Optional[str[max_length=512]]"
+        },
+        "handle_id": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        },
+        "leaked": {
+          "custody": false,
+          "required": false,
+          "type": "Tuple[str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]]"
+        },
+        "released": {
+          "custody": false,
+          "required": false,
+          "type": "Tuple[str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]]"
+        },
+        "verified": {
+          "custody": false,
+          "required": true,
+          "type": "bool"
+        }
+      },
+      "schema_id": "runtime-contracts/qa/cleanup-report",
+      "schema_version": "0.1"
+    },
+    "FaultDetection": {
+      "fields": {
+        "claimed_class": {
+          "custody": false,
+          "required": true,
+          "type": "ClaimedClass"
+        },
+        "detected": {
+          "custody": false,
+          "required": true,
+          "type": "bool"
+        },
+        "detected_at_ms_into_step": {
+          "custody": true,
+          "required": false,
+          "type": "Optional[int[minimum=0]]"
+        },
+        "detector": {
+          "custody": false,
+          "required": true,
+          "type": "ComponentRef"
+        },
+        "evidence_refs": {
+          "custody": false,
+          "required": false,
+          "type": "Tuple[EvidenceRef]"
+        },
+        "signal": {
+          "custody": false,
+          "required": true,
+          "type": "FaultSignal"
+        }
+      },
+      "schema_id": "runtime-contracts/qa/fault-detection",
+      "schema_version": "0.1"
+    },
+    "FaultEvent": {
+      "fields": {
+        "detection": {
+          "custody": false,
+          "required": true,
+          "type": "FaultDetection"
+        },
+        "fault_event_id": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        },
+        "recovery": {
+          "custody": false,
+          "required": true,
+          "type": "FaultRecovery"
+        },
+        "sequence": {
+          "custody": false,
+          "required": true,
+          "type": "int[minimum=0]"
+        },
+        "step_id": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        }
+      },
+      "schema_id": "runtime-contracts/qa/fault-event",
+      "schema_version": "0.1"
+    },
+    "FaultRecovery": {
+      "fields": {
+        "attempted": {
+          "custody": false,
+          "required": true,
+          "type": "bool"
+        },
+        "attempts": {
+          "custody": false,
+          "required": false,
+          "type": "int[minimum=0]"
+        },
+        "candidates_considered": {
+          "custody": false,
+          "required": false,
+          "type": "int[minimum=0]"
+        },
+        "candidates_rejected_reasons": {
+          "custody": false,
+          "required": false,
+          "type": "Tuple[str[pattern=[A-Z][A-Z0-9_]{0,63}]]"
+        },
+        "cost": {
+          "custody": true,
+          "required": false,
+          "type": "Optional[RecoveryCost]"
+        },
+        "detection_ref": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=rcv1:[0-9a-f]{64}]"
+        },
+        "postcondition_verified": {
+          "custody": false,
+          "required": true,
+          "type": "bool"
+        },
+        "result": {
+          "custody": false,
+          "required": true,
+          "type": "RecoveryResult"
+        },
+        "strategy": {
+          "custody": false,
+          "required": true,
+          "type": "RecoveryStrategy"
+        },
+        "suppressed_reason": {
+          "custody": false,
+          "required": false,
+          "type": "SuppressedReason"
+        }
+      },
+      "schema_id": "runtime-contracts/qa/fault-recovery",
+      "schema_version": "0.1"
+    },
+    "LocatorCandidate": {
+      "fields": {
+        "label": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[max_length=512]]"
+        },
+        "name": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[max_length=512]]"
+        },
+        "role": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[max_length=512]]"
+        },
+        "strategy": {
+          "custody": false,
+          "required": true,
+          "type": "LocatorStrategy"
+        },
+        "test_id": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[max_length=512]]"
+        }
+      },
+      "schema_id": "runtime-contracts/qa/locator-candidate",
+      "schema_version": "0.1"
+    },
+    "Observation": {
+      "fields": {
+        "a11y_snapshot_ref": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[EvidenceRef]"
+        },
+        "console_excerpt_ref": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[EvidenceRef]"
+        },
+        "dom_meta": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[Json[max_json_bytes=4096]]"
+        },
+        "duration_ms": {
+          "custody": true,
+          "required": false,
+          "type": "Optional[int[minimum=0]]"
+        },
+        "frame": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[max_length=512]]"
+        },
+        "network_excerpt_ref": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[EvidenceRef]"
+        },
+        "observation_id": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        },
+        "observed_at": {
+          "custody": true,
+          "required": false,
+          "type": "Optional[str[max_length=512]]"
+        },
+        "phase": {
+          "custody": false,
+          "required": true,
+          "type": "Phase"
+        },
+        "redaction_applied": {
+          "custody": false,
+          "required": true,
+          "type": "bool"
+        },
+        "redaction_policy_id": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=(rcv1|sha256):[0-9a-f]{64}]"
+        },
+        "screenshot_ref": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[EvidenceRef]"
+        },
+        "source": {
+          "custody": false,
+          "required": true,
+          "type": "ObservationSource"
+        },
+        "step_id": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        },
+        "url": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[max_length=2048;min_length=1]]"
+        }
+      },
+      "schema_id": "runtime-contracts/qa/observation",
+      "schema_version": "0.1"
+    },
+    "ObservedValue": {
+      "fields": {
+        "match_count": {
+          "custody": false,
+          "required": true,
+          "type": "int[minimum=0]"
+        },
+        "observation_id": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]]"
+        },
+        "resolution": {
+          "custody": false,
+          "required": true,
+          "type": "Resolution"
+        },
+        "value": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[Json[max_json_bytes=16384]]"
+        },
+        "value_digest": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[pattern=rcv1:[0-9a-f]{64}]]"
+        }
+      },
+      "schema_id": "runtime-contracts/qa/observed-value",
+      "schema_version": "0.1"
+    },
+    "QAPlan": {
+      "fields": {
+        "action_policy_ref": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[pattern=rcv1:[0-9a-f]{64}]]"
+        },
+        "coverage_contract": {
+          "custody": false,
+          "required": true,
+          "type": "CoverageContract"
+        },
+        "gates": {
+          "custody": false,
+          "required": false,
+          "type": "Tuple[PlanGate]"
+        },
+        "items": {
+          "custody": false,
+          "required": true,
+          "type": "Tuple[PlanItem]"
+        },
+        "lanes": {
+          "custody": false,
+          "required": true,
+          "type": "Tuple[str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]]"
+        },
+        "max_parallel": {
+          "custody": false,
+          "required": true,
+          "type": "int[minimum=1]"
+        },
+        "planner": {
+          "custody": false,
+          "required": true,
+          "type": "ComponentRef"
+        },
+        "rationale_ref": {
+          "custody": true,
+          "required": false,
+          "type": "Optional[str[pattern=(rcv1|sha256):[0-9a-f]{64}]]"
+        },
+        "resource_claims": {
+          "custody": false,
+          "required": false,
+          "type": "Tuple[ResourceClaim]"
+        }
+      },
+      "schema_id": "runtime-contracts/qa/qa-plan",
+      "schema_version": "0.1"
+    },
+    "QAPolicyDecision": {
+      "fields": {
+        "action_kind": {
+          "custody": false,
+          "required": true,
+          "type": "ActionKind"
+        },
+        "app": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        },
+        "decided_at": {
+          "custody": true,
+          "required": false,
+          "type": "Optional[str[max_length=512]]"
+        },
+        "decision": {
+          "custody": false,
+          "required": true,
+          "type": "PolicyDecisionKind"
+        },
+        "phase": {
+          "custody": false,
+          "required": false,
+          "type": "str[max_length=32]"
+        },
+        "policy_decision_id": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        },
+        "principal": {
+          "custody": false,
+          "required": true,
+          "type": "str[max_length=512]"
+        },
+        "provider": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        },
+        "reason": {
+          "custody": true,
+          "required": false,
+          "type": "Optional[str[max_length=4096]]"
+        },
+        "rule_id": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]]"
+        },
+        "run_id": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        },
+        "scope": {
+          "custody": false,
+          "required": false,
+          "type": "Tuple[str[max_length=512]]"
+        },
+        "side_effect": {
+          "custody": false,
+          "required": true,
+          "type": "SideEffect"
+        },
+        "step_id": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        }
+      },
+      "schema_id": "runtime-contracts/qa/policy-decision",
+      "schema_version": "0.1"
+    },
+    "ReviewItem": {
+      "fields": {
+        "created_at": {
+          "custody": true,
+          "required": false,
+          "type": "Optional[str[max_length=512]]"
+        },
+        "evidence_refs": {
+          "custody": false,
+          "required": false,
+          "type": "Tuple[EvidenceRef]"
+        },
+        "reason": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Z][A-Z0-9_]{0,63}]"
+        },
+        "review_item_id": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        },
+        "run_id": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        },
+        "suggested_change_ref": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[pattern=rcv1:[0-9a-f]{64}]]"
+        }
+      },
+      "schema_id": "runtime-contracts/qa/review-item",
+      "schema_version": "0.1"
+    },
+    "ReviewRecord": {
+      "fields": {
+        "decided_at": {
+          "custody": true,
+          "required": false,
+          "type": "Optional[str[max_length=512]]"
+        },
+        "decision": {
+          "custody": false,
+          "required": true,
+          "type": "ReviewDecision"
+        },
+        "review_item_ref": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=rcv1:[0-9a-f]{64}]"
+        },
+        "review_minutes": {
+          "custody": true,
+          "required": false,
+          "type": "Optional[int[minimum=0]]"
+        },
+        "reviewer_id": {
+          "custody": true,
+          "required": false,
+          "type": "Optional[str[max_length=512]]"
+        }
+      },
+      "schema_id": "runtime-contracts/qa/review-record",
+      "schema_version": "0.1"
+    },
+    "RunManifest": {
+      "fields": {
+        "adapter": {
+          "custody": false,
+          "required": true,
+          "type": "ComponentRef"
+        },
+        "assertion_results": {
+          "custody": false,
+          "required": false,
+          "type": "Tuple[AssertionResult]"
+        },
+        "assertion_set_hash": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=rcv1:[0-9a-f]{64}]"
+        },
+        "assertions_declared": {
+          "custody": false,
+          "required": true,
+          "type": "Tuple[str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]]"
+        },
+        "assertions_executed": {
+          "custody": false,
+          "required": true,
+          "type": "Tuple[str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]]"
+        },
+        "assertions_skipped": {
+          "custody": false,
+          "required": true,
+          "type": "Tuple[SkippedAssertion]"
+        },
+        "browser": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[max_length=512]]"
+        },
+        "counters": {
+          "custody": true,
+          "required": false,
+          "type": "Optional[Counters]"
+        },
+        "egress_policy_id": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=(rcv1|sha256):[0-9a-f]{64}]"
+        },
+        "fault_events": {
+          "custody": false,
+          "required": false,
+          "type": "Tuple[FaultEvent]"
+        },
+        "finished_at": {
+          "custody": true,
+          "required": false,
+          "type": "Optional[str[max_length=512]]"
+        },
+        "model": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[ModelRef]"
+        },
+        "model_recovery_enabled": {
+          "custody": false,
+          "required": true,
+          "type": "bool"
+        },
+        "outcome": {
+          "custody": false,
+          "required": true,
+          "type": "Outcome"
+        },
+        "outcome_reason": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[pattern=[A-Z][A-Z0-9_]{0,63}]]"
+        },
+        "plan_hash": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[pattern=rcv1:[0-9a-f]{64}]]"
+        },
+        "planner": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[ComponentRef]"
+        },
+        "recovery_enabled": {
+          "custody": false,
+          "required": true,
+          "type": "bool"
+        },
+        "redaction_policy_id": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=(rcv1|sha256):[0-9a-f]{64}]"
+        },
+        "resource_limits": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[Json[max_json_bytes=4096]]"
+        },
+        "run_id": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        },
+        "sandbox_image_digest": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[pattern=sha256:[0-9a-f]{64}]]"
+        },
+        "seeds": {
+          "custody": false,
+          "required": false,
+          "type": "Tuple[int]"
+        },
+        "spec_ref": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}@rcv1:[0-9a-f]{64}]"
+        },
+        "started_at": {
+          "custody": true,
+          "required": false,
+          "type": "Optional[str[max_length=512]]"
+        },
+        "step_results": {
+          "custody": false,
+          "required": false,
+          "type": "Tuple[StepResult]"
+        },
+        "trace_id": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[0-9a-f]{32}]"
+        },
+        "versions": {
+          "custody": false,
+          "required": false,
+          "type": "Tuple[VersionPin]"
+        }
+      },
+      "schema_id": "runtime-contracts/qa/run-manifest",
+      "schema_version": "0.1"
+    },
+    "TestSpec": {
+      "fields": {
+        "allowed_side_effects": {
+          "custody": false,
+          "required": false,
+          "type": "Tuple[SideEffect]"
+        },
+        "approved_at": {
+          "custody": true,
+          "required": false,
+          "type": "Optional[str[max_length=512]]"
+        },
+        "assertions": {
+          "custody": false,
+          "required": true,
+          "type": "Tuple[AssertionSpec]"
+        },
+        "author": {
+          "custody": true,
+          "required": false,
+          "type": "Optional[str[max_length=512]]"
+        },
+        "budget": {
+          "custody": false,
+          "required": true,
+          "type": "Budget"
+        },
+        "cleanup": {
+          "custody": false,
+          "required": false,
+          "type": "Tuple[str[max_length=512]]"
+        },
+        "depends_on": {
+          "custody": false,
+          "required": false,
+          "type": "Tuple[str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}@rcv1:[0-9a-f]{64}]]"
+        },
+        "egress_profile": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        },
+        "fixtures": {
+          "custody": false,
+          "required": false,
+          "type": "Tuple[FixtureRef]"
+        },
+        "id": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        },
+        "preconditions": {
+          "custody": false,
+          "required": false,
+          "type": "Tuple[str[max_length=512]]"
+        },
+        "reviewer": {
+          "custody": true,
+          "required": false,
+          "type": "Optional[str[max_length=512]]"
+        },
+        "sensitivity_labels": {
+          "custody": false,
+          "required": false,
+          "type": "Tuple[str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]]"
+        },
+        "steps": {
+          "custody": false,
+          "required": true,
+          "type": "Tuple[Step]"
+        },
+        "target": {
+          "custody": false,
+          "required": true,
+          "type": "TestTarget"
+        },
+        "version": {
+          "custody": false,
+          "required": true,
+          "type": "int[minimum=1]"
+        }
+      },
+      "schema_id": "runtime-contracts/qa/test-spec",
+      "schema_version": "0.1"
+    }
+  },
+  "reused": {
+    "Check": {
+      "fields": {
+        "check_id": {
+          "custody": false,
+          "required": true,
+          "type": "str"
+        },
+        "detail": {
+          "custody": false,
+          "required": false,
+          "type": "str"
+        },
+        "determinism": {
+          "custody": false,
+          "required": false,
+          "type": "Determinism"
+        },
+        "evidence_refs": {
+          "custody": false,
+          "required": false,
+          "type": "Tuple[str]"
+        },
+        "verdict": {
+          "custody": false,
+          "required": true,
+          "type": "Verdict"
+        }
+      }
+    },
+    "EvidenceRef": {
+      "fields": {
+        "content_hash": {
+          "custody": false,
+          "required": false,
+          "type": "str"
+        },
+        "media_type": {
+          "custody": false,
+          "required": false,
+          "type": "str"
+        },
+        "modality": {
+          "custody": false,
+          "required": false,
+          "type": "str"
+        },
+        "ref": {
+          "custody": false,
+          "required": true,
+          "type": "str"
+        },
+        "ref_type": {
+          "custody": false,
+          "required": false,
+          "type": "str"
+        },
+        "source": {
+          "custody": false,
+          "required": false,
+          "type": "str"
+        },
+        "version": {
+          "custody": false,
+          "required": false,
+          "type": "str"
+        }
+      }
+    },
+    "SecretRef": {
+      "fields": {
+        "key": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str]"
+        },
+        "namespace": {
+          "custody": false,
+          "required": false,
+          "type": "str"
+        },
+        "path": {
+          "custody": false,
+          "required": false,
+          "type": "str"
+        },
+        "provider": {
+          "custody": false,
+          "required": true,
+          "type": "str"
+        },
+        "version": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str]"
+        }
+      }
+    }
+  },
+  "schema_version": "0.1",
+  "values": {
+    "Action": {
+      "fields": {
+        "kind": {
+          "custody": false,
+          "required": true,
+          "type": "ActionKind"
+        },
+        "secret_ref": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[SecretRef]"
+        },
+        "value": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[max_length=512]]"
+        }
+      }
+    },
+    "ActionOutcome": {
+      "fields": {
+        "detail": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[max_length=512]]"
+        },
+        "result": {
+          "custody": false,
+          "required": true,
+          "type": "ResultCode"
+        }
+      }
+    },
+    "ActionRecord": {
+      "fields": {
+        "kind": {
+          "custody": false,
+          "required": true,
+          "type": "ActionKind"
+        },
+        "value_digest": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[pattern=rcv1:[0-9a-f]{64}]]"
+        }
+      }
+    },
+    "ActionRequest": {
+      "fields": {
+        "action": {
+          "custody": false,
+          "required": true,
+          "type": "Action"
+        },
+        "idempotency_key": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        },
+        "policy_decision_ref": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=rcv1:[0-9a-f]{64}]"
+        },
+        "step_id": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        }
+      }
+    },
+    "AssertionSubject": {
+      "fields": {
+        "inputs": {
+          "custody": false,
+          "required": false,
+          "type": "Tuple[ResourceRef]"
+        },
+        "kind": {
+          "custody": false,
+          "required": true,
+          "type": "SubjectKind"
+        },
+        "locator": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[LocatorDescriptor]"
+        },
+        "pattern": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[max_length=512]]"
+        },
+        "subject_alternates": {
+          "custody": false,
+          "required": false,
+          "type": "Tuple[LocatorDescriptor]"
+        }
+      }
+    },
+    "Budget": {
+      "fields": {
+        "deadline_ms": {
+          "custody": false,
+          "required": true,
+          "type": "int[minimum=1;maximum=86400000]"
+        },
+        "max_model_calls": {
+          "custody": false,
+          "required": false,
+          "type": "int[minimum=0;maximum=100000]"
+        },
+        "max_recovery_attempts": {
+          "custody": false,
+          "required": false,
+          "type": "int[minimum=0;maximum=1000]"
+        },
+        "max_retries": {
+          "custody": false,
+          "required": false,
+          "type": "int[minimum=0;maximum=1000]"
+        },
+        "max_tokens": {
+          "custody": false,
+          "required": false,
+          "type": "int[minimum=0;maximum=100000000]"
+        }
+      }
+    },
+    "CheckProfile": {
+      "fields": {
+        "case_root_digest": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=sha256:[0-9a-f]{64}]"
+        },
+        "disposable_proof_ref": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[pattern=(rcv1|sha256):[0-9a-f]{64}]]"
+        },
+        "tier": {
+          "custody": false,
+          "required": true,
+          "type": "CheckTier"
+        }
+      }
+    },
+    "CheckProgramRef": {
+      "fields": {
+        "id": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        },
+        "program_hash": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=sha256:[0-9a-f]{64}]"
+        },
+        "version": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._+-]{0,63}]"
+        }
+      }
+    },
+    "CheckSubject": {
+      "fields": {
+        "check_program_ref": {
+          "custody": false,
+          "required": true,
+          "type": "CheckProgramRef"
+        },
+        "inputs": {
+          "custody": false,
+          "required": true,
+          "type": "Tuple[ResourceRef]"
+        },
+        "tier": {
+          "custody": false,
+          "required": true,
+          "type": "CheckTier"
+        }
+      }
+    },
+    "ComponentRef": {
+      "fields": {
+        "id": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        },
+        "version": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._+-]{0,63}]"
+        }
+      }
+    },
+    "Counters": {
+      "fields": {
+        "cost": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[pattern=-?(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?]]"
+        },
+        "infrastructure_ms": {
+          "custody": false,
+          "required": false,
+          "type": "int[minimum=0]"
+        },
+        "model_calls": {
+          "custody": false,
+          "required": false,
+          "type": "int[minimum=0]"
+        },
+        "tokens": {
+          "custody": false,
+          "required": false,
+          "type": "int[minimum=0]"
+        }
+      }
+    },
+    "FixtureRef": {
+      "fields": {
+        "content_hash": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=(rcv1|sha256):[0-9a-f]{64}]"
+        },
+        "id": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        }
+      }
+    },
+    "LocateCandidate": {
+      "fields": {
+        "candidate_ref": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        },
+        "enabled": {
+          "custody": false,
+          "required": true,
+          "type": "bool"
+        },
+        "name": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[max_length=512]]"
+        },
+        "role": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[max_length=512]]"
+        },
+        "unique": {
+          "custody": false,
+          "required": true,
+          "type": "bool"
+        },
+        "visible": {
+          "custody": false,
+          "required": true,
+          "type": "bool"
+        }
+      }
+    },
+    "LocateResult": {
+      "fields": {
+        "candidates": {
+          "custody": false,
+          "required": false,
+          "type": "Tuple[LocateCandidate]"
+        }
+      }
+    },
+    "LocatorDescriptor": {
+      "fields": {
+        "frame_path": {
+          "custody": false,
+          "required": false,
+          "type": "Tuple[str[max_length=512]]"
+        },
+        "label": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[max_length=512]]"
+        },
+        "name": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[max_length=512]]"
+        },
+        "role": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[max_length=512]]"
+        },
+        "test_id": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[max_length=512]]"
+        },
+        "text_hint": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[max_length=512]]"
+        }
+      }
+    },
+    "LocatorUsed": {
+      "fields": {
+        "descriptor": {
+          "custody": false,
+          "required": true,
+          "type": "LocatorDescriptor"
+        },
+        "strategy": {
+          "custody": false,
+          "required": true,
+          "type": "LocatorStrategy"
+        }
+      }
+    },
+    "ModelRef": {
+      "fields": {
+        "model_id": {
+          "custody": false,
+          "required": true,
+          "type": "str[max_length=512]"
+        },
+        "parameters": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[Json[max_json_bytes=4096]]"
+        },
+        "provider": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        }
+      }
+    },
+    "ObservationSource": {
+      "fields": {
+        "adapter": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        },
+        "adapter_version": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._+-]{0,63}]"
+        },
+        "browser": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[max_length=512]]"
+        },
+        "browser_version": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[max_length=512]]"
+        }
+      }
+    },
+    "ObserveRequest": {
+      "fields": {
+        "capture": {
+          "custody": false,
+          "required": false,
+          "type": "Tuple[CaptureKind]"
+        },
+        "phase": {
+          "custody": false,
+          "required": true,
+          "type": "Phase"
+        },
+        "step_id": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        }
+      }
+    },
+    "PlanGate": {
+      "fields": {
+        "after": {
+          "custody": false,
+          "required": true,
+          "type": "Tuple[str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}@rcv1:[0-9a-f]{64}]]"
+        },
+        "item": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}@rcv1:[0-9a-f]{64}]"
+        }
+      }
+    },
+    "PlanItem": {
+      "fields": {
+        "budget": {
+          "custody": false,
+          "required": true,
+          "type": "Budget"
+        },
+        "evidence_level": {
+          "custody": false,
+          "required": false,
+          "type": "EvidenceLevel"
+        },
+        "lane": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        },
+        "order": {
+          "custody": false,
+          "required": true,
+          "type": "int[minimum=0]"
+        },
+        "recovery_ceiling": {
+          "custody": false,
+          "required": true,
+          "type": "int[minimum=0;maximum=1000]"
+        },
+        "spec_ref": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}@rcv1:[0-9a-f]{64}]"
+        }
+      }
+    },
+    "Postcondition": {
+      "fields": {
+        "declared": {
+          "custody": false,
+          "required": true,
+          "type": "str[max_length=1024;min_length=1]"
+        },
+        "observed": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[max_length=512]]"
+        },
+        "result": {
+          "custody": false,
+          "required": true,
+          "type": "PostconditionResult"
+        }
+      }
+    },
+    "Predicate": {
+      "fields": {
+        "expected": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[Json[max_json_bytes=4096]]"
+        },
+        "op": {
+          "custody": false,
+          "required": true,
+          "type": "PredicateOp"
+        }
+      }
+    },
+    "RecoveryCost": {
+      "fields": {
+        "model_calls": {
+          "custody": false,
+          "required": false,
+          "type": "int[minimum=0]"
+        },
+        "ms": {
+          "custody": false,
+          "required": false,
+          "type": "int[minimum=0]"
+        },
+        "tokens": {
+          "custody": false,
+          "required": false,
+          "type": "int[minimum=0]"
+        }
+      }
+    },
+    "ResetResult": {
+      "fields": {
+        "ok": {
+          "custody": false,
+          "required": true,
+          "type": "bool"
+        },
+        "scope": {
+          "custody": false,
+          "required": true,
+          "type": "ResetScope"
+        }
+      }
+    },
+    "ResolvedResource": {
+      "fields": {
+        "content_digest": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=sha256:[0-9a-f]{64}]"
+        },
+        "ref": {
+          "custody": false,
+          "required": true,
+          "type": "ResourceRef"
+        }
+      }
+    },
+    "ResolvedTarget": {
+      "fields": {
+        "candidate_ref": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        },
+        "locator": {
+          "custody": false,
+          "required": true,
+          "type": "LocatorDescriptor"
+        },
+        "strategy": {
+          "custody": false,
+          "required": true,
+          "type": "LocatorStrategy"
+        }
+      }
+    },
+    "ResourceClaim": {
+      "fields": {
+        "amount": {
+          "custody": false,
+          "required": true,
+          "type": "int[minimum=1]"
+        },
+        "resource": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        }
+      }
+    },
+    "ResourceRef": {
+      "fields": {
+        "api_version": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[max_length=512]]"
+        },
+        "digest": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[pattern=sha256:[0-9a-f]{64}]]"
+        },
+        "kind": {
+          "custody": false,
+          "required": true,
+          "type": "ResourceKind"
+        },
+        "name": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[max_length=512]]"
+        },
+        "namespace": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[max_length=512]]"
+        },
+        "object_kind": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[max_length=512]]"
+        },
+        "path": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[max_length=512;min_length=1]]"
+        }
+      }
+    },
+    "SessionHandle": {
+      "fields": {
+        "session_id": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        }
+      }
+    },
+    "SessionProfile": {
+      "fields": {
+        "allow_downloads": {
+          "custody": false,
+          "required": false,
+          "type": "bool"
+        },
+        "allow_file_choosers": {
+          "custody": false,
+          "required": false,
+          "type": "bool"
+        },
+        "allow_popups": {
+          "custody": false,
+          "required": false,
+          "type": "bool"
+        },
+        "egress_profile": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        },
+        "redaction_policy_id": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=(rcv1|sha256):[0-9a-f]{64}]"
+        }
+      }
+    },
+    "SkippedAssertion": {
+      "fields": {
+        "assertion_id": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        },
+        "reason_code": {
+          "custody": false,
+          "required": true,
+          "type": "SkipReason"
+        }
+      }
+    },
+    "Step": {
+      "fields": {
+        "action": {
+          "custody": false,
+          "required": true,
+          "type": "Action"
+        },
+        "expected_transition": {
+          "custody": false,
+          "required": true,
+          "type": "str[max_length=1024;min_length=1]"
+        },
+        "idempotency": {
+          "custody": false,
+          "required": false,
+          "type": "Idempotency"
+        },
+        "intent": {
+          "custody": false,
+          "required": true,
+          "type": "str[max_length=1024;min_length=1]"
+        },
+        "observation_deadline_ms": {
+          "custody": false,
+          "required": true,
+          "type": "int[minimum=1;maximum=3600000]"
+        },
+        "permitted_recovery": {
+          "custody": false,
+          "required": false,
+          "type": "Tuple[PermittedRecovery]"
+        },
+        "retry_safety": {
+          "custody": false,
+          "required": false,
+          "type": "RetrySafety"
+        },
+        "side_effect": {
+          "custody": false,
+          "required": true,
+          "type": "SideEffect"
+        },
+        "step_id": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        },
+        "target": {
+          "custody": false,
+          "required": true,
+          "type": "StepTarget"
+        }
+      }
+    },
+    "StepResult": {
+      "fields": {
+        "postcondition": {
+          "custody": false,
+          "required": true,
+          "type": "PostconditionResult"
+        },
+        "receipts": {
+          "custody": false,
+          "required": true,
+          "type": "Tuple[str[pattern=rcv1:[0-9a-f]{64}]]"
+        },
+        "result": {
+          "custody": false,
+          "required": true,
+          "type": "ResultCode"
+        },
+        "step_id": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        }
+      }
+    },
+    "StepTarget": {
+      "fields": {
+        "kind": {
+          "custody": false,
+          "required": true,
+          "type": "TargetKind"
+        },
+        "locator": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[LocatorDescriptor]"
+        },
+        "resource": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[ResourceRef]"
+        }
+      }
+    },
+    "TestTarget": {
+      "fields": {
+        "app_id": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        },
+        "build_sha": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[0-9a-f]{7,64}]"
+        },
+        "environment_profile": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        }
+      }
+    },
+    "ToolRef": {
+      "fields": {
+        "name": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        },
+        "version": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._+-]{0,63}]"
+        }
+      }
+    },
+    "VersionPin": {
+      "fields": {
+        "component": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        },
+        "revision": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[str[pattern=[0-9a-f]{7,64}]]"
+        },
+        "version": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._+-]{0,63}]"
+        }
+      }
+    },
+    "WorkspaceHandle": {
+      "fields": {
+        "workspace_id": {
+          "custody": false,
+          "required": true,
+          "type": "str[pattern=[A-Za-z0-9][A-Za-z0-9._:-]{0,127}]"
+        }
+      }
+    }
+  }
+}
