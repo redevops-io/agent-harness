@@ -1,9 +1,9 @@
 # Changelog
 
-Notable changes to `agent-harness`. The package version in `pyproject.toml` is `0.1.0` (tag `v0.1.0`); nothing below is
-released. Releasing the QA module is a separate step that the maintainers approve; see [QA_RELEASE_CHECKLIST.md](QA_RELEASE_CHECKLIST.md).
+Notable changes to `agent-harness`. The package version in `pyproject.toml` is `0.2.0` (tag `v0.2.0`; the previous tag is `v0.1.0`).
+The 0.2.0 release was checked against [QA_RELEASE_CHECKLIST.md](QA_RELEASE_CHECKLIST.md).
 
-## [Unreleased]
+## [0.2.0] - 2026-10-31
 
 ### Added
 

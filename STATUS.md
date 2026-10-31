@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Maturity | alpha / experimental |
-| Version | 0.1.0 (`pyproject.toml`); tag `v0.1.0` |
+| Version | 0.2.0 (`pyproject.toml`); tags `v0.1.0`, `v0.2.0` |
 | Last git activity | 2026-09-25 (`git log -1 --format=%cs`; clone is shallow) |
 | Activity | low: 10 commits between 2026-07-15 and 2026-10-15 (GitHub API) |
 | Distribution | not published by ReDevOps on PyPI; install from git only (PyPI `agent-harness` is an unrelated project) |

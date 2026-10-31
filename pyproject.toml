@@ -1,6 +1,6 @@
 [project]
 name = "agent-harness"
-version = "0.1.0"
+version = "0.2.0"
 description = "OSS core building blocks for a safe, tool-using agent: LLM client, tool registry, approval flow, sandboxed execution, guardrails, and an eval harness."
 readme = "README.md"
 requires-python = ">=3.10"
