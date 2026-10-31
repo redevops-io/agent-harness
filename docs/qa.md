@@ -97,6 +97,26 @@ module with the mechanism removed must fail its probe):
 8. **Changes only through review.** A new assertion set must be in the approved lineage.
 9. **Stop rule.** Any integrity refusal halts the batch; every later call is refused.
 
+**Integrity refusal codes.** Every integrity refusal ends the run `INCONCLUSIVE(ASSERTION_INTEGRITY)` and halts the
+batch. The loader tells the causes apart, and checks them in a fixed order: the shape of the pin, the approved lineage,
+the store, the recomputed hash, then for each `SCRIPT` assertion the registry entry and the program hash.
+
+| Code | Raised when |
+|---|---|
+| `ASSERTION_PIN_MALFORMED` | the pin is not `rcv1:` followed by 64 lowercase hex digits (checked first, whatever the store holds; a pin that is not a string is malformed) |
+| `ASSERTION_PIN_NOT_FOUND` | a well-formed pin names an assertion set the store does not hold |
+| `ASSERTION_HASH_MISMATCH` | a content hash recomputed from what was handed over differs from the hash it was pinned or recorded under (also: a pin outside the approved lineage, and any difference found by `FrozenAssertionSet`) |
+| `ASSERTION_PROGRAM_UNREGISTERED` | the check program an assertion names has no registry entry |
+| `ASSERTION_PROGRAM_MISMATCH` | the registry holds that program under a different hash than the assertion froze |
+| `BATCH_HALTED` | a call was refused because an earlier integrity refusal halted the batch; the refusal that halted it keeps its own code |
+
+`EXECUTOR_MISMATCH`, `EXPECTED_MISMATCH`, `RECOVERY_PAYLOAD_REJECTED` and `COVERAGE_VIOLATION` keep their meaning. The
+vocabulary is `errors.INTEGRITY_REFUSAL_CODES` (and the enum `IntegrityRefusalCode`). `classify.classify_refusal(code)`
+returns `(INCONCLUSIVE, ASSERTION_INTEGRITY)` for every code in it and for every code it does not know (an empty string,
+a value that is not a string, a code from a later version), and `None` only for a code known not to be an integrity
+refusal; `classify.refusal_halts_batch(code)` is true for exactly the codes that classify. A consumer that predates a
+code therefore reaches the same outcome a current one reaches.
+
 ## Run outcomes and recovery
 
 `classify(facts)` is a pure function with a first-match-wins precedence: integrity violation
@@ -110,6 +130,38 @@ cleanup and policy to hold. A `PASS` record that holds a failed assertion is an 
 `ESCALATE_REVIEW`. Recovery is off unless the run enables it, the kill switch is not engaged, the step's
 `permitted_recovery` lists the mode, the caps and the spec budget allow it, and the idempotency guard says the work may
 be done again (`UNKNOWN` idempotency is no guard; a step that cannot be shown safe is never replayed blindly).
+
+**Why a recovery did not recover.** `FaultRecovery.candidates_rejected_reasons` is per candidate: one token for each
+candidate that was considered and rejected, in the order they were considered, never more tokens than
+`candidates_considered`; a proposal refused before it is located (a strategy that is not allowed, an empty descriptor)
+counts as considered. `FaultRecovery.reason_code` is optional, part of the record's identity and a closed vocabulary
+(`RecoveryReason`, 18 members): why the recovery as a whole did not recover. It is absent when the result is `RECOVERED`
+(a record that sets both is refused) and for a recovery cut short by a cancel, a deadline or an integrity halt, which has
+no member of its own. A record without it hashes as it did before the field existed. The runner sets it from the cause
+the engine already names:
+
+| Cause (engine or runner) | `reason_code` |
+|---|---|
+| step has no UI locator; no authored role and name; recoverer raised; candidate cap; elapsed cap; kill switch engaged; no candidate; several controls with the authored role and name | `NO_UI_TARGET`, `NO_ROLE_NAME_ANCHOR`, `RECOVERER_ERROR`, `CANDIDATE_CAP_EXCEEDED`, `ELAPSED_CAP`, `KILL_SWITCH`, `NO_CANDIDATE`, `AMBIGUOUS_CANDIDATES` |
+| the selected control failed the runner's own recheck | `NO_CANDIDATE` |
+| recovery switched off for the run (kill switch engaged: `KILL_SWITCH`) | `RECOVERY_DISABLED` |
+| a policy denial of the recovered action; a mode the step does not permit; no recovery for the fault; no known fixture; a replay that needs a recovered locator | `NOT_PERMITTED` |
+| the per-step attempt cap, the spec or run budget, the replay cap | `BUDGET_EXHAUSTED` (`ELAPSED_CAP` for time) |
+| the idempotency guard refused: invalid input, not retryable, effect already observed, retry unsafe, no idempotency or postcondition guard, unknown side-effect class (a replay of an earlier step maps like the refusal itself) | `INVALID_INPUT`, `NOT_RETRYABLE`, `ALREADY_APPLIED`, `RETRY_UNSAFE`, `NO_IDEMPOTENCY_OR_POSTCONDITION_GUARD`, `UNKNOWN_SIDE_EFFECT_CLASS` |
+| a model round: disabled; call, token or over-budget caps; candidate caps; no anchor; no snapshot, client error, unknown usage, unusable output; wall time; no candidates | `NOT_PERMITTED`; `BUDGET_EXHAUSTED`; `CANDIDATE_CAP_EXCEEDED`; `NO_ROLE_NAME_ANCHOR`; `RECOVERER_ERROR`; `ELAPSED_CAP`; `NO_CANDIDATE` |
+| the recovery ran and was not verified: the step's own check did not show the effect, a reset or a new session was not confirmed, the fixture or environment was not verified afterwards, the replay did not reproduce the checkpoint | `POSTCONDITION_NOT_VERIFIED` |
+
+A cause with no entry in the table maps to `NOT_PERMITTED`, the conservative member (`recovery.reason_code_for`). The
+effect of the kill switch on one fault is recorded where it happened, as `suppressed_reason = KILL_SWITCH` together with
+`reason_code = KILL_SWITCH`. Engine limits and kill-switch state are not manifest fields and are outside identity: a
+`RunManifest` that carries a key for them (`kill_switch`, `engine_limits`, `operator_caps`, `recovery_limits`) is refused
+as an unknown field.
+
+**Timeouts.** `ACTION_TIMEOUT` is both retryable and recoverable. That does not loosen anything: recovery still needs
+enablement, a permitted mode, the caps and the idempotency guard. A timeout whose action may have been applied is never
+repeated blindly (the guard asks for an idempotency key and an observed postcondition that shows the effect is absent,
+and refuses a step that cannot be shown safe) and is never re-targeted to another locator once the action was sent. A
+run that recovered through a locator never ends `PASS`.
 
 Recovery cannot produce a `PASS`:
 
@@ -201,12 +253,33 @@ repositories. On any conflict, contracts wins and this module is corrected.
 | Contract id | `qa/v1` (`schemas.CONTRACT_ID`); schema version `0.1` |
 | Neutral interface id | `qa-neutral/1` (`schemas.NEUTRAL_API`) |
 | Hash spelling | the neutral `canon-v1:<64 hex>` is the contracts `rcv1:<64 hex>` with the same digits; `canon.to_contract_ref`, `canon.from_contract_ref` and `canon.same_digest` map the prefix. References embedded in records use the contracts `rcv1:` spelling |
-| Contracts commit mirrored | `13e00f23da74782af091aec607c47358e9814fc6` |
+| Contracts commit mirrored | `15a6f6cf79f22d27a920f59969dfeb2732a2d1cb` |
 | Canonical hash vectors | 97 vectors in `tests/qa/golden/qa_canon_vectors.json`, sha256 `7241c570746a63e75431591b88e42562f6604fc2a8586474a267eedb51908a13`, reproduced byte for byte by `tests/qa/test_canon.py` |
-| Field inventory | `tests/qa/golden/qa.inventory.json`, sha256 `8ebd0be1488233966ba66dc2cbb7c46b42ec3973a246f405e905130a4d28ba57`, checked field by field by `tests/qa/test_records.py` |
+| Additional vectors | 55 vectors in `tests/qa/golden/qa_canon_vectors_addendum.json`, sha256 `c2f5faf7c132c4cdeb14a6708676a4167ddfbd5e60ccfdb96ebe4612f72564d8` (predicate `expected_hash`, value digests, receipts, recovery records, the order of every set), reproduced by `tests/qa/test_contract_alignment.py` |
+| Clarification fixtures | `tests/qa/golden/qa_clarifications.json`, sha256 `a486ffcb0117e1cbb72600da1404761ac718f3d07df750db97bfa31bd88f9a3e` (refusal and classification cases for the integrity codes, the idempotency key, `reason_code` and the identity boundary), run by `tests/qa/test_contract_alignment.py` |
+| Field inventory | `tests/qa/golden/qa.inventory.json`, sha256 `ce8709f40642be7513bd5a80dbd8711acd1f56cce61b3403bada3ec3b5179c6e`, checked field by field by `tests/qa/test_records.py` |
+| JSON Schema | `tests/qa/golden/qa.schema.json`, sha256 `ce1146529e2d3e31ff89083dea11f6cc2719c872c2a653a640976ecd485855c4` |
 
 This repository's suite checks the neutral side against those golden inputs and needs no contracts install. It cannot
 show that the two sides agree on anything the golden inputs do not contain, and it does not try.
+
+How this module reads what the contracts define, where the earlier text was silent or this module had derived its own:
+
+* **Value digest.** The digest of an action value (`ActionRecord.value_digest`) is `rcv1` of the canonical JSON text of
+  the value alone: a string is hashed after NFC and with its two quote characters, there is no prefix, salt, wrapper or
+  action kind, and a `SecretRef` digests as the `rcv1` hash of the reference's canonical form (never of the secret).
+  `receipts.json_value_digest`, `receipts.action_value_digest` and `receipts.value_digest` compute it.
+* **Order of sets.** A set-valued field is sorted before hashing by its own rule, not by one rule: objects by the named
+  key of the element (`TestSpec.assertions` by `assertion_id`, `fixtures` by `id`, `RunManifest.versions` by `component`,
+  `assertions_skipped` and `assertion_results` by `assertion_id`, `step_results` by `step_id`), `evidence_refs` of a
+  detection or review item by the canonical JSON text of the element, strings by Unicode code point after NFC and
+  enums by member value. Code point order is neither numeric nor case-folded (`a-1 < a-10 < a-2`; `B-1` before `a-1`).
+  A listed order is not identity; two elements with one key, or one element listed twice, are refused.
+* **The reused types.** `Check.detail` is wording and never enters the hash. `Check.evidence_refs` keeps the order it
+  was given, is sorted by value in the canonical form, and a pin listed twice is kept. An `EvidenceRef` that omits
+  `modality` or `ref_type` hashes with the defaults `text` and `evidence`. A `SecretRef` without a `path` hashes the path
+  as the empty string (an explicit empty path is the same thing; the other optional strings of these three types stay
+  non-empty when given).
 
 The check that the two sides are one contract lives in the `redevops-qa` product package (its conformance suite) and is the
 **release-critical compatibility gate**. It runs against the exact pinned versions of both sides, installed from those

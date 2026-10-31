@@ -316,7 +316,8 @@ def probe_runner_requires_a_confirmed_reset(mod):
         adapter.reset_ok = False
     env = renv(mod, recover_spec(save=("RESET_FIXTURE",)), refuses)
     r = env.run()
-    return "RESET_NOT_CONFIRMED" in only(r).recovery.candidates_rejected_reasons
+    rec = only(r).recovery
+    return rec.result is RR.NOT_RECOVERED and rec.reason_code is R.RecoveryReason.POSTCONDITION_NOT_VERIFIED
 
 
 def probe_runner_requires_a_verified_fixture_after_reset(mod):
@@ -328,7 +329,8 @@ def probe_runner_requires_a_verified_fixture_after_reset(mod):
             return Stale.calls == 1
     env = renv(mod, recover_spec(save=("RESET_FIXTURE",)), stale_fixture, checks=Stale())
     r = env.run()
-    return "FIXTURE_NOT_VERIFIED" in only(r).recovery.candidates_rejected_reasons
+    rec = only(r).recovery
+    return rec.result is RR.NOT_RECOVERED and rec.reason_code is R.RecoveryReason.POSTCONDITION_NOT_VERIFIED
 
 
 def probe_runner_policy_decides_every_replayed_step(mod):
@@ -520,7 +522,7 @@ MUTATIONS = {
         M("runner.py", [("        if not is_allowed(decision):\n            self._receipt(c, prior, attempt, ref,", "        if False:\n            self._receipt(c, prior, attempt, ref,")],
           probe_runner_policy_decides_every_replayed_step, "policy for replays"),
     "runner: a policy-denied recovery is not recorded as such":
-        M("runner.py", [("                self._seal_pending(c, attempted=False, result=RecoveryResult.NOT_ATTEMPTED, verified=False,\n                                   suppressed=SuppressedReason.POLICY_DENIED)",
+        M("runner.py", [("                self._seal_pending(c, attempted=False, result=RecoveryResult.NOT_ATTEMPTED, verified=False,\n                                   suppressed=SuppressedReason.POLICY_DENIED, cause=\"POLICY_DENIED\")",
                          "                pass")],
           probe_runner_records_a_policy_denied_recovery, "policy-denied recovery"),
     "runner: a lost session that cannot be closed counts as clean":

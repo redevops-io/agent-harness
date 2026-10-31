@@ -72,7 +72,7 @@ def test_loading_is_idempotent_and_deterministic():
 
 @pytest.mark.parametrize("pin", [None, "", "canon-v1:" + "0" * 64, "rcv1:" + "0" * 63, "rcv1:" + "G" * 64, 7])
 def test_a_missing_or_malformed_pin_is_refused_before_anything_is_read(pin):
-    err = refused("ASSERTION_HASH_MISMATCH", V.load_frozen_assertions, store((REF_PIN, REF_DOCS)), pin,
+    err = refused("ASSERTION_PIN_MALFORMED", V.load_frozen_assertions, store((REF_PIN, REF_DOCS)), pin,
                   lineage=lineage(REF_PIN), programs=programs())
     integrity(err)
 
@@ -86,7 +86,7 @@ def test_a_pin_outside_the_approved_lineage_is_refused():
 
 
 def test_a_pin_the_store_does_not_hold_is_refused():
-    err = refused("ASSERTION_HASH_MISMATCH", V.load_frozen_assertions, store(), REF_PIN, lineage=lineage(REF_PIN),
+    err = refused("ASSERTION_PIN_NOT_FOUND", V.load_frozen_assertions, store(), REF_PIN, lineage=lineage(REF_PIN),
                   programs=programs())
     integrity(err)
 
@@ -209,13 +209,13 @@ def test_a_playwright_assertion_that_carries_a_check_program_ref_is_rejected():
 def test_a_program_hash_that_differs_from_the_registered_program_ends_integrity_before_any_execution():
     check = ScriptedCheckAdapter(observed("pinned"))
     wrong = InMemoryProgramRegistry({PROGRAM_KEY: "sha256:" + "ab" * 32})
-    err = refused("ASSERTION_HASH_MISMATCH", load_script, wrong)
+    err = refused("ASSERTION_PROGRAM_MISMATCH", load_script, wrong)
     integrity(err)
     assert check.calls == []
 
 
 def test_an_unregistered_program_ends_integrity_before_any_execution():
-    integrity(refused("ASSERTION_HASH_MISMATCH", load_script, InMemoryProgramRegistry({})))
+    integrity(refused("ASSERTION_PROGRAM_UNREGISTERED", load_script, InMemoryProgramRegistry({})))
 
 
 def test_a_program_hash_edited_in_the_stored_assertion_does_not_hash_to_the_pin():
@@ -241,7 +241,7 @@ def test_the_program_hash_is_checked_again_immediately_before_each_execution():
     assert verifier.verify_assertion(frozen, "a-image-pinned").check.verdict is R.Verdict.PASS
     registry.h = "sha256:" + "cd" * 32                  # the registry changes after load
     n = len(check.calls)
-    integrity(refused("ASSERTION_HASH_MISMATCH", verifier.verify_assertion, frozen, "a-image-pinned"))
+    integrity(refused("ASSERTION_PROGRAM_MISMATCH", verifier.verify_assertion, frozen, "a-image-pinned"))
     assert len(check.calls) == n and verifier.halt.tripped
 
 
@@ -611,7 +611,7 @@ def _program_hash_refused(mod):
         mod.load_frozen_assertions(store((SCRIPT_PIN, SCRIPT_DOCS)), SCRIPT_PIN, lineage=mod.ApprovedLineage([SCRIPT_PIN]),
                                    programs=wrong)
     except QAError as exc:
-        return exc.code == "ASSERTION_HASH_MISMATCH"
+        return exc.code == "ASSERTION_PROGRAM_MISMATCH"
     return False
 
 
