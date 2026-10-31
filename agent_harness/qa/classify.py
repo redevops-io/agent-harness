@@ -27,7 +27,8 @@ from types import MappingProxyType
 from typing import Any, Dict, Iterable, Optional, Sequence, Tuple
 
 from . import canon
-from .errors import (ERRORS_BY_CODE, REASON_ASSERTION_INTEGRITY, QAError, SpecInvalid)
+from .errors import (ERRORS_BY_CODE, INTEGRITY_REFUSAL_CODES, REASON_ASSERTION_INTEGRITY, STRUCTURAL_CODES, QAError,
+                     SpecInvalid)
 from .records import (AssertionSpec, Determinism, FaultEvent, Outcome, RecoveryResult,
                       RecoveryStrategy, ReviewItem, RunManifest, SkipReason, SkippedAssertion, Verdict,
                       FaultSignal)
@@ -63,6 +64,25 @@ REDACTION_CODES = frozenset({"REDACTION_FAILED"})
 _ENVIRONMENT_SIGNALS = frozenset({FaultSignal.ENV_UNHEALTHY, FaultSignal.SESSION_LOST, FaultSignal.NETWORK_BLOCKED})
 _ASSERTION_SIGNALS = frozenset({FaultSignal.ASSERTION_FAILED, FaultSignal.ASSERTION_UNRESOLVABLE})
 _LOCATOR_STRATEGIES = frozenset({RecoveryStrategy.SEMANTIC_LOCATOR, RecoveryStrategy.MODEL_CANDIDATE})
+
+
+#: codes this module knows to be refusals that are *not* integrity refusals (classified by the caller's own rules)
+KNOWN_NON_INTEGRITY_CODES = frozenset((set(ERRORS_BY_CODE) | set(STRUCTURAL_CODES)) - set(INTEGRITY_REFUSAL_CODES))
+
+
+def classify_refusal(code: Any) -> Optional[Tuple[Outcome, str]]:
+    """Classify one refusal code. Every integrity refusal (:data:`errors.INTEGRITY_REFUSAL_CODES`) is
+    ``(INCONCLUSIVE, ASSERTION_INTEGRITY)``, and so is every code this version does not know (an empty string, a value
+    that is not a string, a code from a later version): fail closed, never a pass and never skipped. ``None`` only for
+    a code known to be something other than an integrity refusal."""
+    if type(code) is str and code in KNOWN_NON_INTEGRITY_CODES:
+        return None
+    return (Outcome.INCONCLUSIVE, ASSERTION_INTEGRITY)
+
+
+def refusal_halts_batch(code: Any) -> bool:
+    """A refusal halts the batch when it classifies as an integrity refusal (every unknown code does)."""
+    return classify_refusal(code) is not None
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -447,5 +467,6 @@ def classify(facts: RunFacts) -> Classification:
 __all__ = [
     "ASSERTION_INTEGRITY", "Signal", "RunFacts", "Signals", "Classification", "INTEGRITY_CODES", "SPEC_DEFECT_CODES",
     "ENVIRONMENT_CODES", "REDACTION_CODES", "DEFAULT_EXIT_CODES", "outcome_to_verdict", "exit_code", "review_item_for",
-    "classify_coverage", "derive_signals", "decide", "classify",
+    "classify_coverage", "derive_signals", "decide", "classify", "KNOWN_NON_INTEGRITY_CODES", "classify_refusal",
+    "refusal_halts_batch",
 ]

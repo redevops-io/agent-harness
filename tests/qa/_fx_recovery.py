@@ -306,6 +306,14 @@ def check_recovery_invariants(env, result):
             assert ev.recovery.attempted and ev.recovery.postcondition_verified
         if not ev.recovery.attempted:
             assert ev.recovery.result is R.RecoveryResult.NOT_ATTEMPTED
+        # why the recovery as a whole did not recover: absent on a recovery, present when nothing was recovered
+        # (a recovery cut short by a cancel, a deadline or an integrity halt may have none), and one rejection token
+        # per candidate considered at most
+        if ev.recovery.result is R.RecoveryResult.RECOVERED:
+            assert ev.recovery.reason_code is None
+        elif ev.recovery.result in (R.RecoveryResult.NOT_RECOVERED, R.RecoveryResult.NOT_ATTEMPTED):
+            assert isinstance(ev.recovery.reason_code, R.RecoveryReason)
+        assert len(ev.recovery.candidates_rejected_reasons) <= ev.recovery.candidates_considered
     return result
 
 

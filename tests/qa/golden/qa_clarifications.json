@@ -1,0 +1,1318 @@
+{
+  "canonicalization": "rcv1",
+  "clarifications_version": "1",
+  "classification": {
+    "cases": [
+      {
+        "classification": [
+          "INCONCLUSIVE",
+          "ASSERTION_INTEGRITY"
+        ],
+        "code": "ASSERTION_INTEGRITY",
+        "why": "the outcome reason itself"
+      },
+      {
+        "classification": [
+          "INCONCLUSIVE",
+          "ASSERTION_INTEGRITY"
+        ],
+        "code": "ASSERTION_HASH_MISMATCH",
+        "why": "an original code"
+      },
+      {
+        "classification": [
+          "INCONCLUSIVE",
+          "ASSERTION_INTEGRITY"
+        ],
+        "code": "EXECUTOR_MISMATCH",
+        "why": "an original code"
+      },
+      {
+        "classification": [
+          "INCONCLUSIVE",
+          "ASSERTION_INTEGRITY"
+        ],
+        "code": "EXPECTED_MISMATCH",
+        "why": "an original code"
+      },
+      {
+        "classification": [
+          "INCONCLUSIVE",
+          "ASSERTION_INTEGRITY"
+        ],
+        "code": "RECOVERY_PAYLOAD_REJECTED",
+        "why": "an original code"
+      },
+      {
+        "classification": [
+          "INCONCLUSIVE",
+          "ASSERTION_INTEGRITY"
+        ],
+        "code": "COVERAGE_VIOLATION",
+        "why": "an original code"
+      },
+      {
+        "classification": [
+          "INCONCLUSIVE",
+          "ASSERTION_INTEGRITY"
+        ],
+        "code": "ASSERTION_PROGRAM_MISMATCH",
+        "why": "added within qa/v1"
+      },
+      {
+        "classification": [
+          "INCONCLUSIVE",
+          "ASSERTION_INTEGRITY"
+        ],
+        "code": "ASSERTION_PROGRAM_UNREGISTERED",
+        "why": "added within qa/v1"
+      },
+      {
+        "classification": [
+          "INCONCLUSIVE",
+          "ASSERTION_INTEGRITY"
+        ],
+        "code": "ASSERTION_PIN_NOT_FOUND",
+        "why": "added within qa/v1"
+      },
+      {
+        "classification": [
+          "INCONCLUSIVE",
+          "ASSERTION_INTEGRITY"
+        ],
+        "code": "ASSERTION_PIN_MALFORMED",
+        "why": "added within qa/v1"
+      },
+      {
+        "classification": [
+          "INCONCLUSIVE",
+          "ASSERTION_INTEGRITY"
+        ],
+        "code": "BATCH_HALTED",
+        "why": "added within qa/v1"
+      },
+      {
+        "classification": null,
+        "code": "SPEC_INVALID",
+        "why": "known and not an integrity refusal: classified by the caller's own rules"
+      },
+      {
+        "classification": null,
+        "code": "CHECK_PROGRAM_REF_REQUIRED",
+        "why": "known and not an integrity refusal (a test defect)"
+      },
+      {
+        "classification": [
+          "INCONCLUSIVE",
+          "ASSERTION_INTEGRITY"
+        ],
+        "code": "A_CODE_FROM_A_LATER_VERSION",
+        "why": "an unknown code fails closed to an integrity violation"
+      },
+      {
+        "classification": [
+          "INCONCLUSIVE",
+          "ASSERTION_INTEGRITY"
+        ],
+        "code": "",
+        "why": "an empty code is unknown"
+      }
+    ],
+    "older_consumer": {
+      "cases": [
+        {
+          "classification": [
+            "INCONCLUSIVE",
+            "ASSERTION_INTEGRITY"
+          ],
+          "code": "ASSERTION_PROGRAM_MISMATCH"
+        },
+        {
+          "classification": [
+            "INCONCLUSIVE",
+            "ASSERTION_INTEGRITY"
+          ],
+          "code": "ASSERTION_PROGRAM_UNREGISTERED"
+        },
+        {
+          "classification": [
+            "INCONCLUSIVE",
+            "ASSERTION_INTEGRITY"
+          ],
+          "code": "ASSERTION_PIN_NOT_FOUND"
+        },
+        {
+          "classification": [
+            "INCONCLUSIVE",
+            "ASSERTION_INTEGRITY"
+          ],
+          "code": "ASSERTION_PIN_MALFORMED"
+        },
+        {
+          "classification": [
+            "INCONCLUSIVE",
+            "ASSERTION_INTEGRITY"
+          ],
+          "code": "BATCH_HALTED"
+        }
+      ],
+      "known_codes": [
+        "ASSERTION_HASH_MISMATCH",
+        "ASSERTION_INTEGRITY",
+        "CHECK_PROGRAM_REF_REQUIRED",
+        "COVERAGE_VIOLATION",
+        "DUPLICATE_ENTRY",
+        "EXECUTOR_MISMATCH",
+        "EXPECTED_MISMATCH",
+        "FAULT_BINDING_MISMATCH",
+        "FLOAT_REFUSED",
+        "HASH_MISMATCH",
+        "INVALID_FIELD",
+        "MISSING_FIELD",
+        "PLAN_INVALID",
+        "RECORD_INCONSISTENT",
+        "RECOVERY_PAYLOAD_REJECTED",
+        "SCHEMA_MISMATCH",
+        "SCHEMA_VERSION_UNSUPPORTED",
+        "SPEC_INVALID",
+        "UNKNOWN_ENUM_VALUE",
+        "UNKNOWN_FIELD",
+        "UNSUPPORTED_COVERAGE_CONTRACT"
+      ],
+      "why": "a consumer built before the added codes does not know them; it classifies each as an unknown code, which is INCONCLUSIVE(ASSERTION_INTEGRITY) and halts the batch: the same outcome the added code itself maps to"
+    },
+    "rule": "Every integrity refusal classifies as INCONCLUSIVE(ASSERTION_INTEGRITY) and halts the batch. A code a consumer does not know classifies the same way. A known code that is not an integrity refusal has no classification here (null)."
+  },
+  "contract": "qa/v1",
+  "fault_recovery": {
+    "existing_golden_fault_recovery_hash": "rcv1:e9fc14128bdf765d77cef1169c9a511885db5ac6f3197b01e0d2531aa410e4b9",
+    "hashes": {
+      "not_recovered_no_candidate": "rcv1:b7468751b3c7f76f3173d729d76fc54809bc61e42b282b76040f34455ac73bc9",
+      "not_recovered_without_reason": "rcv1:e4975ca06824fc3865f1a03efa70bd02d8ff91ead07dc047e5aeeb9c2ea3d627",
+      "recovered_without_reason": "rcv1:ab9740f47373512dd65b6e3393d16a36e509e3acafe22f45758f8df21fc27c43",
+      "rejected_reasons_reordered": "rcv1:560758e6b8163491f0ac7def16835c41f8212ecbf999bfb35a341d0a17cd77ff",
+      "stopped_before_any_candidate": "rcv1:1c624ade0523461d66f5a88fd28a4b9a4dcb69b2345684250cce332345aee550",
+      "suppressed_by_kill_switch": "rcv1:1cd42c730aa7daa6df383cbd67b5f282defaedcf8ded1d698228a76ce4cd4835"
+    },
+    "reason_code_vocabulary": [
+      "NO_UI_TARGET",
+      "NO_ROLE_NAME_ANCHOR",
+      "RECOVERER_ERROR",
+      "CANDIDATE_CAP_EXCEEDED",
+      "ELAPSED_CAP",
+      "KILL_SWITCH",
+      "NO_CANDIDATE",
+      "AMBIGUOUS_CANDIDATES",
+      "RECOVERY_DISABLED",
+      "BUDGET_EXHAUSTED",
+      "NOT_PERMITTED",
+      "NOT_RETRYABLE",
+      "ALREADY_APPLIED",
+      "RETRY_UNSAFE",
+      "NO_IDEMPOTENCY_OR_POSTCONDITION_GUARD",
+      "INVALID_INPUT",
+      "UNKNOWN_SIDE_EFFECT_CLASS",
+      "POSTCONDITION_NOT_VERIFIED"
+    ],
+    "refusals": [
+      {
+        "expect": {
+          "code": "RECORD_INCONSISTENT",
+          "refused": true
+        },
+        "id": "recovered_with_reason_code",
+        "input": {
+          "attempted": true,
+          "attempts": 1,
+          "candidates_considered": 3,
+          "candidates_rejected_reasons": [
+            "NAME_MISMATCH",
+            "NOT_UNIQUE",
+            "ROLE_MISMATCH"
+          ],
+          "detection_ref": "rcv1:0000000000000000000000000000000000000000000000000000000000000046",
+          "postcondition_verified": true,
+          "reason_code": "NO_CANDIDATE",
+          "result": "RECOVERED",
+          "schema_id": "runtime-contracts/qa/fault-recovery",
+          "schema_version": "0.1",
+          "strategy": "SEMANTIC_LOCATOR",
+          "suppressed_reason": "NONE"
+        },
+        "operation": "parse_fault_recovery",
+        "why": "RECOVERED carries no reason_code"
+      },
+      {
+        "expect": {
+          "code": "UNKNOWN_ENUM_VALUE",
+          "refused": true
+        },
+        "id": "unknown_reason_code",
+        "input": {
+          "attempted": true,
+          "attempts": 1,
+          "candidates_considered": 3,
+          "candidates_rejected_reasons": [
+            "NAME_MISMATCH",
+            "NOT_UNIQUE",
+            "ROLE_MISMATCH"
+          ],
+          "detection_ref": "rcv1:0000000000000000000000000000000000000000000000000000000000000046",
+          "postcondition_verified": false,
+          "reason_code": "SOMETHING_FROM_A_LATER_VERSION",
+          "result": "NOT_RECOVERED",
+          "schema_id": "runtime-contracts/qa/fault-recovery",
+          "schema_version": "0.1",
+          "strategy": "SEMANTIC_LOCATOR",
+          "suppressed_reason": "NONE"
+        },
+        "operation": "parse_fault_recovery",
+        "why": "an unknown reason_code is non-certifying: the record is refused, never read as something else"
+      },
+      {
+        "expect": {
+          "code": "RECORD_INCONSISTENT",
+          "refused": true
+        },
+        "id": "more_rejections_than_candidates",
+        "input": {
+          "attempted": true,
+          "attempts": 1,
+          "candidates_considered": 1,
+          "candidates_rejected_reasons": [
+            "NAME_MISMATCH",
+            "NOT_UNIQUE",
+            "ROLE_MISMATCH"
+          ],
+          "detection_ref": "rcv1:0000000000000000000000000000000000000000000000000000000000000046",
+          "postcondition_verified": false,
+          "reason_code": "NO_CANDIDATE",
+          "result": "NOT_RECOVERED",
+          "schema_id": "runtime-contracts/qa/fault-recovery",
+          "schema_version": "0.1",
+          "strategy": "SEMANTIC_LOCATOR",
+          "suppressed_reason": "NONE"
+        },
+        "operation": "parse_fault_recovery",
+        "why": "candidates_rejected_reasons holds at most one code per candidate considered"
+      },
+      {
+        "expect": {
+          "refused": false
+        },
+        "id": "reason_code_control",
+        "input": {
+          "attempted": true,
+          "attempts": 1,
+          "candidates_considered": 3,
+          "candidates_rejected_reasons": [
+            "NAME_MISMATCH",
+            "NOT_UNIQUE",
+            "ROLE_MISMATCH"
+          ],
+          "detection_ref": "rcv1:0000000000000000000000000000000000000000000000000000000000000046",
+          "postcondition_verified": false,
+          "reason_code": "NO_CANDIDATE",
+          "result": "NOT_RECOVERED",
+          "schema_id": "runtime-contracts/qa/fault-recovery",
+          "schema_version": "0.1",
+          "strategy": "SEMANTIC_LOCATOR",
+          "suppressed_reason": "NONE"
+        },
+        "operation": "parse_fault_recovery",
+        "why": "control: a not-recovered record with a reason_code parses"
+      }
+    ],
+    "relations": [
+      {
+        "differ": [
+          "not_recovered_without_reason",
+          "not_recovered_no_candidate"
+        ],
+        "why": "reason_code is identity"
+      },
+      {
+        "differ": [
+          "not_recovered_without_reason",
+          "rejected_reasons_reordered"
+        ],
+        "why": "candidates_rejected_reasons is ordered"
+      }
+    ]
+  },
+  "fixture_set": "runtime-contracts/qa/clarifications",
+  "idempotency": {
+    "cases": [
+      {
+        "id": "same_key_across_attempts",
+        "receipts": [
+          {
+            "attempt": 1,
+            "idempotency_key": "idem-s1-1",
+            "run_id": "run-1",
+            "step_id": "s1"
+          },
+          {
+            "attempt": 2,
+            "idempotency_key": "idem-s1-1",
+            "run_id": "run-1",
+            "step_id": "s1"
+          }
+        ],
+        "violations": [],
+        "why": "two attempts of one step share one key: the target can recognise a replay"
+      },
+      {
+        "id": "one_key_per_step",
+        "receipts": [
+          {
+            "attempt": 1,
+            "idempotency_key": "idem-s1-1",
+            "run_id": "run-1",
+            "step_id": "s1"
+          },
+          {
+            "attempt": 2,
+            "idempotency_key": "idem-s1-1",
+            "run_id": "run-1",
+            "step_id": "s1"
+          },
+          {
+            "attempt": 1,
+            "idempotency_key": "idem-s2-1",
+            "run_id": "run-1",
+            "step_id": "s2"
+          }
+        ],
+        "violations": [],
+        "why": "different steps carry different keys"
+      },
+      {
+        "id": "key_changes_between_attempts",
+        "receipts": [
+          {
+            "attempt": 1,
+            "idempotency_key": "idem-s1-1",
+            "run_id": "run-1",
+            "step_id": "s1"
+          },
+          {
+            "attempt": 2,
+            "idempotency_key": "idem-s1-other",
+            "run_id": "run-1",
+            "step_id": "s1"
+          }
+        ],
+        "violations": [
+          "IDEMPOTENCY_KEY_CHANGED_ACROSS_ATTEMPTS"
+        ],
+        "why": "a replay that arrives under a new key cannot be recognised"
+      },
+      {
+        "id": "key_shared_by_two_steps",
+        "receipts": [
+          {
+            "attempt": 1,
+            "idempotency_key": "idem-s1-1",
+            "run_id": "run-1",
+            "step_id": "s1"
+          },
+          {
+            "attempt": 1,
+            "idempotency_key": "idem-s1-1",
+            "run_id": "run-1",
+            "step_id": "s2"
+          }
+        ],
+        "violations": [
+          "IDEMPOTENCY_KEY_SHARED_ACROSS_STEPS"
+        ],
+        "why": "two steps of one run must not share a key: the target would treat the second as a replay of the first"
+      }
+    ],
+    "receipt_hashes": {
+      "receipt_attempt_1": "rcv1:f3cb21bbb77b5f3924619162bb42b15a16fffdea41e3a71300961bdcc7e50d61",
+      "receipt_attempt_2": "rcv1:0770e045248b17463ffb92c5cc17ebb959af31271235b5632fd3a79388088947",
+      "receipt_attempt_2_rekeyed": "rcv1:72eea5d5f0c904fd1e05f38394b2a5df41cd0f155384fd017c8fdf38c245b70b",
+      "receipt_duration_changed": "rcv1:f3cb21bbb77b5f3924619162bb42b15a16fffdea41e3a71300961bdcc7e50d61",
+      "receipt_key_changed": "rcv1:b949d5b5fcf071851807efdda439eef59f00a95f2e31d29c22ca6d97dd815221",
+      "receipt_other_step": "rcv1:9fc646ce4cc53a8a7ebc54d7d3204c16afa9e550c7099f87733ec6dccdccbc3b",
+      "receipt_state_after_changed": "rcv1:82bba3415104740c8f18e57ffa0e91d51e43fc12086d010e044031fe8df7ac51"
+    },
+    "rule": "The idempotency key is per step: every attempt of one step in one run carries the same key, and different steps of one run carry different keys. It is an opaque identifier of the Ident shape; no consumer parses it."
+  },
+  "identity_boundary": {
+    "custody_counters": [
+      "cost",
+      "infrastructure_ms",
+      "model_calls",
+      "tokens"
+    ],
+    "manifest_fields_that_describe_the_run": [
+      "counters",
+      "resource_limits",
+      "recovery_enabled",
+      "model_recovery_enabled"
+    ],
+    "refusals": [
+      {
+        "expect": {
+          "code": "UNKNOWN_FIELD",
+          "refused": true
+        },
+        "id": "manifest_with_kill_switch",
+        "input": {
+          "adapter": {
+            "id": "qa-playwright",
+            "version": "0.1.0"
+          },
+          "assertion_results": [
+            {
+              "actual": "Saved",
+              "assertion_id": "a-saved",
+              "assertion_set_hash": "rcv1:94c9e0bd652146534232836c1de1cea4d1aab066939f8e0755f8b930a2898858",
+              "check": {
+                "check_id": "a-saved",
+                "determinism": "DETERMINISTIC",
+                "evidence_refs": [
+                  "shot-3@1#sha256:0000000000000000000000000000000000000000000000000000000000000067"
+                ],
+                "verdict": "PASS"
+              },
+              "executor": "PLAYWRIGHT",
+              "expected_hash": "rcv1:1b995d3503f549f89ae235791af06f1923a99bb30ec7904e2e77921cd2830c80",
+              "observation_id": "obs-s1-after",
+              "schema_id": "runtime-contracts/qa/assertion-result",
+              "schema_version": "0.1",
+              "verifier": {
+                "id": "det-verifier",
+                "version": "1.0.0"
+              }
+            },
+            {
+              "actual": "Saved",
+              "assertion_id": "a-url",
+              "assertion_set_hash": "rcv1:94c9e0bd652146534232836c1de1cea4d1aab066939f8e0755f8b930a2898858",
+              "check": {
+                "check_id": "a-url",
+                "determinism": "DETERMINISTIC",
+                "evidence_refs": [
+                  "shot-3@1#sha256:0000000000000000000000000000000000000000000000000000000000000067"
+                ],
+                "verdict": "PASS"
+              },
+              "executor": "PLAYWRIGHT",
+              "expected_hash": "rcv1:fd486b78aafb6295042c9b2ad98dd2ce47c9df3d0d26dc8795bb5f6c3a701b40",
+              "observation_id": "obs-s1-after",
+              "schema_id": "runtime-contracts/qa/assertion-result",
+              "schema_version": "0.1",
+              "verifier": {
+                "id": "det-verifier",
+                "version": "1.0.0"
+              }
+            }
+          ],
+          "assertion_set_hash": "rcv1:94c9e0bd652146534232836c1de1cea4d1aab066939f8e0755f8b930a2898858",
+          "assertions_declared": [
+            "a-saved",
+            "a-url"
+          ],
+          "assertions_executed": [
+            "a-saved",
+            "a-url"
+          ],
+          "assertions_skipped": [],
+          "browser": "chromium 130.0.1",
+          "egress_policy_id": "rcv1:0000000000000000000000000000000000000000000000000000000000000020",
+          "fault_events": [
+            {
+              "detection": {
+                "claimed_class": "BENIGN_DRIFT",
+                "detected": true,
+                "detector": {
+                  "id": "step-detector",
+                  "version": "0.1.0"
+                },
+                "evidence_refs": [
+                  {
+                    "content_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000068",
+                    "media_type": "image/png",
+                    "modality": "image",
+                    "ref": "obs-4",
+                    "ref_type": "artifact",
+                    "source": "qa-playwright",
+                    "version": "1"
+                  }
+                ],
+                "schema_id": "runtime-contracts/qa/fault-detection",
+                "schema_version": "0.1",
+                "signal": "LOCATOR_NOT_FOUND"
+              },
+              "fault_event_id": "fe-0",
+              "recovery": {
+                "attempted": true,
+                "attempts": 1,
+                "candidates_considered": 2,
+                "candidates_rejected_reasons": [
+                  "NOT_UNIQUE"
+                ],
+                "detection_ref": "rcv1:c6370e1a6b97fdfda74ac2a7a937ff3a3ca3960fd48b389fed5a75b043271738",
+                "postcondition_verified": true,
+                "result": "RECOVERED",
+                "schema_id": "runtime-contracts/qa/fault-recovery",
+                "schema_version": "0.1",
+                "strategy": "SEMANTIC_LOCATOR",
+                "suppressed_reason": "NONE"
+              },
+              "schema_id": "runtime-contracts/qa/fault-event",
+              "schema_version": "0.1",
+              "sequence": 0,
+              "step_id": "s1"
+            }
+          ],
+          "kill_switch": {
+            "engaged": true
+          },
+          "model_recovery_enabled": false,
+          "outcome": "PASS",
+          "plan_hash": "rcv1:0000000000000000000000000000000000000000000000000000000000000021",
+          "planner": {
+            "id": "cr-qa-planner",
+            "version": "0.1.0"
+          },
+          "recovery_enabled": true,
+          "redaction_policy_id": "rcv1:000000000000000000000000000000000000000000000000000000000000001f",
+          "resource_limits": {
+            "memory_mb": 2048,
+            "pids": 256
+          },
+          "run_id": "run-1",
+          "sandbox_image_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000022",
+          "schema_id": "runtime-contracts/qa/run-manifest",
+          "schema_version": "0.1",
+          "seeds": [
+            7,
+            11
+          ],
+          "spec_ref": "checkout-save@rcv1:2e63d029f7e5eea524716ed9c5e80d8fd807155318b5c02c2fda2f6b7c69d8f7",
+          "step_results": [
+            {
+              "postcondition": "SATISFIED",
+              "receipts": [
+                "rcv1:f3cb21bbb77b5f3924619162bb42b15a16fffdea41e3a71300961bdcc7e50d61"
+              ],
+              "result": "OK",
+              "step_id": "s1"
+            }
+          ],
+          "trace_id": "0123456789abcdef0123456789abcdef",
+          "versions": [
+            {
+              "component": "agent-harness",
+              "version": "0.1.0"
+            },
+            {
+              "component": "runtime-contracts",
+              "revision": "403f536",
+              "version": "0.3.14"
+            }
+          ]
+        },
+        "operation": "parse_run_manifest",
+        "why": "kill_switch is not a RunManifest field"
+      },
+      {
+        "expect": {
+          "code": "UNKNOWN_FIELD",
+          "refused": true
+        },
+        "id": "manifest_with_engine_limits",
+        "input": {
+          "adapter": {
+            "id": "qa-playwright",
+            "version": "0.1.0"
+          },
+          "assertion_results": [
+            {
+              "actual": "Saved",
+              "assertion_id": "a-saved",
+              "assertion_set_hash": "rcv1:94c9e0bd652146534232836c1de1cea4d1aab066939f8e0755f8b930a2898858",
+              "check": {
+                "check_id": "a-saved",
+                "determinism": "DETERMINISTIC",
+                "evidence_refs": [
+                  "shot-3@1#sha256:0000000000000000000000000000000000000000000000000000000000000067"
+                ],
+                "verdict": "PASS"
+              },
+              "executor": "PLAYWRIGHT",
+              "expected_hash": "rcv1:1b995d3503f549f89ae235791af06f1923a99bb30ec7904e2e77921cd2830c80",
+              "observation_id": "obs-s1-after",
+              "schema_id": "runtime-contracts/qa/assertion-result",
+              "schema_version": "0.1",
+              "verifier": {
+                "id": "det-verifier",
+                "version": "1.0.0"
+              }
+            },
+            {
+              "actual": "Saved",
+              "assertion_id": "a-url",
+              "assertion_set_hash": "rcv1:94c9e0bd652146534232836c1de1cea4d1aab066939f8e0755f8b930a2898858",
+              "check": {
+                "check_id": "a-url",
+                "determinism": "DETERMINISTIC",
+                "evidence_refs": [
+                  "shot-3@1#sha256:0000000000000000000000000000000000000000000000000000000000000067"
+                ],
+                "verdict": "PASS"
+              },
+              "executor": "PLAYWRIGHT",
+              "expected_hash": "rcv1:fd486b78aafb6295042c9b2ad98dd2ce47c9df3d0d26dc8795bb5f6c3a701b40",
+              "observation_id": "obs-s1-after",
+              "schema_id": "runtime-contracts/qa/assertion-result",
+              "schema_version": "0.1",
+              "verifier": {
+                "id": "det-verifier",
+                "version": "1.0.0"
+              }
+            }
+          ],
+          "assertion_set_hash": "rcv1:94c9e0bd652146534232836c1de1cea4d1aab066939f8e0755f8b930a2898858",
+          "assertions_declared": [
+            "a-saved",
+            "a-url"
+          ],
+          "assertions_executed": [
+            "a-saved",
+            "a-url"
+          ],
+          "assertions_skipped": [],
+          "browser": "chromium 130.0.1",
+          "egress_policy_id": "rcv1:0000000000000000000000000000000000000000000000000000000000000020",
+          "engine_limits": {
+            "max_attempts_per_step": 2
+          },
+          "fault_events": [
+            {
+              "detection": {
+                "claimed_class": "BENIGN_DRIFT",
+                "detected": true,
+                "detector": {
+                  "id": "step-detector",
+                  "version": "0.1.0"
+                },
+                "evidence_refs": [
+                  {
+                    "content_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000068",
+                    "media_type": "image/png",
+                    "modality": "image",
+                    "ref": "obs-4",
+                    "ref_type": "artifact",
+                    "source": "qa-playwright",
+                    "version": "1"
+                  }
+                ],
+                "schema_id": "runtime-contracts/qa/fault-detection",
+                "schema_version": "0.1",
+                "signal": "LOCATOR_NOT_FOUND"
+              },
+              "fault_event_id": "fe-0",
+              "recovery": {
+                "attempted": true,
+                "attempts": 1,
+                "candidates_considered": 2,
+                "candidates_rejected_reasons": [
+                  "NOT_UNIQUE"
+                ],
+                "detection_ref": "rcv1:c6370e1a6b97fdfda74ac2a7a937ff3a3ca3960fd48b389fed5a75b043271738",
+                "postcondition_verified": true,
+                "result": "RECOVERED",
+                "schema_id": "runtime-contracts/qa/fault-recovery",
+                "schema_version": "0.1",
+                "strategy": "SEMANTIC_LOCATOR",
+                "suppressed_reason": "NONE"
+              },
+              "schema_id": "runtime-contracts/qa/fault-event",
+              "schema_version": "0.1",
+              "sequence": 0,
+              "step_id": "s1"
+            }
+          ],
+          "model_recovery_enabled": false,
+          "outcome": "PASS",
+          "plan_hash": "rcv1:0000000000000000000000000000000000000000000000000000000000000021",
+          "planner": {
+            "id": "cr-qa-planner",
+            "version": "0.1.0"
+          },
+          "recovery_enabled": true,
+          "redaction_policy_id": "rcv1:000000000000000000000000000000000000000000000000000000000000001f",
+          "resource_limits": {
+            "memory_mb": 2048,
+            "pids": 256
+          },
+          "run_id": "run-1",
+          "sandbox_image_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000022",
+          "schema_id": "runtime-contracts/qa/run-manifest",
+          "schema_version": "0.1",
+          "seeds": [
+            7,
+            11
+          ],
+          "spec_ref": "checkout-save@rcv1:2e63d029f7e5eea524716ed9c5e80d8fd807155318b5c02c2fda2f6b7c69d8f7",
+          "step_results": [
+            {
+              "postcondition": "SATISFIED",
+              "receipts": [
+                "rcv1:f3cb21bbb77b5f3924619162bb42b15a16fffdea41e3a71300961bdcc7e50d61"
+              ],
+              "result": "OK",
+              "step_id": "s1"
+            }
+          ],
+          "trace_id": "0123456789abcdef0123456789abcdef",
+          "versions": [
+            {
+              "component": "agent-harness",
+              "version": "0.1.0"
+            },
+            {
+              "component": "runtime-contracts",
+              "revision": "403f536",
+              "version": "0.3.14"
+            }
+          ]
+        },
+        "operation": "parse_run_manifest",
+        "why": "engine_limits is not a RunManifest field"
+      },
+      {
+        "expect": {
+          "code": "UNKNOWN_FIELD",
+          "refused": true
+        },
+        "id": "manifest_with_operator_caps",
+        "input": {
+          "adapter": {
+            "id": "qa-playwright",
+            "version": "0.1.0"
+          },
+          "assertion_results": [
+            {
+              "actual": "Saved",
+              "assertion_id": "a-saved",
+              "assertion_set_hash": "rcv1:94c9e0bd652146534232836c1de1cea4d1aab066939f8e0755f8b930a2898858",
+              "check": {
+                "check_id": "a-saved",
+                "determinism": "DETERMINISTIC",
+                "evidence_refs": [
+                  "shot-3@1#sha256:0000000000000000000000000000000000000000000000000000000000000067"
+                ],
+                "verdict": "PASS"
+              },
+              "executor": "PLAYWRIGHT",
+              "expected_hash": "rcv1:1b995d3503f549f89ae235791af06f1923a99bb30ec7904e2e77921cd2830c80",
+              "observation_id": "obs-s1-after",
+              "schema_id": "runtime-contracts/qa/assertion-result",
+              "schema_version": "0.1",
+              "verifier": {
+                "id": "det-verifier",
+                "version": "1.0.0"
+              }
+            },
+            {
+              "actual": "Saved",
+              "assertion_id": "a-url",
+              "assertion_set_hash": "rcv1:94c9e0bd652146534232836c1de1cea4d1aab066939f8e0755f8b930a2898858",
+              "check": {
+                "check_id": "a-url",
+                "determinism": "DETERMINISTIC",
+                "evidence_refs": [
+                  "shot-3@1#sha256:0000000000000000000000000000000000000000000000000000000000000067"
+                ],
+                "verdict": "PASS"
+              },
+              "executor": "PLAYWRIGHT",
+              "expected_hash": "rcv1:fd486b78aafb6295042c9b2ad98dd2ce47c9df3d0d26dc8795bb5f6c3a701b40",
+              "observation_id": "obs-s1-after",
+              "schema_id": "runtime-contracts/qa/assertion-result",
+              "schema_version": "0.1",
+              "verifier": {
+                "id": "det-verifier",
+                "version": "1.0.0"
+              }
+            }
+          ],
+          "assertion_set_hash": "rcv1:94c9e0bd652146534232836c1de1cea4d1aab066939f8e0755f8b930a2898858",
+          "assertions_declared": [
+            "a-saved",
+            "a-url"
+          ],
+          "assertions_executed": [
+            "a-saved",
+            "a-url"
+          ],
+          "assertions_skipped": [],
+          "browser": "chromium 130.0.1",
+          "egress_policy_id": "rcv1:0000000000000000000000000000000000000000000000000000000000000020",
+          "fault_events": [
+            {
+              "detection": {
+                "claimed_class": "BENIGN_DRIFT",
+                "detected": true,
+                "detector": {
+                  "id": "step-detector",
+                  "version": "0.1.0"
+                },
+                "evidence_refs": [
+                  {
+                    "content_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000068",
+                    "media_type": "image/png",
+                    "modality": "image",
+                    "ref": "obs-4",
+                    "ref_type": "artifact",
+                    "source": "qa-playwright",
+                    "version": "1"
+                  }
+                ],
+                "schema_id": "runtime-contracts/qa/fault-detection",
+                "schema_version": "0.1",
+                "signal": "LOCATOR_NOT_FOUND"
+              },
+              "fault_event_id": "fe-0",
+              "recovery": {
+                "attempted": true,
+                "attempts": 1,
+                "candidates_considered": 2,
+                "candidates_rejected_reasons": [
+                  "NOT_UNIQUE"
+                ],
+                "detection_ref": "rcv1:c6370e1a6b97fdfda74ac2a7a937ff3a3ca3960fd48b389fed5a75b043271738",
+                "postcondition_verified": true,
+                "result": "RECOVERED",
+                "schema_id": "runtime-contracts/qa/fault-recovery",
+                "schema_version": "0.1",
+                "strategy": "SEMANTIC_LOCATOR",
+                "suppressed_reason": "NONE"
+              },
+              "schema_id": "runtime-contracts/qa/fault-event",
+              "schema_version": "0.1",
+              "sequence": 0,
+              "step_id": "s1"
+            }
+          ],
+          "model_recovery_enabled": false,
+          "operator_caps": {
+            "max_retries": 1
+          },
+          "outcome": "PASS",
+          "plan_hash": "rcv1:0000000000000000000000000000000000000000000000000000000000000021",
+          "planner": {
+            "id": "cr-qa-planner",
+            "version": "0.1.0"
+          },
+          "recovery_enabled": true,
+          "redaction_policy_id": "rcv1:000000000000000000000000000000000000000000000000000000000000001f",
+          "resource_limits": {
+            "memory_mb": 2048,
+            "pids": 256
+          },
+          "run_id": "run-1",
+          "sandbox_image_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000022",
+          "schema_id": "runtime-contracts/qa/run-manifest",
+          "schema_version": "0.1",
+          "seeds": [
+            7,
+            11
+          ],
+          "spec_ref": "checkout-save@rcv1:2e63d029f7e5eea524716ed9c5e80d8fd807155318b5c02c2fda2f6b7c69d8f7",
+          "step_results": [
+            {
+              "postcondition": "SATISFIED",
+              "receipts": [
+                "rcv1:f3cb21bbb77b5f3924619162bb42b15a16fffdea41e3a71300961bdcc7e50d61"
+              ],
+              "result": "OK",
+              "step_id": "s1"
+            }
+          ],
+          "trace_id": "0123456789abcdef0123456789abcdef",
+          "versions": [
+            {
+              "component": "agent-harness",
+              "version": "0.1.0"
+            },
+            {
+              "component": "runtime-contracts",
+              "revision": "403f536",
+              "version": "0.3.14"
+            }
+          ]
+        },
+        "operation": "parse_run_manifest",
+        "why": "operator_caps is not a RunManifest field"
+      }
+    ],
+    "where_the_effect_is_recorded": {
+      "field": "suppressed_reason",
+      "member": "KILL_SWITCH",
+      "record": "FaultRecovery"
+    },
+    "why": "engine limits (operator caps, recovery limits) and kill-switch state are not manifest fields and never enter qa/v1 identity. A manifest carrying such a key is refused as an unknown field; the effect of the kill switch on one fault is recorded as FaultRecovery.suppressed_reason."
+  },
+  "refusals": [
+    {
+      "expect": {
+        "code": "ASSERTION_PIN_MALFORMED",
+        "refused": true,
+        "run_outcome": "INCONCLUSIVE",
+        "run_reason": "ASSERTION_INTEGRITY"
+      },
+      "id": "pin_malformed_wrong_prefix",
+      "input": {
+        "pin": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "operation": "verify_pin_well_formed",
+      "why": "a pin spelled with another prefix is malformed, not merely unknown"
+    },
+    {
+      "expect": {
+        "code": "ASSERTION_PIN_MALFORMED",
+        "refused": true,
+        "run_outcome": "INCONCLUSIVE",
+        "run_reason": "ASSERTION_INTEGRITY"
+      },
+      "id": "pin_malformed_truncated",
+      "input": {
+        "pin": "rcv1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "operation": "verify_pin_well_formed",
+      "why": "a truncated digest is never accepted"
+    },
+    {
+      "expect": {
+        "code": "ASSERTION_PIN_MALFORMED",
+        "refused": true,
+        "run_outcome": "INCONCLUSIVE",
+        "run_reason": "ASSERTION_INTEGRITY"
+      },
+      "id": "pin_malformed_uppercase_hex",
+      "input": {
+        "pin": "rcv1:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      },
+      "operation": "verify_pin_well_formed",
+      "why": "digests are lower-case hex"
+    },
+    {
+      "expect": {
+        "code": "ASSERTION_PIN_MALFORMED",
+        "refused": true,
+        "run_outcome": "INCONCLUSIVE",
+        "run_reason": "ASSERTION_INTEGRITY"
+      },
+      "id": "pin_malformed_not_a_string",
+      "input": {
+        "pin": null
+      },
+      "operation": "verify_pin_well_formed",
+      "why": "a pin that is not a string is malformed"
+    },
+    {
+      "expect": {
+        "refused": false
+      },
+      "id": "pin_well_formed_control",
+      "input": {
+        "pin": "rcv1:94c9e0bd652146534232836c1de1cea4d1aab066939f8e0755f8b930a2898858"
+      },
+      "operation": "verify_pin_well_formed",
+      "why": "control: rcv1: and 64 lower-case hex digits"
+    },
+    {
+      "expect": {
+        "code": "ASSERTION_PIN_MALFORMED",
+        "refused": true,
+        "run_outcome": "INCONCLUSIVE",
+        "run_reason": "ASSERTION_INTEGRITY"
+      },
+      "id": "pin_malformed_is_checked_before_the_store",
+      "input": {
+        "pin": "rcv1:xyz",
+        "stored": [
+          {
+            "assertion_id": "a-saved",
+            "determinism": "DETERMINISTIC",
+            "executor": "PLAYWRIGHT",
+            "on_unresolvable": "INDETERMINATE",
+            "predicate": {
+              "expected": "Saved",
+              "op": "EQUALS"
+            },
+            "requirement_ref": "REQ-SAVE-1",
+            "schema_id": "runtime-contracts/qa/assertion-spec",
+            "schema_version": "0.1",
+            "subject": {
+              "inputs": [],
+              "kind": "UI_ELEMENT",
+              "locator": {
+                "frame_path": [],
+                "test_id": "save-status"
+              },
+              "subject_alternates": []
+            },
+            "verifier_id": "det-verifier",
+            "verifier_version_range": ">=1.0,<2"
+          },
+          {
+            "assertion_id": "a-url",
+            "determinism": "DETERMINISTIC",
+            "executor": "PLAYWRIGHT",
+            "on_unresolvable": "INDETERMINATE",
+            "predicate": {
+              "expected": "/saved$",
+              "op": "MATCHES"
+            },
+            "schema_id": "runtime-contracts/qa/assertion-spec",
+            "schema_version": "0.1",
+            "subject": {
+              "inputs": [],
+              "kind": "URL",
+              "pattern": "/saved$",
+              "subject_alternates": []
+            },
+            "verifier_id": "det-verifier",
+            "verifier_version_range": ">=1.0,<2"
+          }
+        ]
+      },
+      "operation": "load_pinned_assertion_set",
+      "why": "a malformed pin is refused as malformed whatever the store holds"
+    },
+    {
+      "expect": {
+        "code": "ASSERTION_PIN_NOT_FOUND",
+        "refused": true,
+        "run_outcome": "INCONCLUSIVE",
+        "run_reason": "ASSERTION_INTEGRITY"
+      },
+      "id": "pin_not_found",
+      "input": {
+        "pin": "rcv1:0000000000000000000000000000000000000000000000000000000000000194",
+        "stored": null
+      },
+      "operation": "load_pinned_assertion_set",
+      "why": "a well-formed pin the store does not hold"
+    },
+    {
+      "expect": {
+        "code": "ASSERTION_HASH_MISMATCH",
+        "refused": true,
+        "run_outcome": "INCONCLUSIVE",
+        "run_reason": "ASSERTION_INTEGRITY"
+      },
+      "id": "pin_found_but_content_differs",
+      "input": {
+        "pin": "rcv1:94c9e0bd652146534232836c1de1cea4d1aab066939f8e0755f8b930a2898858",
+        "stored": [
+          {
+            "assertion_id": "a-saved",
+            "determinism": "DETERMINISTIC",
+            "executor": "PLAYWRIGHT",
+            "on_unresolvable": "INDETERMINATE",
+            "predicate": {
+              "expected": "Saved",
+              "op": "EQUALS"
+            },
+            "requirement_ref": "REQ-SAVE-1",
+            "schema_id": "runtime-contracts/qa/assertion-spec",
+            "schema_version": "0.1",
+            "subject": {
+              "inputs": [],
+              "kind": "UI_ELEMENT",
+              "locator": {
+                "frame_path": [],
+                "test_id": "save-status"
+              },
+              "subject_alternates": []
+            },
+            "verifier_id": "det-verifier",
+            "verifier_version_range": ">=1.0,<2"
+          }
+        ]
+      },
+      "operation": "load_pinned_assertion_set",
+      "why": "the store holds a set under the pin but it does not hash to the pin: that is the content-hash case and keeps ASSERTION_HASH_MISMATCH"
+    },
+    {
+      "expect": {
+        "refused": false
+      },
+      "id": "pin_found_control",
+      "input": {
+        "pin": "rcv1:94c9e0bd652146534232836c1de1cea4d1aab066939f8e0755f8b930a2898858",
+        "stored": [
+          {
+            "assertion_id": "a-saved",
+            "determinism": "DETERMINISTIC",
+            "executor": "PLAYWRIGHT",
+            "on_unresolvable": "INDETERMINATE",
+            "predicate": {
+              "expected": "Saved",
+              "op": "EQUALS"
+            },
+            "requirement_ref": "REQ-SAVE-1",
+            "schema_id": "runtime-contracts/qa/assertion-spec",
+            "schema_version": "0.1",
+            "subject": {
+              "inputs": [],
+              "kind": "UI_ELEMENT",
+              "locator": {
+                "frame_path": [],
+                "test_id": "save-status"
+              },
+              "subject_alternates": []
+            },
+            "verifier_id": "det-verifier",
+            "verifier_version_range": ">=1.0,<2"
+          },
+          {
+            "assertion_id": "a-url",
+            "determinism": "DETERMINISTIC",
+            "executor": "PLAYWRIGHT",
+            "on_unresolvable": "INDETERMINATE",
+            "predicate": {
+              "expected": "/saved$",
+              "op": "MATCHES"
+            },
+            "schema_id": "runtime-contracts/qa/assertion-spec",
+            "schema_version": "0.1",
+            "subject": {
+              "inputs": [],
+              "kind": "URL",
+              "pattern": "/saved$",
+              "subject_alternates": []
+            },
+            "verifier_id": "det-verifier",
+            "verifier_version_range": ">=1.0,<2"
+          }
+        ]
+      },
+      "operation": "load_pinned_assertion_set",
+      "why": "control: a stored set that hashes to its pin loads"
+    },
+    {
+      "expect": {
+        "code": "ASSERTION_PROGRAM_UNREGISTERED",
+        "refused": true,
+        "run_outcome": "INCONCLUSIVE",
+        "run_reason": "ASSERTION_INTEGRITY"
+      },
+      "id": "program_unregistered",
+      "input": {
+        "check_program_ref": {
+          "id": "image-pinned",
+          "program_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000006",
+          "version": "1.0.0"
+        },
+        "registered_hash": null
+      },
+      "operation": "verify_check_program",
+      "why": "the registry has no entry for the program the assertion names"
+    },
+    {
+      "expect": {
+        "code": "ASSERTION_PROGRAM_MISMATCH",
+        "refused": true,
+        "run_outcome": "INCONCLUSIVE",
+        "run_reason": "ASSERTION_INTEGRITY"
+      },
+      "id": "program_hash_differs",
+      "input": {
+        "check_program_ref": {
+          "id": "image-pinned",
+          "program_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000006",
+          "version": "1.0.0"
+        },
+        "registered_hash": "sha256:00000000000000000000000000000000000000000000000000000000000003e7"
+      },
+      "operation": "verify_check_program",
+      "why": "the registry holds the program under a different hash: a different program is a different assertion"
+    },
+    {
+      "expect": {
+        "refused": false
+      },
+      "id": "program_registered_control",
+      "input": {
+        "check_program_ref": {
+          "id": "image-pinned",
+          "program_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000006",
+          "version": "1.0.0"
+        },
+        "registered_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000006"
+      },
+      "operation": "verify_check_program",
+      "why": "control: the registry holds the frozen hash"
+    },
+    {
+      "expect": {
+        "code": "BATCH_HALTED",
+        "refused": true,
+        "run_outcome": "INCONCLUSIVE",
+        "run_reason": "ASSERTION_INTEGRITY"
+      },
+      "id": "batch_halted_by_an_integrity_refusal",
+      "input": {
+        "halted_by": "ASSERTION_PIN_NOT_FOUND"
+      },
+      "operation": "check_batch_not_halted",
+      "why": "any call after an integrity refusal in the same batch is refused with BATCH_HALTED; the halting refusal keeps its own code"
+    },
+    {
+      "expect": {
+        "refused": false
+      },
+      "id": "batch_running_control",
+      "input": {
+        "halted_by": null
+      },
+      "operation": "check_batch_not_halted",
+      "why": "control: a batch no refusal has halted"
+    }
+  ],
+  "state_and_value_digests": {
+    "identity_relations": [
+      {
+        "differ": [
+          "receipt_attempt_1",
+          "receipt_state_after_changed"
+        ],
+        "why": "state_after_hash is identity"
+      },
+      {
+        "equal": [
+          "receipt_attempt_1",
+          "receipt_duration_changed"
+        ],
+        "why": "duration_ms is custody"
+      },
+      {
+        "differ": [
+          "receipt_attempt_1",
+          "receipt_key_changed"
+        ],
+        "why": "the idempotency key is identity"
+      },
+      {
+        "differ": [
+          "receipt_attempt_1",
+          "receipt_attempt_2"
+        ],
+        "why": "the attempt number is identity"
+      }
+    ],
+    "rule": "state_before_hash, state_after_hash and Checkpoint.state_hash are opaque rcv1 hashes of whatever the producer defines as the observable state; qa/v1 specifies their shape, their identity status and one relation (a blocked action leaves them equal), not their derivation. Value digests are defined in golden/qa_canon_vectors_addendum.json."
+  },
+  "version_note": "clarifications_version 1. Additive to qa/v1: no entry restates or replaces an entry of golden/qa.json, and nothing here changes a hash defined there. A later version adds entries and never edits one."
+}

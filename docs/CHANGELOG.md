@@ -34,4 +34,14 @@ released. Releasing the QA module is a separate step that the maintainers approv
 - `README.md`, `STATUS.md` and `docs/architecture.md` no longer describe the agent loop as a single-step stub: that
   describes `Agent.run`; `agent_harness.loop.run_loop` is a multi-turn tool-calling loop with hard limits. They also
   describe the Context Runtime integration as it is documented in `agent_harness/context.py`.
+- `agent_harness.qa` now follows the contracts `qa/v1` text where it had derived its own definition (compatibility
+  statement in [qa.md](qa.md)): the digest of an action value is `rcv1` of the value's canonical JSON text alone (a
+  `SecretRef` digests as its fingerprint); each set-valued field is ordered by its own rule (element key, canonical text
+  or value); the integrity refusals have distinct codes (`ASSERTION_PIN_MALFORMED`, `ASSERTION_PIN_NOT_FOUND`,
+  `ASSERTION_PROGRAM_UNREGISTERED`, `ASSERTION_PROGRAM_MISMATCH`, `BATCH_HALTED`) and an unknown code classifies as an
+  integrity refusal; `FaultRecovery` carries an optional `reason_code` from a closed vocabulary; `Check.detail` is not
+  hashed, `Check.evidence_refs` is sorted when hashed, an `EvidenceRef` and a `SecretRef` hash with the contracts'
+  defaults; and `ACTION_TIMEOUT` is recoverable (recovery stays guarded). Hashes of records that carry those values
+  change accordingly. The golden data under `tests/qa/golden/` gains the added vectors, the clarification fixtures, the
+  field inventory and the JSON Schema of the contracts commit named in the compatibility statement.
 - No behaviour of the existing modules changed, and no `LICENSE` file changed. The harness remains AGPL-3.0-or-later.

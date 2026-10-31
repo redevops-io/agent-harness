@@ -43,14 +43,15 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple
 
-from .errors import QAAdapterError, RecoveryPayloadRejected, SpecInvalid
-from .idempotency import (DENY_ALREADY_APPLIED, DENY_BUDGET_EXHAUSTED, DENY_INVALID_INPUT, DENY_NOT_PERMITTED,
-                          DENY_NOT_RETRYABLE, DENY_RECOVERY_DISABLED, RetryDecision, RetryInputs, decide_retry)
+from .errors import ADAPTER_ERRORS, QAAdapterError, RecoveryPayloadRejected, SpecInvalid
+from .idempotency import (DENY_ALREADY_APPLIED, DENY_BUDGET_EXHAUSTED, DENY_INVALID_INPUT, DENY_NO_GUARD,
+                          DENY_NOT_PERMITTED, DENY_NOT_RETRYABLE, DENY_RECOVERY_DISABLED, DENY_RETRY_UNSAFE,
+                          DENY_UNKNOWN_SIDE_EFFECT_CLASS, RetryDecision, RetryInputs, decide_retry)
 from .ports import Recoverer, RecoveryContext
 from .recovery_types import propose_safely
 from .records import (ClaimedClass, ComponentRef, FaultDetection, FaultSignal, LocateResult, LocatorCandidate,
                       LocatorDescriptor, LocatorStrategy, Observation, PermittedRecovery, PostconditionResult,
-                      RecoveryStrategy, ResolvedTarget, Step, SuppressedReason)
+                      RecoveryReason, RecoveryStrategy, ResolvedTarget, Step, SuppressedReason)
 
 DETECTOR = ComponentRef(id="agent-harness-qa-fault-detector", version="0.1.0")
 
@@ -82,6 +83,89 @@ R_NAME_NEAR_MISS = "NAME_NEAR_MISS"
 R_STRATEGY = "STRATEGY_NOT_PERMITTED"
 R_EMPTY = "EMPTY_DESCRIPTOR"
 R_MALFORMED = "LOCATE_MALFORMED"
+
+#: why a recovery as a whole did not recover: every cause the engine and the runner can name, mapped onto the closed
+#: ``RecoveryReason`` vocabulary of ``FaultRecovery.reason_code``. A candidate-level rejection (``NOT_FOUND``,
+#: ``NOT_UNIQUE``, ``ROLE_MISMATCH`` ...) is not a cause: it stays in ``candidates_rejected_reasons``, one per candidate.
+#: Locator refusals and plan reasons that have a member of their own map to it; the rest map to the nearest member:
+#: a policy denial, a mode or fixture the step does not permit and a replay that needs a recovered locator are
+#: ``NOT_PERMITTED``; every cap is ``BUDGET_EXHAUSTED`` (or ``ELAPSED_CAP`` for time); a recoverer or model client that
+#: failed or returned something unusable is ``RECOVERER_ERROR``; a recovery whose restored state or step check was not
+#: verified is ``POSTCONDITION_NOT_VERIFIED``.
+REASON_CODE_OF: Mapping[str, RecoveryReason] = MappingProxyType({
+    # locator selection refusals
+    R_NO_UI_TARGET: RecoveryReason.NO_UI_TARGET,
+    R_NO_ANCHOR: RecoveryReason.NO_ROLE_NAME_ANCHOR,
+    R_RECOVERER_ERROR: RecoveryReason.RECOVERER_ERROR,
+    R_CANDIDATE_CAP: RecoveryReason.CANDIDATE_CAP_EXCEEDED,
+    R_ELAPSED_CAP: RecoveryReason.ELAPSED_CAP,
+    R_KILL_SWITCH: RecoveryReason.KILL_SWITCH,
+    R_NO_CANDIDATE: RecoveryReason.NO_CANDIDATE,
+    R_AMBIGUOUS: RecoveryReason.AMBIGUOUS_CANDIDATES,
+    # plan reasons
+    "RECOVERY_DISABLED": RecoveryReason.RECOVERY_DISABLED,
+    "POLICY_DENIED": RecoveryReason.NOT_PERMITTED,
+    "NO_RECOVERY_FOR_FAULT": RecoveryReason.NOT_PERMITTED,
+    "MODE_NOT_PERMITTED": RecoveryReason.NOT_PERMITTED,
+    "STEP_ATTEMPT_CAP": RecoveryReason.BUDGET_EXHAUSTED,
+    "NO_KNOWN_FIXTURE": RecoveryReason.NOT_PERMITTED,
+    "REPLAY_NEEDS_RECOVERED_LOCATOR": RecoveryReason.NOT_PERMITTED,
+    "REPLAY_CAP": RecoveryReason.BUDGET_EXHAUSTED,
+    # the idempotency guard's refusals (a replay of an earlier step carries the prefix ``REPLAY_``)
+    DENY_INVALID_INPUT: RecoveryReason.INVALID_INPUT,
+    DENY_BUDGET_EXHAUSTED: RecoveryReason.BUDGET_EXHAUSTED,
+    DENY_NOT_PERMITTED: RecoveryReason.NOT_PERMITTED,
+    DENY_NOT_RETRYABLE: RecoveryReason.NOT_RETRYABLE,
+    DENY_ALREADY_APPLIED: RecoveryReason.ALREADY_APPLIED,
+    DENY_RETRY_UNSAFE: RecoveryReason.RETRY_UNSAFE,
+    DENY_NO_GUARD: RecoveryReason.NO_IDEMPOTENCY_OR_POSTCONDITION_GUARD,
+    DENY_UNKNOWN_SIDE_EFFECT_CLASS: RecoveryReason.UNKNOWN_SIDE_EFFECT_CLASS,
+    # model-candidate refusals (``recovery_model.py``)
+    "MODEL_DISABLED": RecoveryReason.NOT_PERMITTED,
+    "MODEL_CALL_CAP": RecoveryReason.BUDGET_EXHAUSTED,
+    "MODEL_TOKEN_CAP": RecoveryReason.BUDGET_EXHAUSTED,
+    "MODEL_OVER_BUDGET": RecoveryReason.BUDGET_EXHAUSTED,
+    "MODEL_CANDIDATE_CAP": RecoveryReason.CANDIDATE_CAP_EXCEEDED,
+    "MODEL_TOO_MANY_CANDIDATES": RecoveryReason.CANDIDATE_CAP_EXCEEDED,
+    "MODEL_NO_ANCHOR": RecoveryReason.NO_ROLE_NAME_ANCHOR,
+    "MODEL_NO_SNAPSHOT": RecoveryReason.RECOVERER_ERROR,
+    "MODEL_CLIENT_ERROR": RecoveryReason.RECOVERER_ERROR,
+    "MODEL_USAGE_UNKNOWN": RecoveryReason.RECOVERER_ERROR,
+    "MODEL_RESPONSE_TOO_LARGE": RecoveryReason.RECOVERER_ERROR,
+    "MODEL_OUTPUT_MALFORMED": RecoveryReason.RECOVERER_ERROR,
+    "MODEL_WALL_TIME": RecoveryReason.ELAPSED_CAP,
+    "MODEL_NO_CANDIDATES": RecoveryReason.NO_CANDIDATE,
+    # a recovery that ran and was not verified
+    "POSTCONDITION_NOT_VERIFIED": RecoveryReason.POSTCONDITION_NOT_VERIFIED,
+    "OPEN_SESSION_MALFORMED": RecoveryReason.POSTCONDITION_NOT_VERIFIED,
+    "RESET_NOT_CONFIRMED": RecoveryReason.POSTCONDITION_NOT_VERIFIED,
+    "FIXTURE_NOT_VERIFIED": RecoveryReason.POSTCONDITION_NOT_VERIFIED,
+    "ENVIRONMENT_UNHEALTHY": RecoveryReason.POSTCONDITION_NOT_VERIFIED,
+    "CHECKPOINT_STATE_MISMATCH": RecoveryReason.POSTCONDITION_NOT_VERIFIED,
+})
+#: causes that arrive as a typed adapter error code while a recovery restores state (``SESSION_LOST``, ``RESET_FAILED``
+#: ...): the state was not re-established, so the recovery was not verified
+_ADAPTER_CODE_REASON = RecoveryReason.POSTCONDITION_NOT_VERIFIED
+#: the prefix of a guard refusal for an earlier step that an environment recovery would have replayed
+_REPLAY_PREFIX = "REPLAY_"
+
+
+def reason_code_for(cause: Optional[str]) -> Optional[RecoveryReason]:
+    """The ``FaultRecovery.reason_code`` for an engine cause, or ``None`` when there is no cause. A cause this version
+    does not map is never dropped silently: a typed adapter error code means the recovery's restored state was not
+    verified, an earlier-step replay refusal maps like the refusal itself, and anything else is ``NOT_PERMITTED`` (the
+    conservative member: nothing was recovered and nothing may be assumed about why)."""
+    if cause is None:
+        return None
+    found = REASON_CODE_OF.get(cause)
+    if found is not None:
+        return found
+    if cause.startswith(_REPLAY_PREFIX) and cause[len(_REPLAY_PREFIX):] in REASON_CODE_OF:
+        return REASON_CODE_OF[cause[len(_REPLAY_PREFIX):]]
+    if cause in ADAPTER_ERRORS:
+        return _ADAPTER_CODE_REASON
+    return RecoveryReason.NOT_PERMITTED
+
 
 PERMIT_OF: Mapping[RecoveryStrategy, PermittedRecovery] = MappingProxyType({
     RecoveryStrategy.RETRY_SAME: PermittedRecovery.RETRY_SAME,
@@ -473,9 +557,11 @@ class LocatorSelector:
             if stop is not None:
                 return LocatorSelection(None, 0, considered, tuple(rejected[:MAX_REASONS]), stop, aborted=True)
             if proposal.strategy is not LocatorStrategy.SEMANTIC_ALTERNATE:
+                considered += 1                              # one rejection token per candidate considered, never more
                 rejected.append(R_STRATEGY)
                 continue
             if proposal.role is None and proposal.name is None and proposal.label is None and proposal.test_id is None:
+                considered += 1
                 rejected.append(R_EMPTY)
                 continue
             key = (proposal.role, proposal.name, proposal.label, proposal.test_id)
@@ -571,7 +657,7 @@ class DeterministicRecovery:
 
 
 __all__ = [
-    "DETECTOR", "SCORE_MAX", "LADDER", "PERMIT_OF", "ENVIRONMENT_STRATEGIES", "normalise_label", "dice_permille",
+    "DETECTOR", "SCORE_MAX", "LADDER", "PERMIT_OF", "REASON_CODE_OF", "reason_code_for", "ENVIRONMENT_STRATEGIES", "normalise_label", "dice_permille",
     "name_score", "similarity", "labels_match", "has_anchor", "gate_reason", "RecoveryLimits", "KillSwitch",
     "detect_fault", "FaultInputs", "RecoveryDecision", "plan_recovery", "LocatorSelection",
     "AuthoredAlternatesRecoverer", "LocatorSelector", "DeterministicRecovery",

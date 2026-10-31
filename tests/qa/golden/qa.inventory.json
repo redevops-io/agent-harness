@@ -91,6 +91,19 @@
       "AT_MOST_ONCE",
       "UNKNOWN"
     ],
+    "IntegrityRefusalCode": [
+      "ASSERTION_INTEGRITY",
+      "ASSERTION_HASH_MISMATCH",
+      "EXECUTOR_MISMATCH",
+      "EXPECTED_MISMATCH",
+      "RECOVERY_PAYLOAD_REJECTED",
+      "COVERAGE_VIOLATION",
+      "ASSERTION_PROGRAM_MISMATCH",
+      "ASSERTION_PROGRAM_UNREGISTERED",
+      "ASSERTION_PIN_NOT_FOUND",
+      "ASSERTION_PIN_MALFORMED",
+      "BATCH_HALTED"
+    ],
     "LocateMode": [
       "EXACT",
       "SEMANTIC"
@@ -137,6 +150,26 @@
       "ABSENT",
       "LESS_THAN",
       "GREATER_THAN"
+    ],
+    "RecoveryReason": [
+      "NO_UI_TARGET",
+      "NO_ROLE_NAME_ANCHOR",
+      "RECOVERER_ERROR",
+      "CANDIDATE_CAP_EXCEEDED",
+      "ELAPSED_CAP",
+      "KILL_SWITCH",
+      "NO_CANDIDATE",
+      "AMBIGUOUS_CANDIDATES",
+      "RECOVERY_DISABLED",
+      "BUDGET_EXHAUSTED",
+      "NOT_PERMITTED",
+      "NOT_RETRYABLE",
+      "ALREADY_APPLIED",
+      "RETRY_UNSAFE",
+      "NO_IDEMPOTENCY_OR_POSTCONDITION_GUARD",
+      "INVALID_INPUT",
+      "UNKNOWN_SIDE_EFFECT_CLASS",
+      "POSTCONDITION_NOT_VERIFIED"
     ],
     "RecoveryResult": [
       "NOT_ATTEMPTED",
@@ -777,6 +810,11 @@
           "custody": false,
           "required": true,
           "type": "bool"
+        },
+        "reason_code": {
+          "custody": false,
+          "required": false,
+          "type": "Optional[RecoveryReason]"
         },
         "result": {
           "custody": false,

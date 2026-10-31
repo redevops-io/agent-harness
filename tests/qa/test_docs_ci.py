@@ -294,8 +294,9 @@ def test_the_wording_scan_covers_the_published_files_and_not_the_golden_data():
         assert expected in files, expected
     assert not any("golden" in f for f in files)
     assert len(files) > 80
-    assert {p.name for p in (ROOT / "tests" / "qa" / "golden").iterdir()} == {"qa.inventory.json",
-                                                                             "qa_canon_vectors.json"}
+    assert {p.name for p in (ROOT / "tests" / "qa" / "golden").iterdir()} == {
+        "qa.inventory.json", "qa.schema.json", "qa_canon_vectors.json", "qa_canon_vectors_addendum.json",
+        "qa_clarifications.json"}
 
 
 def test_the_wording_scan_can_fail():

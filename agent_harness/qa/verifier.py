@@ -14,7 +14,13 @@ What it does, in order, and what makes each step structural rather than conventi
    frozen *subject* only: no expected value goes to the adapter, and none comes back with a verdict.
 4. The comparison against the frozen ``predicate`` is a pure function of ``(predicate, ObservedValue)``. There is no
    model, no clock, no randomness and no free-text input anywhere on the path to a verdict.
-5. Any integrity refusal trips the batch :class:`HaltLatch`: every later call is refused.
+5. Any integrity refusal trips the batch :class:`HaltLatch`: every later call is refused with ``BATCH_HALTED``.
+
+The refusals of step 1 are told apart by code, in this order: ``ASSERTION_PIN_MALFORMED`` (the pin is not ``rcv1:`` and
+64 lowercase hex digits), ``ASSERTION_PIN_NOT_FOUND`` (the store holds nothing under a well-formed pin),
+``ASSERTION_HASH_MISMATCH`` (the content recomputed from what the store returned differs from the pin), then per
+``SCRIPT`` assertion ``ASSERTION_PROGRAM_UNREGISTERED`` (no registry entry) and ``ASSERTION_PROGRAM_MISMATCH`` (the
+registry holds the program under another hash). All map to ``INCONCLUSIVE(ASSERTION_INTEGRITY)`` and halt the batch.
 
 Standard library and neutral-module imports only. It never imports recovery code.
 """
@@ -28,8 +34,9 @@ from decimal import Decimal
 from typing import Any, FrozenSet, Iterable, Optional, Protocol, Sequence, Tuple, runtime_checkable
 
 from . import canon
-from .errors import (AssertionHashMismatch, CoverageViolation, ExecutorMismatch, ExpectedMismatch, QAAdapterError,
-                     QAError, REASON_ASSERTION_INTEGRITY, SpecInvalid, OUTCOME_INCONCLUSIVE)
+from .errors import (AssertionHashMismatch, AssertionPinMalformed, AssertionPinNotFound, AssertionProgramMismatch,
+                     AssertionProgramUnregistered, BatchHalted, CoverageViolation, ExecutorMismatch, ExpectedMismatch,
+                     QAAdapterError, QAError, REASON_ASSERTION_INTEGRITY, SpecInvalid)
 from .records import (AssertionResult, AssertionSpec, AssertionSubject, Check, CheckSubject, CheckTier, ComponentRef,
                       Determinism, Executor, ObservedValue, Predicate, PredicateOp, Resolution, RunManifest,
                       SubjectKind, Verdict, assertion_set_hash as _records_assertion_set_hash)
@@ -75,15 +82,6 @@ def _same(a: str, b: str) -> bool:
 # ---------------------------------------------------------------------------------------------------------------
 # the stop rule: a latch that outlives the failing call
 # ---------------------------------------------------------------------------------------------------------------
-
-class BatchHalted(QAError):
-    """Raised for any call after an ``ASSERTION_INTEGRITY`` refusal in the same batch. Neutral-only code: the frozen
-    refusal vocabulary names the cause, not the halt."""
-
-    code = "BATCH_HALTED"
-    run_outcome = OUTCOME_INCONCLUSIVE
-    run_reason = REASON_ASSERTION_INTEGRITY
-
 
 class HaltLatch:
     """One latch per batch. Once tripped it stays tripped; there is no reset."""
@@ -293,33 +291,37 @@ def _check_program(assertion: AssertionSpec, programs: ProgramRegistry) -> None:
     if ref is None:       # unreachable for a validated record; kept so the rule is stated where it is enforced
         raise SpecInvalid(f"assertion {assertion.assertion_id}: SCRIPT without check_program_ref")
     registered = programs.registered_program_hash(ref.id, ref.version)
+    where = f"assertion {assertion.assertion_id}: check program {ref.id}@{ref.version}"
+    if registered is None:
+        raise AssertionProgramUnregistered(f"{where} is not registered", assertion_id=assertion.assertion_id,
+                                           program=f"{ref.id}@{ref.version}")
     if registered != ref.program_hash:
-        raise AssertionHashMismatch(
-            f"assertion {assertion.assertion_id}: check program {ref.id}@{ref.version} is "
-            + ("not registered" if registered is None else "registered under a different program_hash"),
-            assertion_id=assertion.assertion_id, program=f"{ref.id}@{ref.version}")
+        raise AssertionProgramMismatch(f"{where} is registered under a different program_hash",
+                                       assertion_id=assertion.assertion_id, program=f"{ref.id}@{ref.version}")
 
 
 def load_frozen_assertions(store: SpecStore, pinned_assertion_set_hash: str, *, lineage: ApprovedLineage,
                            programs: ProgramRegistry, halt: Optional[HaltLatch] = None) -> FrozenAssertionSet:
     """Load the assertions pinned by ``pinned_assertion_set_hash`` and prove they are the pinned ones.
 
-    Raises, before any adapter exists in the picture: ``AssertionHashMismatch`` (pin malformed, not in the approved
-    lineage, not in the store, recomputed hash differs, program hash differs or program unregistered; run
-    ``INCONCLUSIVE(ASSERTION_INTEGRITY)`` and the batch halts), or the record validation errors for an invalid
+    Raises, before any adapter exists in the picture, one of the integrity refusals (run
+    ``INCONCLUSIVE(ASSERTION_INTEGRITY)`` and the batch halts): ``AssertionPinMalformed``, ``AssertionHashMismatch``
+    (the pin is not in the approved lineage, or the recomputed hash differs), ``AssertionPinNotFound``,
+    ``AssertionProgramUnregistered`` or ``AssertionProgramMismatch``; or the record validation errors for an invalid
     assertion (``SpecInvalid``, ``CheckProgramRefRequired``, ``UnknownEnumValue``, ...; run ``TEST_DEFECT``).
     """
     latch = halt if halt is not None else HaltLatch()
     with _Halting(latch):
         pin = pinned_assertion_set_hash
         if not canon.is_contract_ref(pin):
-            raise AssertionHashMismatch("a run needs a pinned rcv1:<64 hex> assertion_set_hash before verification")
+            raise AssertionPinMalformed("a run needs a pinned rcv1:<64 lowercase hex> assertion_set_hash before "
+                                        "verification")
         if not isinstance(lineage, ApprovedLineage) or not lineage.contains(pin):
             raise AssertionHashMismatch("the pinned assertion set is not in the approved lineage", pinned=pin)
         try:
             docs = store.get_assertion_set(pin)
         except KeyError:
-            raise AssertionHashMismatch("no assertion set is stored under the pinned hash", pinned=pin) from None
+            raise AssertionPinNotFound("no assertion set is stored under the pinned hash", pinned=pin) from None
         if isinstance(docs, (str, bytes)) or not isinstance(docs, (list, tuple)):
             raise SpecInvalid("a stored assertion set is a list of assertion documents")
         assertions = tuple(AssertionSpec.from_json(d) for d in docs)

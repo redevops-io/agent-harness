@@ -22,6 +22,7 @@ from ._fx_recovery import (BUDGET, FakeH3Adapter, H3Postconditions, S, acts, aft
                   reuse_test_id_on_delete, run, stale_fixture, ui_step, wrong_total)
 
 RR, RS, SUP, SIG = R.RecoveryResult, R.RecoveryStrategy, R.SuppressedReason, R.FaultSignal
+RC = R.RecoveryReason
 O = R.Outcome
 
 
@@ -239,7 +240,8 @@ def test_two_save_buttons_are_never_resolved_by_taking_the_first():
     ev = only(r)
     assert ev.detection.signal is SIG.LOCATOR_AMBIGUOUS
     assert ev.recovery.result is RR.NOT_RECOVERED and not ev.recovery.postcondition_verified
-    assert RV.R_AMBIGUOUS in ev.recovery.candidates_rejected_reasons
+    assert ev.recovery.reason_code is RC.AMBIGUOUS_CANDIDATES              # why the round as a whole found nothing
+    assert RV.R_AMBIGUOUS not in ev.recovery.candidates_rejected_reasons   # per candidate reasons only
     assert acts(env) == [] and env.adapter.values == {}
     assert classification(r) == ("INCONCLUSIVE", "UNRECOVERED_FAULT") and r.exit_code != 0
 
@@ -415,7 +417,8 @@ def test_a_resume_whose_replay_does_not_reproduce_the_checkpoint_is_not_recovere
     env = make_recovery_env(recover_spec(save=("CHECKPOINT_RESUME",)), adapter_setup=drifting_reopen)
     r = run(env)
     ev = only(r)
-    assert ev.recovery.result is RR.NOT_RECOVERED and "CHECKPOINT_STATE_MISMATCH" in ev.recovery.candidates_rejected_reasons
+    assert ev.recovery.result is RR.NOT_RECOVERED and ev.recovery.reason_code is RC.POSTCONDITION_NOT_VERIFIED
+    assert ev.recovery.candidates_considered == 0 and ev.recovery.candidates_rejected_reasons == ()
     assert len(clicked(env, "btn-save")) == 1                                   # the failed click only: nothing re-clicked
     assert classification(r) == ("ENVIRONMENT_FAIL", "SESSION_LOST")
 
@@ -425,7 +428,8 @@ def test_a_resume_that_cannot_open_a_session_is_not_recovered_and_leaks_nothing(
         lose_session_on_save, lambda a: a.faults.update(open_session=[None, Fault(SessionLost("no session"))])))
     r = run(env)
     ev = only(r)
-    assert ev.recovery.result is RR.NOT_RECOVERED and "SESSION_LOST" in ev.recovery.candidates_rejected_reasons
+    assert ev.recovery.result is RR.NOT_RECOVERED and ev.recovery.reason_code is RC.POSTCONDITION_NOT_VERIFIED
+    assert ev.recovery.candidates_rejected_reasons == ()
     assert len(operations(env.adapter, "close_session")) == 1                   # the lost one was closed
     assert classification(r) == ("ENVIRONMENT_FAIL", "SESSION_LOST")
 
@@ -444,7 +448,7 @@ def test_a_reset_the_adapter_does_not_confirm_is_not_recovered():
         adapter.reset_ok = False
     env = make_recovery_env(recover_spec(save=("RESET_FIXTURE",)), adapter_setup=refuses)
     r = run(env)
-    assert only(r).recovery.result is RR.NOT_RECOVERED and "RESET_NOT_CONFIRMED" in only(r).recovery.candidates_rejected_reasons
+    assert only(r).recovery.result is RR.NOT_RECOVERED and only(r).recovery.reason_code is RC.POSTCONDITION_NOT_VERIFIED
     assert r.outcome is O.ENVIRONMENT_FAIL
 
 
@@ -456,7 +460,7 @@ def test_a_fixture_that_is_not_verified_after_the_reset_is_not_recovered():
     env = make_recovery_env(recover_spec(save=("RESET_FIXTURE",)), adapter_setup=stale_fixture, checks=FixturesGoStale())
     r = run(env)
     assert only(r).recovery.result is RR.NOT_RECOVERED
-    assert "FIXTURE_NOT_VERIFIED" in only(r).recovery.candidates_rejected_reasons and r.outcome is O.ENVIRONMENT_FAIL
+    assert only(r).recovery.reason_code is RC.POSTCONDITION_NOT_VERIFIED and r.outcome is O.ENVIRONMENT_FAIL
 
 
 def test_an_environment_that_is_unhealthy_after_the_reset_is_not_recovered():
@@ -625,7 +629,7 @@ def test_the_kill_switch_stops_a_recovery_that_is_under_way():
     env = make_recovery_env(recover_spec(), adapter_setup=move_save, engine=engine)
     r = run(env)
     ev = only(r)
-    assert ev.recovery.result is RR.ABORTED and RV.R_KILL_SWITCH in ev.recovery.candidates_rejected_reasons
+    assert ev.recovery.result is RR.ABORTED and ev.recovery.reason_code is RC.KILL_SWITCH
     assert clicked(env, "btn-save") == []
 
 
@@ -655,7 +659,8 @@ def test_the_candidate_cap_refuses_a_recovery_round_and_nothing_is_clicked():
                       engine=RV.DeterministicRecovery(limits=RV.RecoveryLimits(max_candidates=1)))
     r = run(env)
     ev = only(r)
-    assert ev.recovery.result is RR.ABORTED and ev.recovery.candidates_rejected_reasons == (RV.R_CANDIDATE_CAP,)
+    assert ev.recovery.result is RR.ABORTED and ev.recovery.reason_code is RC.CANDIDATE_CAP_EXCEEDED
+    assert ev.recovery.candidates_rejected_reasons == ()
     assert clicked(env, "btn-save") == [] and r.outcome is O.INCONCLUSIVE
 
 
@@ -668,7 +673,7 @@ def test_the_elapsed_cap_stops_a_selection_even_after_a_candidate_was_found():
                       engine=RV.DeterministicRecovery(limits=RV.RecoveryLimits(max_elapsed_ms=400)))
     r = run(env)
     ev = only(r)
-    assert ev.recovery.result is RR.ABORTED and RV.R_ELAPSED_CAP in ev.recovery.candidates_rejected_reasons
+    assert ev.recovery.result is RR.ABORTED and ev.recovery.reason_code is RC.ELAPSED_CAP
     assert clicked(env, "btn-save") == [] and ev.recovery.cost.ms >= 500
 
 

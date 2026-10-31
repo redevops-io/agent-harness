@@ -48,13 +48,32 @@ def unknown_state_hash(run_id: str, step_id: str, attempt: int) -> str:
                                                    "state": "UNKNOWN", "step_id": step_id}))
 
 
-def value_digest(action: Action) -> Optional[str]:
-    """Digest of the action's value or secret reference (``None`` if it carries neither). The value is not stored."""
-    form = action.canonical_form()
-    if "value" not in form and "secret_ref" not in form:
-        return None
-    payload = {k: form[k] for k in ("value", "secret_ref") if k in form}
-    return canon.to_contract_ref(canon.canon_hash({"action_value": payload, "kind": form["kind"]}))
+def json_value_digest(value: Any) -> str:
+    """``rcv1:<hex>`` of the canonical JSON text of a value, and nothing else: no wrapper, no kind, no prefix, salt or
+    domain tag. A string is hashed after NFC normalization and with its two quote characters (so ``"hunter2"`` digests
+    the bytes ``"hunter2"``); any other JSON value is hashed as its canonical text. A float has no digest."""
+    return canon.to_contract_ref(canon.canon_hash(value))
+
+
+def action_value_digest(action: Action) -> Optional[str]:
+    """``ActionRecord.value_digest``: the value digest of an action's literal value, or, for an action that carries a
+    ``SecretRef``, the reference's fingerprint (``rcv1`` of the reference's canonical form: never of the secret).
+    ``None`` when the action carries neither. The action kind does not enter the digest, and the value is not stored."""
+    if type(action) is not Action:
+        raise SpecInvalid("action_value_digest takes an Action")
+    if action.secret_ref is not None:
+        return json_value_digest(action.secret_ref.canonical_form())
+    if action.value is not None:
+        return json_value_digest(action.value)
+    return None
+
+
+def value_digest(subject: Any) -> Optional[str]:
+    """The value digest of a string or of an :class:`Action` (see :func:`json_value_digest` and
+    :func:`action_value_digest`). Any other type is refused."""
+    if type(subject) is str:
+        return json_value_digest(subject)
+    return action_value_digest(subject)
 
 
 def bounded_id(prefix: str, *parts: Any) -> str:
@@ -72,7 +91,7 @@ def build_receipt(*, run_id: str, step: Step, attempt: int, tool: ToolRef, polic
     """One ``ActionReceipt`` for one attempt (including an attempt the policy refused: ``ACTION_BLOCKED_BY_POLICY``)."""
     return ActionReceipt(
         receipt_id=bounded_id("rcpt", step.step_id, attempt), run_id=run_id, step_id=step.step_id, attempt=attempt,
-        tool=tool, action=ActionRecord(kind=step.action.kind, value_digest=value_digest(step.action)),
+        tool=tool, action=ActionRecord(kind=step.action.kind, value_digest=action_value_digest(step.action)),
         idempotency_key=idempotency_key, policy_decision_ref=policy_decision_ref, postcondition=postcondition,
         result=result, state_before_hash=state_before_hash, state_after_hash=state_after_hash,
         execution_binding=execution_binding, locator_used=locator_used,
@@ -248,5 +267,6 @@ def verify_events(events: Sequence[Dict[str, Any]]) -> Optional[str]:
     return prev
 
 
-__all__ = ["EventChain", "verify_events", "STATE_FORM", "state_hash", "unknown_state_hash", "value_digest", "bounded_id", "build_receipt",
-           "receipt_ref", "ChainLink", "verify_chain", "ReceiptLedger", "verify_manifest_receipts"]
+__all__ = ["EventChain", "verify_events", "STATE_FORM", "state_hash", "unknown_state_hash", "value_digest",
+           "json_value_digest", "action_value_digest", "bounded_id", "build_receipt", "receipt_ref", "ChainLink",
+           "verify_chain", "ReceiptLedger", "verify_manifest_receipts"]

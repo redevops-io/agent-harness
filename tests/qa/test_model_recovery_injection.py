@@ -100,7 +100,7 @@ def test_a_delete_button_that_the_page_renames_save_is_one_more_control_with_the
     ev = r.manifest.fault_events[0]
     assert ev.detection.signal is R.FaultSignal.LOCATOR_AMBIGUOUS
     assert ev.recovery.result is RR.NOT_RECOVERED and clicked(env, "btn-delete") == [] and clicked(env, "btn-save") == []
-    assert "AMBIGUOUS_CANDIDATES" in ev.recovery.candidates_rejected_reasons
+    assert ev.recovery.reason_code is R.RecoveryReason.AMBIGUOUS_CANDIDATES
     unchanged(env, r)
 
 

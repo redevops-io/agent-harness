@@ -2,6 +2,7 @@
 """Neutral records: golden round trips, parity with the golden field inventory, strictness, custody, extras."""
 import copy
 import dataclasses
+import json
 
 import pytest
 
@@ -11,7 +12,7 @@ from agent_harness.qa.errors import (CanonicalizationRefused, CheckProgramRefReq
                                      SchemaVersionUnsupported, SpecInvalid, UnknownEnumValue, UnknownField)
 from agent_harness.qa.schemas import SCHEMA_VERSION, SUPPORTED_SCHEMAS
 
-from ._helpers import load_inventory, load_vectors
+from ._helpers import GOLDEN, load_inventory, load_vectors
 
 VECTORS = {v["id"]: v for v in load_vectors()["vectors"]}
 INV = load_inventory()
@@ -239,7 +240,10 @@ def test_fields_required_custody_and_types_match_the_inventory(name):
         got = normalize_spec(info.spec)
         if section == "reused" and expected["base"] == "str" and not expected["optional"] and not theirs["required"]:
             # documented reading for Check/EvidenceRef/SecretRef: an unset optional string is None, "" is refused
-            assert info.spec.optional and info.spec.min_length == 1 and not info.required
+            # (the one exception is SecretRef.path: an unset path hashes as the empty string, so "" is accepted)
+            empty_allowed = (name, fname) == ("SecretRef", "path")
+            assert info.spec.optional and not info.required
+            assert info.spec.min_length == (None if empty_allowed else 1)
             got = dict(got, optional=False, constraints={})
         # the inventory writes sets as Tuple[...] too; whether a tuple is a set is checked below
         assert got == expected, (name, fname, got, expected)
@@ -252,7 +256,7 @@ def test_fields_required_custody_and_types_match_the_inventory(name):
 
 
 def test_set_fields_are_exactly_the_unique_item_fields_of_the_frozen_json_schema():
-    # qa.schema.json is not vendored; the set fields it marks uniqueItems are listed here as read from the golden data
+    # the fields the frozen JSON Schema (tests/qa/golden/qa.schema.json) marks uniqueItems, except the plan family
     expected = {
         "CleanupReport": {"leaked", "released"}, "FaultDetection": {"evidence_refs"}, "ObserveRequest": {"capture"},
         "PolicyDecisionRecord": {"scope"}, "ReviewItem": {"evidence_refs"},
@@ -263,10 +267,21 @@ def test_set_fields_are_exactly_the_unique_item_fields_of_the_frozen_json_schema
     }
     got = {}
     for cls in R.RECORD_TYPES + R.VALUE_TYPES:
-        names = {i.name for i in R.field_infos(cls) if i.spec.kind == "tuple" and i.spec.is_set}
+        names = {i.name for i in R.field_infos(cls)
+                 if i.spec.kind == "tuple" and i.spec.is_set and not i.spec.keep_duplicates}
         if names:
             got[cls.__name__] = names
     assert got == expected
+    schema = json.loads((GOLDEN / "qa.schema.json").read_text(encoding="utf-8"))
+    from_schema = {}
+    for name, body in schema["$defs"].items():
+        names = {p for p, v in (body.get("properties") or {}).items() if v.get("type") == "array" and v.get("uniqueItems")}
+        if names and name not in ("QAPlan", "PlanGate"):
+            from_schema["PolicyDecisionRecord" if name == "QAPolicyDecision" else name] = names
+    assert from_schema == expected
+    # the reused Check type sorts its pins by value and keeps a pin listed twice: it is not a unique-items set
+    assert {(c.__name__, i.name) for c in R.VALUE_TYPES for i in R.field_infos(c) if i.spec.keep_duplicates} == {
+        ("Check", "evidence_refs")}
 
 
 def test_enums_match_the_inventory():
@@ -782,10 +797,12 @@ GUARDS = {
         [('raise SpecInvalid("CheckProfile: disposable_proof_ref is required when tier is K")', "pass")],
         lambda m: _raises(lambda: m.CheckProfile.from_json({"case_root_digest": "sha256:" + "0" * 64, "tier": "K"}), "SPEC_INVALID")),
     "assertion_ids_are_unique": (
-        [('raise SpecInvalid("TestSpec: assertion ids must be unique")', "pass")],
+        [('raise SpecInvalid("TestSpec: assertion ids must be unique")', "pass"),
+         ('raise SpecInvalid(f"{path}: duplicate elements in a set")', "pass")],     # an element key is unique in its set too
         lambda m: _raises(lambda: m.TestSpec.from_json(dict(_TS, assertions=_TS["assertions"] + [dict(_TS["assertions"][0], predicate={"expected": "X", "op": "EQUALS"})])), "SPEC_INVALID")),
     "sets_are_sorted_so_order_does_not_matter": (
-        [("keyed = sorted(((_set_key(e), e) for e in items), key=lambda p: p[0])", "keyed = [(_set_key(e), e) for e in items]")],
+        [("keyed = sorted(((_set_key(e, spec.set_key), e) for e in items), key=lambda p: p[0])",
+          "keyed = [(_set_key(e, spec.set_key), e) for e in items]")],
         _set_order_probe),
     "set_duplicates_are_refused": (
         [('raise SpecInvalid(f"{path}: duplicate elements in a set")', "pass")],

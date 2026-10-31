@@ -1,0 +1,2563 @@
+{
+  "$defs": {
+    "Action": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ActionKind"
+        },
+        "secret_ref": {
+          "$ref": "#/$defs/SecretRef"
+        },
+        "value": {
+          "maxLength": 512,
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    "ActionKind": {
+      "enum": [
+        "click",
+        "fill",
+        "press",
+        "select",
+        "check",
+        "uncheck",
+        "hover",
+        "navigate",
+        "resolve"
+      ]
+    },
+    "ActionOutcome": {
+      "additionalProperties": false,
+      "properties": {
+        "detail": {
+          "maxLength": 512,
+          "type": "string"
+        },
+        "result": {
+          "$ref": "#/$defs/ResultCode"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "type": "object"
+    },
+    "ActionReceipt": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "$ref": "#/$defs/ActionRecord"
+        },
+        "attempt": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "content_hash": {
+          "pattern": "^rcv1:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "custody": {
+          "additionalProperties": false,
+          "properties": {
+            "duration_ms": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "recovery_rationale": {
+              "maxLength": 4096,
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "execution_binding": {
+          "pattern": "^(?:rcv1:[0-9a-f]{64})$",
+          "type": "string"
+        },
+        "idempotency_key": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        },
+        "locator_used": {
+          "$ref": "#/$defs/LocatorUsed"
+        },
+        "policy_decision_ref": {
+          "pattern": "^(?:rcv1:[0-9a-f]{64})$",
+          "type": "string"
+        },
+        "postcondition": {
+          "$ref": "#/$defs/Postcondition"
+        },
+        "receipt_id": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        },
+        "resource_used": {
+          "$ref": "#/$defs/ResourceRef"
+        },
+        "result": {
+          "$ref": "#/$defs/ResultCode"
+        },
+        "run_id": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        },
+        "schema_id": {
+          "const": "runtime-contracts/qa/action-receipt"
+        },
+        "schema_version": {
+          "const": "0.1"
+        },
+        "state_after_hash": {
+          "pattern": "^(?:rcv1:[0-9a-f]{64})$",
+          "type": "string"
+        },
+        "state_before_hash": {
+          "pattern": "^(?:rcv1:[0-9a-f]{64})$",
+          "type": "string"
+        },
+        "step_id": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        },
+        "tool": {
+          "$ref": "#/$defs/ToolRef"
+        }
+      },
+      "required": [
+        "schema_id",
+        "schema_version",
+        "receipt_id",
+        "run_id",
+        "step_id",
+        "attempt",
+        "tool",
+        "action",
+        "state_before_hash",
+        "state_after_hash",
+        "policy_decision_ref",
+        "idempotency_key",
+        "postcondition",
+        "result"
+      ],
+      "type": "object"
+    },
+    "ActionRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ActionKind"
+        },
+        "value_digest": {
+          "pattern": "^(?:rcv1:[0-9a-f]{64})$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    "ActionRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "$ref": "#/$defs/Action"
+        },
+        "idempotency_key": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        },
+        "policy_decision_ref": {
+          "pattern": "^(?:rcv1:[0-9a-f]{64})$",
+          "type": "string"
+        },
+        "step_id": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "step_id",
+        "action",
+        "idempotency_key",
+        "policy_decision_ref"
+      ],
+      "type": "object"
+    },
+    "AssertionResult": {
+      "additionalProperties": false,
+      "properties": {
+        "actual": {},
+        "actual_digest": {
+          "pattern": "^(?:rcv1:[0-9a-f]{64})$",
+          "type": "string"
+        },
+        "assertion_id": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        },
+        "assertion_set_hash": {
+          "pattern": "^(?:rcv1:[0-9a-f]{64})$",
+          "type": "string"
+        },
+        "check": {
+          "$ref": "#/$defs/Check"
+        },
+        "content_hash": {
+          "pattern": "^rcv1:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "custody": {
+          "additionalProperties": false,
+          "properties": {
+            "evaluated_at": {
+              "maxLength": 512,
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "executor": {
+          "$ref": "#/$defs/Executor"
+        },
+        "expected_hash": {
+          "pattern": "^(?:rcv1:[0-9a-f]{64})$",
+          "type": "string"
+        },
+        "observation_id": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        },
+        "reason_code": {
+          "pattern": "^(?:[A-Z][A-Z0-9_]{0,63})$",
+          "type": "string"
+        },
+        "schema_id": {
+          "const": "runtime-contracts/qa/assertion-result"
+        },
+        "schema_version": {
+          "const": "0.1"
+        },
+        "verifier": {
+          "$ref": "#/$defs/ComponentRef"
+        }
+      },
+      "required": [
+        "schema_id",
+        "schema_version",
+        "assertion_id",
+        "assertion_set_hash",
+        "expected_hash",
+        "executor",
+        "verifier",
+        "check"
+      ],
+      "type": "object"
+    },
+    "AssertionSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "assertion_id": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        },
+        "check_program_ref": {
+          "$ref": "#/$defs/CheckProgramRef"
+        },
+        "content_hash": {
+          "pattern": "^rcv1:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "determinism": {
+          "$ref": "#/$defs/Determinism"
+        },
+        "executor": {
+          "$ref": "#/$defs/Executor"
+        },
+        "on_unresolvable": {
+          "$ref": "#/$defs/Verdict"
+        },
+        "predicate": {
+          "$ref": "#/$defs/Predicate"
+        },
+        "requirement_ref": {
+          "pattern": "^(?:[A-Za-z0-9._:/-]{1,128})$",
+          "type": "string"
+        },
+        "schema_id": {
+          "const": "runtime-contracts/qa/assertion-spec"
+        },
+        "schema_version": {
+          "const": "0.1"
+        },
+        "subject": {
+          "$ref": "#/$defs/AssertionSubject"
+        },
+        "verifier_id": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        },
+        "verifier_version_range": {
+          "pattern": "^(?:[A-Za-z0-9.<>=!~,*+ -]{1,64})$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_id",
+        "schema_version",
+        "assertion_id",
+        "executor",
+        "subject",
+        "predicate",
+        "verifier_id",
+        "verifier_version_range"
+      ],
+      "type": "object"
+    },
+    "AssertionSubject": {
+      "additionalProperties": false,
+      "properties": {
+        "inputs": {
+          "items": {
+            "$ref": "#/$defs/ResourceRef"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "$ref": "#/$defs/SubjectKind"
+        },
+        "locator": {
+          "$ref": "#/$defs/LocatorDescriptor"
+        },
+        "pattern": {
+          "maxLength": 512,
+          "type": "string"
+        },
+        "subject_alternates": {
+          "items": {
+            "$ref": "#/$defs/LocatorDescriptor"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    "Budget": {
+      "additionalProperties": false,
+      "properties": {
+        "deadline_ms": {
+          "maximum": 86400000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "max_model_calls": {
+          "maximum": 100000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "max_recovery_attempts": {
+          "maximum": 1000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "max_retries": {
+          "maximum": 1000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "max_tokens": {
+          "maximum": 100000000,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "deadline_ms"
+      ],
+      "type": "object"
+    },
+    "CaptureKind": {
+      "enum": [
+        "SCREENSHOT",
+        "A11Y_SNAPSHOT",
+        "DOM_META",
+        "NETWORK_EXCERPT",
+        "CONSOLE_EXCERPT",
+        "TRACE"
+      ]
+    },
+    "Check": {
+      "additionalProperties": false,
+      "properties": {
+        "check_id": {
+          "type": "string"
+        },
+        "detail": {
+          "type": "string"
+        },
+        "determinism": {
+          "$ref": "#/$defs/Determinism"
+        },
+        "evidence_refs": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "verdict": {
+          "$ref": "#/$defs/Verdict"
+        }
+      },
+      "required": [
+        "check_id",
+        "verdict"
+      ],
+      "type": "object"
+    },
+    "CheckProfile": {
+      "additionalProperties": false,
+      "properties": {
+        "case_root_digest": {
+          "pattern": "^(?:sha256:[0-9a-f]{64})$",
+          "type": "string"
+        },
+        "disposable_proof_ref": {
+          "pattern": "^(?:(rcv1|sha256):[0-9a-f]{64})$",
+          "type": "string"
+        },
+        "tier": {
+          "$ref": "#/$defs/CheckTier"
+        }
+      },
+      "required": [
+        "tier",
+        "case_root_digest"
+      ],
+      "type": "object"
+    },
+    "CheckProgramRef": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        },
+        "program_hash": {
+          "pattern": "^(?:sha256:[0-9a-f]{64})$",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._+-]{0,63})$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "program_hash"
+      ],
+      "type": "object"
+    },
+    "CheckSubject": {
+      "additionalProperties": false,
+      "properties": {
+        "check_program_ref": {
+          "$ref": "#/$defs/CheckProgramRef"
+        },
+        "inputs": {
+          "items": {
+            "$ref": "#/$defs/ResourceRef"
+          },
+          "type": "array"
+        },
+        "tier": {
+          "$ref": "#/$defs/CheckTier"
+        }
+      },
+      "required": [
+        "check_program_ref",
+        "inputs",
+        "tier"
+      ],
+      "type": "object"
+    },
+    "CheckTier": {
+      "enum": [
+        "OFFLINE",
+        "K"
+      ]
+    },
+    "Checkpoint": {
+      "additionalProperties": false,
+      "properties": {
+        "checkpoint_id": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        },
+        "content_hash": {
+          "pattern": "^rcv1:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "custody": {
+          "additionalProperties": false,
+          "properties": {
+            "taken_at": {
+              "maxLength": 512,
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "fixture_snapshot_id": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        },
+        "run_id": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        },
+        "schema_id": {
+          "const": "runtime-contracts/qa/checkpoint"
+        },
+        "schema_version": {
+          "const": "0.1"
+        },
+        "state_hash": {
+          "pattern": "^(?:rcv1:[0-9a-f]{64})$",
+          "type": "string"
+        },
+        "step_index": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "schema_id",
+        "schema_version",
+        "checkpoint_id",
+        "run_id",
+        "step_index",
+        "state_hash"
+      ],
+      "type": "object"
+    },
+    "ClaimedClass": {
+      "enum": [
+        "BENIGN_DRIFT",
+        "PRODUCT_DEFECT_SUSPECTED",
+        "ENVIRONMENT",
+        "UNKNOWN"
+      ]
+    },
+    "ClassHint": {
+      "enum": [
+        "BENIGN_DRIFT_CANDIDATE",
+        "BENIGN_DRIFT_OR_ENVIRONMENT",
+        "ENVIRONMENT_OR_BENIGN",
+        "ENVIRONMENT_OR_POLICY",
+        "ENVIRONMENT",
+        "INCONCLUSIVE",
+        "POLICY",
+        "INTEGRITY",
+        "TEST_DEFECT"
+      ]
+    },
+    "CleanupReport": {
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {
+          "pattern": "^rcv1:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "custody": {
+          "additionalProperties": false,
+          "properties": {
+            "closed_at": {
+              "maxLength": 512,
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "handle_id": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        },
+        "leaked": {
+          "items": {
+            "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "released": {
+          "items": {
+            "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "schema_id": {
+          "const": "runtime-contracts/qa/cleanup-report"
+        },
+        "schema_version": {
+          "const": "0.1"
+        },
+        "verified": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "schema_id",
+        "schema_version",
+        "handle_id",
+        "verified"
+      ],
+      "type": "object"
+    },
+    "ComponentRef": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._+-]{0,63})$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "version"
+      ],
+      "type": "object"
+    },
+    "Counters": {
+      "additionalProperties": false,
+      "properties": {
+        "cost": {
+          "pattern": "^(?:-?(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?)$",
+          "type": "string"
+        },
+        "infrastructure_ms": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "model_calls": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "tokens": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "CoverageContract": {
+      "enum": [
+        "FULL",
+        "SUBSET"
+      ]
+    },
+    "Determinism": {
+      "enum": [
+        "DETERMINISTIC",
+        "NON_DETERMINISTIC"
+      ]
+    },
+    "ErrorCategory": {
+      "enum": [
+        "LOCATOR",
+        "ACTION",
+        "SESSION",
+        "NETWORK",
+        "POLICY",
+        "ENVIRONMENT",
+        "INTEGRITY",
+        "SPEC"
+      ]
+    },
+    "EvidenceLevel": {
+      "enum": [
+        "MINIMAL",
+        "STANDARD",
+        "FULL"
+      ]
+    },
+    "EvidenceRef": {
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {
+          "type": "string"
+        },
+        "media_type": {
+          "type": "string"
+        },
+        "modality": {
+          "type": "string"
+        },
+        "ref": {
+          "type": "string"
+        },
+        "ref_type": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "ref"
+      ],
+      "type": "object"
+    },
+    "Executor": {
+      "enum": [
+        "PLAYWRIGHT",
+        "SCRIPT"
+      ]
+    },
+    "FaultDetection": {
+      "additionalProperties": false,
+      "properties": {
+        "claimed_class": {
+          "$ref": "#/$defs/ClaimedClass"
+        },
+        "content_hash": {
+          "pattern": "^rcv1:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "custody": {
+          "additionalProperties": false,
+          "properties": {
+            "detected_at_ms_into_step": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "detected": {
+          "type": "boolean"
+        },
+        "detector": {
+          "$ref": "#/$defs/ComponentRef"
+        },
+        "evidence_refs": {
+          "items": {
+            "$ref": "#/$defs/EvidenceRef"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "schema_id": {
+          "const": "runtime-contracts/qa/fault-detection"
+        },
+        "schema_version": {
+          "const": "0.1"
+        },
+        "signal": {
+          "$ref": "#/$defs/FaultSignal"
+        }
+      },
+      "required": [
+        "schema_id",
+        "schema_version",
+        "detected",
+        "signal",
+        "claimed_class",
+        "detector"
+      ],
+      "type": "object"
+    },
+    "FaultEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {
+          "pattern": "^rcv1:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "detection": {
+          "$ref": "#/$defs/FaultDetection"
+        },
+        "fault_event_id": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        },
+        "recovery": {
+          "$ref": "#/$defs/FaultRecovery"
+        },
+        "schema_id": {
+          "const": "runtime-contracts/qa/fault-event"
+        },
+        "schema_version": {
+          "const": "0.1"
+        },
+        "sequence": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "step_id": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_id",
+        "schema_version",
+        "fault_event_id",
+        "step_id",
+        "sequence",
+        "detection",
+        "recovery"
+      ],
+      "type": "object"
+    },
+    "FaultRecovery": {
+      "additionalProperties": false,
+      "properties": {
+        "attempted": {
+          "type": "boolean"
+        },
+        "attempts": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "candidates_considered": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "candidates_rejected_reasons": {
+          "items": {
+            "pattern": "^(?:[A-Z][A-Z0-9_]{0,63})$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "content_hash": {
+          "pattern": "^rcv1:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "custody": {
+          "additionalProperties": false,
+          "properties": {
+            "cost": {
+              "$ref": "#/$defs/RecoveryCost"
+            }
+          },
+          "type": "object"
+        },
+        "detection_ref": {
+          "pattern": "^(?:rcv1:[0-9a-f]{64})$",
+          "type": "string"
+        },
+        "postcondition_verified": {
+          "type": "boolean"
+        },
+        "reason_code": {
+          "$ref": "#/$defs/RecoveryReason"
+        },
+        "result": {
+          "$ref": "#/$defs/RecoveryResult"
+        },
+        "schema_id": {
+          "const": "runtime-contracts/qa/fault-recovery"
+        },
+        "schema_version": {
+          "const": "0.1"
+        },
+        "strategy": {
+          "$ref": "#/$defs/RecoveryStrategy"
+        },
+        "suppressed_reason": {
+          "$ref": "#/$defs/SuppressedReason"
+        }
+      },
+      "required": [
+        "schema_id",
+        "schema_version",
+        "detection_ref",
+        "attempted",
+        "strategy",
+        "result",
+        "postcondition_verified"
+      ],
+      "type": "object"
+    },
+    "FaultSignal": {
+      "enum": [
+        "NONE",
+        "LOCATOR_NOT_FOUND",
+        "LOCATOR_AMBIGUOUS",
+        "ACTION_TIMEOUT",
+        "TRANSITION_NOT_OBSERVED",
+        "ASSERTION_FAILED",
+        "ASSERTION_UNRESOLVABLE",
+        "ENV_UNHEALTHY",
+        "POLICY_DENIED",
+        "NETWORK_BLOCKED",
+        "UNEXPECTED_OVERLAY",
+        "SESSION_LOST"
+      ]
+    },
+    "FixtureRef": {
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {
+          "pattern": "^(?:(rcv1|sha256):[0-9a-f]{64})$",
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "content_hash"
+      ],
+      "type": "object"
+    },
+    "Idempotency": {
+      "enum": [
+        "IDEMPOTENT",
+        "AT_MOST_ONCE",
+        "UNKNOWN"
+      ]
+    },
+    "IntegrityRefusalCode": {
+      "enum": [
+        "ASSERTION_INTEGRITY",
+        "ASSERTION_HASH_MISMATCH",
+        "EXECUTOR_MISMATCH",
+        "EXPECTED_MISMATCH",
+        "RECOVERY_PAYLOAD_REJECTED",
+        "COVERAGE_VIOLATION",
+        "ASSERTION_PROGRAM_MISMATCH",
+        "ASSERTION_PROGRAM_UNREGISTERED",
+        "ASSERTION_PIN_NOT_FOUND",
+        "ASSERTION_PIN_MALFORMED",
+        "BATCH_HALTED"
+      ]
+    },
+    "LocateCandidate": {
+      "additionalProperties": false,
+      "properties": {
+        "candidate_ref": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "name": {
+          "maxLength": 512,
+          "type": "string"
+        },
+        "role": {
+          "maxLength": 512,
+          "type": "string"
+        },
+        "unique": {
+          "type": "boolean"
+        },
+        "visible": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "candidate_ref",
+        "visible",
+        "enabled",
+        "unique"
+      ],
+      "type": "object"
+    },
+    "LocateMode": {
+      "enum": [
+        "EXACT",
+        "SEMANTIC"
+      ]
+    },
+    "LocateResult": {
+      "additionalProperties": false,
+      "properties": {
+        "candidates": {
+          "items": {
+            "$ref": "#/$defs/LocateCandidate"
+          },
+          "type": "array"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "LocatorCandidate": {
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {
+          "pattern": "^rcv1:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 512,
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 512,
+          "type": "string"
+        },
+        "role": {
+          "maxLength": 512,
+          "type": "string"
+        },
+        "schema_id": {
+          "const": "runtime-contracts/qa/locator-candidate"
+        },
+        "schema_version": {
+          "const": "0.1"
+        },
+        "strategy": {
+          "$ref": "#/$defs/LocatorStrategy"
+        },
+        "test_id": {
+          "maxLength": 512,
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_id",
+        "schema_version",
+        "strategy"
+      ],
+      "type": "object"
+    },
+    "LocatorDescriptor": {
+      "additionalProperties": false,
+      "properties": {
+        "frame_path": {
+          "items": {
+            "maxLength": 512,
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "label": {
+          "maxLength": 512,
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 512,
+          "type": "string"
+        },
+        "role": {
+          "maxLength": 512,
+          "type": "string"
+        },
+        "test_id": {
+          "maxLength": 512,
+          "type": "string"
+        },
+        "text_hint": {
+          "maxLength": 512,
+          "type": "string"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "LocatorStrategy": {
+      "enum": [
+        "AUTHORED",
+        "SEMANTIC_ALTERNATE",
+        "MODEL_CANDIDATE"
+      ]
+    },
+    "LocatorUsed": {
+      "additionalProperties": false,
+      "properties": {
+        "descriptor": {
+          "$ref": "#/$defs/LocatorDescriptor"
+        },
+        "strategy": {
+          "$ref": "#/$defs/LocatorStrategy"
+        }
+      },
+      "required": [
+        "descriptor",
+        "strategy"
+      ],
+      "type": "object"
+    },
+    "ModelRef": {
+      "additionalProperties": false,
+      "properties": {
+        "model_id": {
+          "maxLength": 512,
+          "type": "string"
+        },
+        "parameters": {},
+        "provider": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "model_id"
+      ],
+      "type": "object"
+    },
+    "Observation": {
+      "additionalProperties": false,
+      "properties": {
+        "a11y_snapshot_ref": {
+          "$ref": "#/$defs/EvidenceRef"
+        },
+        "console_excerpt_ref": {
+          "$ref": "#/$defs/EvidenceRef"
+        },
+        "content_hash": {
+          "pattern": "^rcv1:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "custody": {
+          "additionalProperties": false,
+          "properties": {
+            "duration_ms": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "observed_at": {
+              "maxLength": 512,
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "dom_meta": {},
+        "frame": {
+          "maxLength": 512,
+          "type": "string"
+        },
+        "network_excerpt_ref": {
+          "$ref": "#/$defs/EvidenceRef"
+        },
+        "observation_id": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        },
+        "phase": {
+          "$ref": "#/$defs/Phase"
+        },
+        "redaction_applied": {
+          "type": "boolean"
+        },
+        "redaction_policy_id": {
+          "pattern": "^(?:(rcv1|sha256):[0-9a-f]{64})$",
+          "type": "string"
+        },
+        "schema_id": {
+          "const": "runtime-contracts/qa/observation"
+        },
+        "schema_version": {
+          "const": "0.1"
+        },
+        "screenshot_ref": {
+          "$ref": "#/$defs/EvidenceRef"
+        },
+        "source": {
+          "$ref": "#/$defs/ObservationSource"
+        },
+        "step_id": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        },
+        "url": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_id",
+        "schema_version",
+        "observation_id",
+        "step_id",
+        "phase",
+        "source",
+        "redaction_policy_id",
+        "redaction_applied"
+      ],
+      "type": "object"
+    },
+    "ObservationSource": {
+      "additionalProperties": false,
+      "properties": {
+        "adapter": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        },
+        "adapter_version": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._+-]{0,63})$",
+          "type": "string"
+        },
+        "browser": {
+          "maxLength": 512,
+          "type": "string"
+        },
+        "browser_version": {
+          "maxLength": 512,
+          "type": "string"
+        }
+      },
+      "required": [
+        "adapter",
+        "adapter_version"
+      ],
+      "type": "object"
+    },
+    "ObserveRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "capture": {
+          "items": {
+            "$ref": "#/$defs/CaptureKind"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "phase": {
+          "$ref": "#/$defs/Phase"
+        },
+        "step_id": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "step_id",
+        "phase"
+      ],
+      "type": "object"
+    },
+    "ObservedValue": {
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {
+          "pattern": "^rcv1:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "match_count": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "observation_id": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        },
+        "resolution": {
+          "$ref": "#/$defs/Resolution"
+        },
+        "schema_id": {
+          "const": "runtime-contracts/qa/observed-value"
+        },
+        "schema_version": {
+          "const": "0.1"
+        },
+        "value": {},
+        "value_digest": {
+          "pattern": "^(?:rcv1:[0-9a-f]{64})$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_id",
+        "schema_version",
+        "resolution",
+        "match_count"
+      ],
+      "type": "object"
+    },
+    "Outcome": {
+      "enum": [
+        "PASS",
+        "PRODUCT_FAIL",
+        "TEST_DEFECT",
+        "ENVIRONMENT_FAIL",
+        "INCONCLUSIVE"
+      ]
+    },
+    "PermittedRecovery": {
+      "enum": [
+        "RETRY_SAME",
+        "SEMANTIC_LOCATOR",
+        "MODEL_CANDIDATE",
+        "RESET_FIXTURE",
+        "CHECKPOINT_RESUME"
+      ]
+    },
+    "Phase": {
+      "enum": [
+        "BEFORE",
+        "AFTER"
+      ]
+    },
+    "PlanGate": {
+      "additionalProperties": false,
+      "properties": {
+        "after": {
+          "items": {
+            "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127}@rcv1:[0-9a-f]{64})$",
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "item": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127}@rcv1:[0-9a-f]{64})$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "item",
+        "after"
+      ],
+      "type": "object"
+    },
+    "PlanItem": {
+      "additionalProperties": false,
+      "properties": {
+        "budget": {
+          "$ref": "#/$defs/Budget"
+        },
+        "evidence_level": {
+          "$ref": "#/$defs/EvidenceLevel"
+        },
+        "lane": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        },
+        "order": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "recovery_ceiling": {
+          "maximum": 1000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "spec_ref": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127}@rcv1:[0-9a-f]{64})$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "spec_ref",
+        "lane",
+        "order",
+        "budget",
+        "recovery_ceiling"
+      ],
+      "type": "object"
+    },
+    "PolicyDecisionKind": {
+      "enum": [
+        "ALLOW",
+        "DENY",
+        "REQUIRE_APPROVAL"
+      ]
+    },
+    "Postcondition": {
+      "additionalProperties": false,
+      "properties": {
+        "declared": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "type": "string"
+        },
+        "observed": {
+          "maxLength": 512,
+          "type": "string"
+        },
+        "result": {
+          "$ref": "#/$defs/PostconditionResult"
+        }
+      },
+      "required": [
+        "declared",
+        "result"
+      ],
+      "type": "object"
+    },
+    "PostconditionResult": {
+      "enum": [
+        "SATISFIED",
+        "NOT_SATISFIED",
+        "NOT_EVALUATED"
+      ]
+    },
+    "Predicate": {
+      "additionalProperties": false,
+      "properties": {
+        "expected": {},
+        "op": {
+          "$ref": "#/$defs/PredicateOp"
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "type": "object"
+    },
+    "PredicateOp": {
+      "enum": [
+        "EQUALS",
+        "NOT_EQUALS",
+        "CONTAINS",
+        "MATCHES",
+        "EXISTS",
+        "ABSENT",
+        "LESS_THAN",
+        "GREATER_THAN"
+      ]
+    },
+    "QAPlan": {
+      "additionalProperties": false,
+      "properties": {
+        "action_policy_ref": {
+          "pattern": "^(?:rcv1:[0-9a-f]{64})$",
+          "type": "string"
+        },
+        "content_hash": {
+          "pattern": "^rcv1:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "coverage_contract": {
+          "$ref": "#/$defs/CoverageContract"
+        },
+        "custody": {
+          "additionalProperties": false,
+          "properties": {
+            "rationale_ref": {
+              "pattern": "^(?:(rcv1|sha256):[0-9a-f]{64})$",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "gates": {
+          "items": {
+            "$ref": "#/$defs/PlanGate"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/PlanItem"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "lanes": {
+          "items": {
+            "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "max_parallel": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "planner": {
+          "$ref": "#/$defs/ComponentRef"
+        },
+        "resource_claims": {
+          "items": {
+            "$ref": "#/$defs/ResourceClaim"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "schema_id": {
+          "const": "runtime-contracts/qa/qa-plan"
+        },
+        "schema_version": {
+          "const": "0.1"
+        }
+      },
+      "required": [
+        "schema_id",
+        "schema_version",
+        "items",
+        "lanes",
+        "max_parallel",
+        "coverage_contract",
+        "planner"
+      ],
+      "type": "object"
+    },
+    "QAPolicyDecision": {
+      "additionalProperties": false,
+      "properties": {
+        "action_kind": {
+          "$ref": "#/$defs/ActionKind"
+        },
+        "app": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        },
+        "content_hash": {
+          "pattern": "^rcv1:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "custody": {
+          "additionalProperties": false,
+          "properties": {
+            "decided_at": {
+              "maxLength": 512,
+              "type": "string"
+            },
+            "reason": {
+              "maxLength": 4096,
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "decision": {
+          "$ref": "#/$defs/PolicyDecisionKind"
+        },
+        "phase": {
+          "maxLength": 32,
+          "type": "string"
+        },
+        "policy_decision_id": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        },
+        "principal": {
+          "maxLength": 512,
+          "type": "string"
+        },
+        "provider": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        },
+        "rule_id": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        },
+        "run_id": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        },
+        "schema_id": {
+          "const": "runtime-contracts/qa/policy-decision"
+        },
+        "schema_version": {
+          "const": "0.1"
+        },
+        "scope": {
+          "items": {
+            "maxLength": 512,
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "side_effect": {
+          "$ref": "#/$defs/SideEffect"
+        },
+        "step_id": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_id",
+        "schema_version",
+        "policy_decision_id",
+        "run_id",
+        "step_id",
+        "principal",
+        "app",
+        "decision",
+        "provider",
+        "action_kind",
+        "side_effect"
+      ],
+      "type": "object"
+    },
+    "RecoveryCost": {
+      "additionalProperties": false,
+      "properties": {
+        "model_calls": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "ms": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "tokens": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "RecoveryReason": {
+      "enum": [
+        "NO_UI_TARGET",
+        "NO_ROLE_NAME_ANCHOR",
+        "RECOVERER_ERROR",
+        "CANDIDATE_CAP_EXCEEDED",
+        "ELAPSED_CAP",
+        "KILL_SWITCH",
+        "NO_CANDIDATE",
+        "AMBIGUOUS_CANDIDATES",
+        "RECOVERY_DISABLED",
+        "BUDGET_EXHAUSTED",
+        "NOT_PERMITTED",
+        "NOT_RETRYABLE",
+        "ALREADY_APPLIED",
+        "RETRY_UNSAFE",
+        "NO_IDEMPOTENCY_OR_POSTCONDITION_GUARD",
+        "INVALID_INPUT",
+        "UNKNOWN_SIDE_EFFECT_CLASS",
+        "POSTCONDITION_NOT_VERIFIED"
+      ]
+    },
+    "RecoveryResult": {
+      "enum": [
+        "NOT_ATTEMPTED",
+        "RECOVERED",
+        "NOT_RECOVERED",
+        "ABORTED"
+      ]
+    },
+    "RecoveryStrategy": {
+      "enum": [
+        "NONE",
+        "RETRY_SAME",
+        "SEMANTIC_LOCATOR",
+        "MODEL_CANDIDATE",
+        "RESET_FIXTURE",
+        "CHECKPOINT_RESUME",
+        "ESCALATE_REVIEW"
+      ]
+    },
+    "ResetResult": {
+      "additionalProperties": false,
+      "properties": {
+        "ok": {
+          "type": "boolean"
+        },
+        "scope": {
+          "$ref": "#/$defs/ResetScope"
+        }
+      },
+      "required": [
+        "scope",
+        "ok"
+      ],
+      "type": "object"
+    },
+    "ResetScope": {
+      "enum": [
+        "CONTEXT",
+        "FIXTURE",
+        "ENVIRONMENT"
+      ]
+    },
+    "Resolution": {
+      "enum": [
+        "RESOLVED",
+        "UNRESOLVED",
+        "AMBIGUOUS"
+      ]
+    },
+    "ResolvedResource": {
+      "additionalProperties": false,
+      "properties": {
+        "content_digest": {
+          "pattern": "^(?:sha256:[0-9a-f]{64})$",
+          "type": "string"
+        },
+        "ref": {
+          "$ref": "#/$defs/ResourceRef"
+        }
+      },
+      "required": [
+        "ref",
+        "content_digest"
+      ],
+      "type": "object"
+    },
+    "ResolvedTarget": {
+      "additionalProperties": false,
+      "properties": {
+        "candidate_ref": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        },
+        "locator": {
+          "$ref": "#/$defs/LocatorDescriptor"
+        },
+        "strategy": {
+          "$ref": "#/$defs/LocatorStrategy"
+        }
+      },
+      "required": [
+        "candidate_ref",
+        "locator",
+        "strategy"
+      ],
+      "type": "object"
+    },
+    "ResourceClaim": {
+      "additionalProperties": false,
+      "properties": {
+        "amount": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "resource": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "resource",
+        "amount"
+      ],
+      "type": "object"
+    },
+    "ResourceKind": {
+      "enum": [
+        "MANIFEST_PATH",
+        "IMAGE_DIGEST",
+        "NAMESPACE_OBJECT"
+      ]
+    },
+    "ResourceRef": {
+      "additionalProperties": false,
+      "properties": {
+        "api_version": {
+          "maxLength": 512,
+          "type": "string"
+        },
+        "digest": {
+          "pattern": "^(?:sha256:[0-9a-f]{64})$",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/ResourceKind"
+        },
+        "name": {
+          "maxLength": 512,
+          "type": "string"
+        },
+        "namespace": {
+          "maxLength": 512,
+          "type": "string"
+        },
+        "object_kind": {
+          "maxLength": 512,
+          "type": "string"
+        },
+        "path": {
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    "ResultCode": {
+      "enum": [
+        "OK",
+        "LOCATOR_NOT_FOUND",
+        "LOCATOR_AMBIGUOUS",
+        "TARGET_NOT_ACTIONABLE",
+        "ACTION_TIMEOUT",
+        "UNEXPECTED_DIALOG",
+        "SESSION_LOST",
+        "NAVIGATION_DENIED",
+        "ACTION_BLOCKED_BY_POLICY",
+        "ENVIRONMENT_UNHEALTHY",
+        "ADAPTER_CRASH",
+        "BROWSER_CRASH",
+        "RESET_FAILED",
+        "RESOURCE_LIMIT_EXCEEDED",
+        "REDACTION_FAILED",
+        "UNSUPPORTED_OPERATION"
+      ]
+    },
+    "RetrySafety": {
+      "enum": [
+        "SAFE",
+        "UNSAFE",
+        "SAFE_WITH_IDEMPOTENCY_KEY"
+      ]
+    },
+    "ReviewDecision": {
+      "enum": [
+        "ACCEPT",
+        "REJECT",
+        "REQUEST_CHANGE"
+      ]
+    },
+    "ReviewItem": {
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {
+          "pattern": "^rcv1:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "custody": {
+          "additionalProperties": false,
+          "properties": {
+            "created_at": {
+              "maxLength": 512,
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "evidence_refs": {
+          "items": {
+            "$ref": "#/$defs/EvidenceRef"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "reason": {
+          "pattern": "^(?:[A-Z][A-Z0-9_]{0,63})$",
+          "type": "string"
+        },
+        "review_item_id": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        },
+        "run_id": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        },
+        "schema_id": {
+          "const": "runtime-contracts/qa/review-item"
+        },
+        "schema_version": {
+          "const": "0.1"
+        },
+        "suggested_change_ref": {
+          "pattern": "^(?:rcv1:[0-9a-f]{64})$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_id",
+        "schema_version",
+        "review_item_id",
+        "run_id",
+        "reason"
+      ],
+      "type": "object"
+    },
+    "ReviewRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {
+          "pattern": "^rcv1:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "custody": {
+          "additionalProperties": false,
+          "properties": {
+            "decided_at": {
+              "maxLength": 512,
+              "type": "string"
+            },
+            "review_minutes": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "reviewer_id": {
+              "maxLength": 512,
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "decision": {
+          "$ref": "#/$defs/ReviewDecision"
+        },
+        "review_item_ref": {
+          "pattern": "^(?:rcv1:[0-9a-f]{64})$",
+          "type": "string"
+        },
+        "schema_id": {
+          "const": "runtime-contracts/qa/review-record"
+        },
+        "schema_version": {
+          "const": "0.1"
+        }
+      },
+      "required": [
+        "schema_id",
+        "schema_version",
+        "review_item_ref",
+        "decision"
+      ],
+      "type": "object"
+    },
+    "RunManifest": {
+      "additionalProperties": false,
+      "properties": {
+        "adapter": {
+          "$ref": "#/$defs/ComponentRef"
+        },
+        "assertion_results": {
+          "items": {
+            "$ref": "#/$defs/AssertionResult"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "assertion_set_hash": {
+          "pattern": "^(?:rcv1:[0-9a-f]{64})$",
+          "type": "string"
+        },
+        "assertions_declared": {
+          "items": {
+            "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "assertions_executed": {
+          "items": {
+            "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "assertions_skipped": {
+          "items": {
+            "$ref": "#/$defs/SkippedAssertion"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "browser": {
+          "maxLength": 512,
+          "type": "string"
+        },
+        "content_hash": {
+          "pattern": "^rcv1:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "custody": {
+          "additionalProperties": false,
+          "properties": {
+            "counters": {
+              "$ref": "#/$defs/Counters"
+            },
+            "finished_at": {
+              "maxLength": 512,
+              "type": "string"
+            },
+            "started_at": {
+              "maxLength": 512,
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "egress_policy_id": {
+          "pattern": "^(?:(rcv1|sha256):[0-9a-f]{64})$",
+          "type": "string"
+        },
+        "fault_events": {
+          "items": {
+            "$ref": "#/$defs/FaultEvent"
+          },
+          "type": "array"
+        },
+        "model": {
+          "$ref": "#/$defs/ModelRef"
+        },
+        "model_recovery_enabled": {
+          "type": "boolean"
+        },
+        "outcome": {
+          "$ref": "#/$defs/Outcome"
+        },
+        "outcome_reason": {
+          "pattern": "^(?:[A-Z][A-Z0-9_]{0,63})$",
+          "type": "string"
+        },
+        "plan_hash": {
+          "pattern": "^(?:rcv1:[0-9a-f]{64})$",
+          "type": "string"
+        },
+        "planner": {
+          "$ref": "#/$defs/ComponentRef"
+        },
+        "recovery_enabled": {
+          "type": "boolean"
+        },
+        "redaction_policy_id": {
+          "pattern": "^(?:(rcv1|sha256):[0-9a-f]{64})$",
+          "type": "string"
+        },
+        "resource_limits": {},
+        "run_id": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        },
+        "sandbox_image_digest": {
+          "pattern": "^(?:sha256:[0-9a-f]{64})$",
+          "type": "string"
+        },
+        "schema_id": {
+          "const": "runtime-contracts/qa/run-manifest"
+        },
+        "schema_version": {
+          "const": "0.1"
+        },
+        "seeds": {
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "spec_ref": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127}@rcv1:[0-9a-f]{64})$",
+          "type": "string"
+        },
+        "step_results": {
+          "items": {
+            "$ref": "#/$defs/StepResult"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "trace_id": {
+          "pattern": "^(?:[0-9a-f]{32})$",
+          "type": "string"
+        },
+        "versions": {
+          "items": {
+            "$ref": "#/$defs/VersionPin"
+          },
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "schema_id",
+        "schema_version",
+        "run_id",
+        "spec_ref",
+        "assertion_set_hash",
+        "adapter",
+        "egress_policy_id",
+        "redaction_policy_id",
+        "trace_id",
+        "recovery_enabled",
+        "model_recovery_enabled",
+        "assertions_declared",
+        "assertions_executed",
+        "assertions_skipped",
+        "outcome"
+      ],
+      "type": "object"
+    },
+    "SecretRef": {
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "provider": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider"
+      ],
+      "type": "object"
+    },
+    "SessionHandle": {
+      "additionalProperties": false,
+      "properties": {
+        "session_id": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "session_id"
+      ],
+      "type": "object"
+    },
+    "SessionProfile": {
+      "additionalProperties": false,
+      "properties": {
+        "allow_downloads": {
+          "type": "boolean"
+        },
+        "allow_file_choosers": {
+          "type": "boolean"
+        },
+        "allow_popups": {
+          "type": "boolean"
+        },
+        "egress_profile": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        },
+        "redaction_policy_id": {
+          "pattern": "^(?:(rcv1|sha256):[0-9a-f]{64})$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "egress_profile",
+        "redaction_policy_id"
+      ],
+      "type": "object"
+    },
+    "SideEffect": {
+      "enum": [
+        "NONE",
+        "READS_EXTERNAL",
+        "WRITES_INTERNAL",
+        "WRITES_EXTERNAL",
+        "NOTIFIES_HUMAN",
+        "SPENDS_MONEY"
+      ]
+    },
+    "SkipReason": {
+      "enum": [
+        "NOT_REACHED",
+        "PRECONDITION_UNMET",
+        "POLICY_DENIED",
+        "BUDGET_EXHAUSTED",
+        "SUBJECT_UNRESOLVED",
+        "ENVIRONMENT",
+        "HALTED_INTEGRITY"
+      ]
+    },
+    "SkippedAssertion": {
+      "additionalProperties": false,
+      "properties": {
+        "assertion_id": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        },
+        "reason_code": {
+          "$ref": "#/$defs/SkipReason"
+        }
+      },
+      "required": [
+        "assertion_id",
+        "reason_code"
+      ],
+      "type": "object"
+    },
+    "Step": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "$ref": "#/$defs/Action"
+        },
+        "expected_transition": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "type": "string"
+        },
+        "idempotency": {
+          "$ref": "#/$defs/Idempotency"
+        },
+        "intent": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "type": "string"
+        },
+        "observation_deadline_ms": {
+          "maximum": 3600000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "permitted_recovery": {
+          "items": {
+            "$ref": "#/$defs/PermittedRecovery"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "retry_safety": {
+          "$ref": "#/$defs/RetrySafety"
+        },
+        "side_effect": {
+          "$ref": "#/$defs/SideEffect"
+        },
+        "step_id": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        },
+        "target": {
+          "$ref": "#/$defs/StepTarget"
+        }
+      },
+      "required": [
+        "step_id",
+        "intent",
+        "target",
+        "action",
+        "expected_transition",
+        "observation_deadline_ms",
+        "side_effect"
+      ],
+      "type": "object"
+    },
+    "StepResult": {
+      "additionalProperties": false,
+      "properties": {
+        "postcondition": {
+          "$ref": "#/$defs/PostconditionResult"
+        },
+        "receipts": {
+          "items": {
+            "pattern": "^(?:rcv1:[0-9a-f]{64})$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "result": {
+          "$ref": "#/$defs/ResultCode"
+        },
+        "step_id": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "step_id",
+        "result",
+        "postcondition",
+        "receipts"
+      ],
+      "type": "object"
+    },
+    "StepTarget": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/TargetKind"
+        },
+        "locator": {
+          "$ref": "#/$defs/LocatorDescriptor"
+        },
+        "resource": {
+          "$ref": "#/$defs/ResourceRef"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    "SubjectKind": {
+      "enum": [
+        "UI_ELEMENT",
+        "URL",
+        "RESPONSE",
+        "RESOURCE_INPUTS"
+      ]
+    },
+    "SuppressedReason": {
+      "enum": [
+        "NONE",
+        "NOT_PERMITTED",
+        "NON_IDEMPOTENT",
+        "POLICY_DENIED",
+        "BUDGET_EXHAUSTED",
+        "KILL_SWITCH"
+      ]
+    },
+    "TargetKind": {
+      "enum": [
+        "ui",
+        "resource"
+      ]
+    },
+    "TestSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "allowed_side_effects": {
+          "items": {
+            "$ref": "#/$defs/SideEffect"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "assertions": {
+          "items": {
+            "$ref": "#/$defs/AssertionSpec"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "budget": {
+          "$ref": "#/$defs/Budget"
+        },
+        "cleanup": {
+          "items": {
+            "maxLength": 512,
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "content_hash": {
+          "pattern": "^rcv1:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "custody": {
+          "additionalProperties": false,
+          "properties": {
+            "approved_at": {
+              "maxLength": 512,
+              "type": "string"
+            },
+            "author": {
+              "maxLength": 512,
+              "type": "string"
+            },
+            "reviewer": {
+              "maxLength": 512,
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "depends_on": {
+          "items": {
+            "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127}@rcv1:[0-9a-f]{64})$",
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "egress_profile": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        },
+        "fixtures": {
+          "items": {
+            "$ref": "#/$defs/FixtureRef"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "id": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        },
+        "preconditions": {
+          "items": {
+            "maxLength": 512,
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "schema_id": {
+          "const": "runtime-contracts/qa/test-spec"
+        },
+        "schema_version": {
+          "const": "0.1"
+        },
+        "sensitivity_labels": {
+          "items": {
+            "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "steps": {
+          "items": {
+            "$ref": "#/$defs/Step"
+          },
+          "type": "array"
+        },
+        "target": {
+          "$ref": "#/$defs/TestTarget"
+        },
+        "version": {
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "schema_id",
+        "schema_version",
+        "id",
+        "version",
+        "target",
+        "steps",
+        "assertions",
+        "budget",
+        "egress_profile"
+      ],
+      "type": "object"
+    },
+    "TestTarget": {
+      "additionalProperties": false,
+      "properties": {
+        "app_id": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        },
+        "build_sha": {
+          "pattern": "^(?:[0-9a-f]{7,64})$",
+          "type": "string"
+        },
+        "environment_profile": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "app_id",
+        "build_sha",
+        "environment_profile"
+      ],
+      "type": "object"
+    },
+    "ToolRef": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._+-]{0,63})$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "type": "object"
+    },
+    "Verdict": {
+      "enum": [
+        "PASS",
+        "FAIL",
+        "INDETERMINATE",
+        "NOT_APPLICABLE"
+      ]
+    },
+    "VersionPin": {
+      "additionalProperties": false,
+      "properties": {
+        "component": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        },
+        "revision": {
+          "pattern": "^(?:[0-9a-f]{7,64})$",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._+-]{0,63})$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "component",
+        "version"
+      ],
+      "type": "object"
+    },
+    "WorkspaceHandle": {
+      "additionalProperties": false,
+      "properties": {
+        "workspace_id": {
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._:-]{0,127})$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspace_id"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Structural JSON Schema for the qa/v1 contracts, generated from the dataclasses. Hashes (rcv1) and cross-field rules are specified by the golden fixtures, not here.",
+  "title": "runtime-contracts qa/v1",
+  "x-contract": "qa/v1",
+  "x-records": {
+    "runtime-contracts/qa/action-receipt": "ActionReceipt",
+    "runtime-contracts/qa/assertion-result": "AssertionResult",
+    "runtime-contracts/qa/assertion-spec": "AssertionSpec",
+    "runtime-contracts/qa/checkpoint": "Checkpoint",
+    "runtime-contracts/qa/cleanup-report": "CleanupReport",
+    "runtime-contracts/qa/fault-detection": "FaultDetection",
+    "runtime-contracts/qa/fault-event": "FaultEvent",
+    "runtime-contracts/qa/fault-recovery": "FaultRecovery",
+    "runtime-contracts/qa/locator-candidate": "LocatorCandidate",
+    "runtime-contracts/qa/observation": "Observation",
+    "runtime-contracts/qa/observed-value": "ObservedValue",
+    "runtime-contracts/qa/policy-decision": "QAPolicyDecision",
+    "runtime-contracts/qa/qa-plan": "QAPlan",
+    "runtime-contracts/qa/review-item": "ReviewItem",
+    "runtime-contracts/qa/review-record": "ReviewRecord",
+    "runtime-contracts/qa/run-manifest": "RunManifest",
+    "runtime-contracts/qa/test-spec": "TestSpec"
+  },
+  "x-schema-version": "0.1"
+}
