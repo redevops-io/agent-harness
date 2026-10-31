@@ -83,7 +83,9 @@ def test_the_expected_files_exist():
                                           # deterministic recovery
                                           "recovery.py",
                                           # model-candidate recovery
-                                          "recovery_model.py"}
+                                          "recovery_model.py",
+                                          # egress policy, redaction, blobs, vault, evidence integrity
+                                          "blobs.py", "egress.py", "integrity.py", "redaction.py", "vault.py"}
 
 
 @pytest.mark.parametrize("path", QA_FILES, ids=lambda p: p.name)
