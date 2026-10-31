@@ -89,7 +89,7 @@ from .records import (ActionKind, ActionOutcome, ActionReceipt, ActionRequest, A
                       StepResult, TargetKind, TestSpec, ToolRef, VersionPin, WorkspaceHandle, Executor)
 from .records import Checkpoint, FaultDetection, FaultEvent, FaultRecovery, RecoveryCost, RecoveryResult, ResetResult
 from .records import ResetScope, SuppressedReason
-from .recovery import ENVIRONMENT_STRATEGIES, MAX_REASONS, DeterministicRecovery, FaultInputs
+from .recovery import ENVIRONMENT_STRATEGIES, MAX_REASONS, DeterministicRecovery, FaultInputs, reason_code_for
 from .recovery_model import ModelLedger
 from .run_errors import (BudgetExceeded, DeadlineExceeded, EvidenceUnavailable, IllegalTransition, ReceiptChainBroken,
                          RunCancelled)
@@ -106,6 +106,8 @@ _ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}")
 _RCV_OR_SHA = re.compile(r"(rcv1|sha256):[0-9a-f]{64}")
 _TRACE = re.compile(r"[0-9a-f]{32}")
 _CODE_BY_RESULT = {r.value: r for r in ResultCode}
+#: the cause recorded when a locator round ends with no usable target and the engine named no reason of its own
+R_NO_CANDIDATE_CAUSE = "NO_CANDIDATE"
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -210,7 +212,8 @@ class _Pending:
     did_work: bool = False               # a recovery action (reset, new session, replay, locator search) was performed
     attempts: int = 0                    # recovery attempts made for this fault (a plain retry may repeat)
     considered: int = 0
-    rejected: Tuple[str, ...] = ()
+    rejected: Tuple[str, ...] = ()       # per candidate considered: never more of them than ``considered``
+    cause: Optional[str] = None          # why this recovery stopped, as a whole (becomes ``FaultRecovery.reason_code``)
     model_calls: int = 0                 # what the model rounds of this fault cost
     tokens: int = 0
 
@@ -672,7 +675,7 @@ class QARunner:
                               before=state_hash(before), after=state_hash(before), used=override,
                               started=self._clock.monotonic_ms(), rationale=None)
                 self._seal_pending(c, attempted=False, result=RecoveryResult.NOT_ATTEMPTED, verified=False,
-                                   suppressed=SuppressedReason.POLICY_DENIED)
+                                   suppressed=SuppressedReason.POLICY_DENIED, cause="POLICY_DENIED")
                 raise _Abort(code="ACTION_BLOCKED_BY_POLICY", skip=SkipReason.POLICY_DENIED,
                              note=str(decision.rule_id))
             made = self._attempt(c, step, attempt, before, ref, override, rationale)
@@ -727,6 +730,10 @@ class QARunner:
                 return (None, None)
             if decision.reason == "BUDGET_EXHAUSTED":
                 raise _Abort(code=error.code, skip=SkipReason.BUDGET_EXHAUSTED, note="RETRIES")
+        if error.code == "ACTION_TIMEOUT" and made.acted:
+            # a timeout is recoverable only under the guard above (enablement, a permitted mode, the caps and the
+            # idempotency decision): the action may have been applied, so it is never re-targeted or repeated outside it
+            return None
         if self._recovery is not None and error.recoverable:
             c.machine.to(RunState.RECOVERABLE)
             return self._hook(c, step, attempt, made, before, error)
@@ -790,17 +797,22 @@ class QARunner:
         return pending
 
     def _seal_recovery(self, c: _Ctx, p: _Pending, *, attempted: bool, result: RecoveryResult, verified: bool,
-                       suppressed: SuppressedReason = SuppressedReason.NONE) -> None:
-        """Seal the recovery record, second, bound to the detection by hash, and add the pair to the run."""
+                       suppressed: SuppressedReason = SuppressedReason.NONE, cause: Optional[str] = None) -> None:
+        """Seal the recovery record, second, bound to the detection by hash, and add the pair to the run. ``cause`` (or
+        the cause recorded on the pending fault) is why the recovery as a whole did not recover; it becomes
+        ``reason_code`` and is never set on a ``RECOVERED`` record."""
         if c.pending is not p:
             return
         c.pending = None
+        cause = cause if cause is not None else p.cause
         elapsed = max(0, self._clock.monotonic_ms() - p.started_ms)
         recovery = FaultRecovery(
             detection_ref=p.detection_ref, attempted=attempted, strategy=p.strategy, result=result,
             postcondition_verified=verified, attempts=max(1, p.attempts) if attempted else 0,
             candidates_considered=p.considered,
-            candidates_rejected_reasons=p.rejected, suppressed_reason=suppressed,
+            candidates_rejected_reasons=p.rejected,
+            reason_code=None if result is RecoveryResult.RECOVERED else reason_code_for(cause),
+            suppressed_reason=suppressed,
             cost=RecoveryCost(ms=elapsed, model_calls=p.model_calls, tokens=p.tokens))
         event = FaultEvent(fault_event_id=bounded_id("fault", c.run_id, p.sequence), step_id=p.step_id,
                            sequence=p.sequence, detection=p.detection, recovery=recovery)
@@ -812,10 +824,10 @@ class QARunner:
         self._emit(c, "FaultRecovery", recovery)
 
     def _seal_pending(self, c: _Ctx, *, attempted: bool, result: RecoveryResult, verified: bool,
-                      suppressed: SuppressedReason = SuppressedReason.NONE) -> None:
+                      suppressed: SuppressedReason = SuppressedReason.NONE, cause: Optional[str] = None) -> None:
         if c.pending is not None:
             self._seal_recovery(c, c.pending, attempted=attempted or c.pending.did_work, result=result,
-                                verified=verified, suppressed=suppressed)
+                                verified=verified, suppressed=suppressed, cause=cause)
 
     def _abandon_pending(self, c: _Ctx) -> None:
         """A recovery cut short by an exception (a deadline, a cancel, an integrity halt): record it as ABORTED."""
@@ -836,7 +848,8 @@ class QARunner:
             return
         verified = made.error is None and made.postcondition.result is PostconditionResult.SATISFIED
         self._seal_pending(c, attempted=True, verified=verified,
-                           result=RecoveryResult.RECOVERED if verified else RecoveryResult.NOT_RECOVERED)
+                           result=RecoveryResult.RECOVERED if verified else RecoveryResult.NOT_RECOVERED,
+                           cause=None if verified else "POSTCONDITION_NOT_VERIFIED")
         if made.error is None and not verified:       # it ran, and nothing shows it worked: stop here
             raise _Abort(code=None, skip=SkipReason.NOT_REACHED, note="recovery not verified by the step postcondition")
 
@@ -873,18 +886,21 @@ class QARunner:
         error = made.error
         pending = c.pending
         if pending is not None:                           # a plain retry met the same fault again: plan the next attempt
-            strategy, applied, suppressed = self._plan(c, step, error, made)
+            strategy, applied, suppressed, why = self._plan(c, step, error, made)
             if strategy is RecoveryStrategy.RETRY_SAME and self._allowed(step, strategy):
                 return self._begin(c, step, pending, strategy, override, made)
             if applied:
-                self._seal_recovery(c, pending, attempted=True, result=RecoveryResult.NOT_RECOVERED, verified=False)
+                self._seal_recovery(c, pending, attempted=True, result=RecoveryResult.NOT_RECOVERED, verified=False,
+                                    cause="ALREADY_APPLIED")
                 return "applied"
             if strategy is RecoveryStrategy.NONE:
                 self._seal_recovery(c, pending, attempted=True, result=RecoveryResult.NOT_RECOVERED, verified=False,
                                     suppressed=suppressed if suppressed is not SuppressedReason.NONE
-                                    else SuppressedReason.BUDGET_EXHAUSTED)
+                                    else SuppressedReason.BUDGET_EXHAUSTED,
+                                    cause=why if suppressed is not SuppressedReason.NONE else "BUDGET_EXHAUSTED")
                 return None
-            self._seal_recovery(c, pending, attempted=True, result=RecoveryResult.NOT_RECOVERED, verified=False)
+            self._seal_recovery(c, pending, attempted=True, result=RecoveryResult.NOT_RECOVERED, verified=False,
+                                cause="POSTCONDITION_NOT_VERIFIED")
         try:
             detection = self._engine.detect(error, elapsed_ms=timer.elapsed_ms())
         except Exception:
@@ -892,28 +908,33 @@ class QARunner:
         if type(detection) is not FaultDetection:
             return None                                # not a fault this layer records: the run ends under its code
         pending = self._seal_detection(c, step, detection)      # sealed before any recovery
-        strategy, applied, suppressed = self._plan(c, step, error, made)
+        strategy, applied, suppressed, why = self._plan(c, step, error, made)
         if applied:
-            self._seal_recovery(c, pending, attempted=False, result=RecoveryResult.NOT_ATTEMPTED, verified=False)
+            self._seal_recovery(c, pending, attempted=False, result=RecoveryResult.NOT_ATTEMPTED, verified=False,
+                                cause="ALREADY_APPLIED")
             return "applied"              # the effect is there: never replayed (the run still ends INCONCLUSIVE)
         if strategy is not RecoveryStrategy.NONE and not self._allowed(step, strategy):
             strategy = RecoveryStrategy.NONE
-            suppressed = (SuppressedReason.KILL_SWITCH if not self._enabled()
-                          else SuppressedReason.NOT_PERMITTED)
+            if not self._enabled():
+                suppressed, why = SuppressedReason.KILL_SWITCH, self._off_reason()
+            else:
+                suppressed, why = SuppressedReason.NOT_PERMITTED, "NOT_PERMITTED"
         if strategy is RecoveryStrategy.NONE:
             self._seal_recovery(c, pending, attempted=False, result=RecoveryResult.NOT_ATTEMPTED, verified=False,
-                                suppressed=suppressed)
+                                suppressed=suppressed, cause=self._refine_off(why))
             return None
         return self._begin(c, step, pending, strategy, override, made)
 
     def _plan(self, c: _Ctx, step: Step, error: QAAdapterError, made: _Attempt) -> Tuple[RecoveryStrategy, bool,
-                                                                                       SuppressedReason]:
-        """Ask the engine; anything unusable in its answer is a refusal (``NOT_PERMITTED``)."""
+                                                                                       SuppressedReason, str]:
+        """Ask the engine; anything unusable in its answer is a refusal (``NOT_PERMITTED``). The last item is the
+        engine's reason for the plan (the cause behind ``FaultRecovery.reason_code`` when nothing is attempted)."""
         try:
             decision = self._engine.plan(self._fault_inputs(c, step, error, made))
             strategy, applied, suppressed = decision.strategy, bool(decision.already_applied), decision.suppressed
+            why = decision.reason if type(decision.reason) is str else "NOT_PERMITTED"
         except Exception:
-            return RecoveryStrategy.NONE, False, SuppressedReason.NOT_PERMITTED
+            return RecoveryStrategy.NONE, False, SuppressedReason.NOT_PERMITTED, "NOT_PERMITTED"
         usable = {RecoveryStrategy.RETRY_SAME, RecoveryStrategy.SEMANTIC_LOCATOR} | ENVIRONMENT_STRATEGIES
         if self._model_engine():
             usable = usable | {RecoveryStrategy.MODEL_CANDIDATE}       # needs the engine and the configuration
@@ -921,8 +942,18 @@ class QARunner:
             suppressed = SuppressedReason.NOT_PERMITTED
         if strategy not in usable:                        # ``ESCALATE_REVIEW`` is not a mode
             return (RecoveryStrategy.NONE, applied,
-                    suppressed if suppressed is not SuppressedReason.NONE else SuppressedReason.NOT_PERMITTED)
-        return strategy, applied, suppressed
+                    suppressed if suppressed is not SuppressedReason.NONE else SuppressedReason.NOT_PERMITTED,
+                    why if strategy is RecoveryStrategy.NONE and suppressed is not SuppressedReason.NONE
+                    else "NOT_PERMITTED")
+        return strategy, applied, suppressed, why
+
+    def _off_reason(self) -> str:
+        """Why recovery is off: the operator's kill switch, or recovery was never enabled for the run."""
+        return "KILL_SWITCH" if self._engine.kill_switch.engaged else "RECOVERY_DISABLED"
+
+    def _refine_off(self, why: str) -> str:
+        """The plan names recovery being off as ``RECOVERY_DISABLED`` for both causes; say which one it was."""
+        return self._off_reason() if why == "RECOVERY_DISABLED" else why
 
     def _enabled(self) -> bool:
         return bool(self._cfg.recovery_enabled and not self._engine.kill_switch.engaged)
@@ -949,7 +980,7 @@ class QARunner:
         except BudgetExceeded:
             self._seal_recovery(c, pending, attempted=pending.attempts > 0,
                                 result=(RecoveryResult.NOT_RECOVERED if pending.attempts else RecoveryResult.NOT_ATTEMPTED),
-                                verified=False, suppressed=SuppressedReason.BUDGET_EXHAUSTED)
+                                verified=False, suppressed=SuppressedReason.BUDGET_EXHAUSTED, cause="BUDGET_EXHAUSTED")
             return None
         pending.strategy = strategy
         pending.attempts += 1
@@ -974,18 +1005,22 @@ class QARunner:
         """The deterministic alternates found nothing and the fault is still open: plan again. Only a plan that names
         ``MODEL_CANDIDATE`` (caps, budget, kill switch and the step's permission all allow it) starts a model round;
         anything else seals the semantic miss."""
-        strategy, _applied, suppressed = self._plan(c, step, made.error, made)
+        strategy, _applied, suppressed, why = self._plan(c, step, made.error, made)
+        cause = p.cause                                    # the semantic round's own refusal, unless the engine's reply says more
         if strategy is RecoveryStrategy.MODEL_CANDIDATE and self._allowed(step, strategy):
             try:
                 c.budgets.charge_recovery_attempt()
             except BudgetExceeded:
-                suppressed = SuppressedReason.BUDGET_EXHAUSTED
+                suppressed, cause = SuppressedReason.BUDGET_EXHAUSTED, "BUDGET_EXHAUSTED"
             else:
                 p.strategy = strategy
                 p.attempts += 1
                 return self._semantic_recovery(c, step, p, model=True)
+        elif strategy is RecoveryStrategy.NONE and why == "RECOVERY_DISABLED":
+            cause = self._off_reason()                     # stopped from outside: the switch or the run's setting
         self._seal_recovery(c, p, attempted=True, verified=False, result=RecoveryResult.NOT_RECOVERED,
-                            suppressed=suppressed if strategy is RecoveryStrategy.NONE else SuppressedReason.NONE)
+                            suppressed=suppressed if strategy is RecoveryStrategy.NONE else SuppressedReason.NONE,
+                            cause=cause)
         return None
 
     def _account_model(self, c: _Ctx, step: Step, p: _Pending, spend: Any) -> None:
@@ -1024,12 +1059,12 @@ class QARunner:
             finally:
                 self._account_model(c, step, p, spend)
             p.considered += int(selection.considered)
-            p.rejected = (p.rejected + tuple(selection.rejected) + ((selection.refusal,) if selection.refusal else ())
-                          )[:MAX_REASONS]
+            p.rejected = (p.rejected + tuple(selection.rejected))[:MAX_REASONS]
         else:
             selection = self._engine.select_locator(step, fresh, locate, within_time)    # RecoveryPayloadRejected passes
             p.considered = int(selection.considered)
-            p.rejected = tuple(selection.rejected) + ((selection.refusal,) if selection.refusal else ())
+            p.rejected = tuple(selection.rejected)
+        p.cause = selection.refusal or R_NO_CANDIDATE_CAUSE     # why the round as a whole found nothing
         target = selection.target
         if type(target) is not ResolvedTarget or target.strategy is not wanted:
             if defer and not selection.aborted:
@@ -1048,8 +1083,9 @@ class QARunner:
                   and authored.role is not None and authored.name is not None
                   and _same_label(authored.role, cand.role) and _same_label(authored.name, cand.name))
         if not ok:
-            p.rejected = p.rejected + ("RUNNER_RECHECK_FAILED",)
-            self._seal_recovery(c, p, attempted=True, verified=False, result=RecoveryResult.NOT_RECOVERED)
+            p.rejected = p.rejected + ("RUNNER_RECHECK_FAILED",)       # the chosen candidate, rejected by the runner
+            self._seal_recovery(c, p, attempted=True, verified=False, result=RecoveryResult.NOT_RECOVERED,
+                                cause=R_NO_CANDIDATE_CAUSE)
             return None
         c.locator_recovery_used = True
         c.recovered_locator_steps.add(step.step_id)
@@ -1063,11 +1099,10 @@ class QARunner:
             failure = self._restore_state(c, p)
         except QAAdapterError as exc:
             failure = exc.code
-        if failure is not None:
-            p.rejected = p.rejected + (failure,)
+        if failure is not None:                               # no candidate was considered: the cause is the reason_code
             self._seal_recovery(c, p, attempted=True, verified=False, result=RecoveryResult.NOT_RECOVERED,
                                 suppressed=(SuppressedReason.POLICY_DENIED if failure == "POLICY_DENIED"
-                                            else SuppressedReason.NONE))
+                                            else SuppressedReason.NONE), cause=failure)
             return None
         c.tried[step.step_id] = [s for s in c.tried.get(step.step_id, []) if s is not RecoveryStrategy.SEMANTIC_LOCATOR]
         c.recovered_locator_steps.discard(step.step_id)

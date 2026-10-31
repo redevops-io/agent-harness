@@ -9,19 +9,34 @@ GOLDEN = Path(__file__).with_name("golden")
 QA_SRC = Path(__file__).resolve().parents[2] / "agent_harness" / "qa"
 
 #: the runtime-contracts commit these golden files were taken from (the ``qa/v1`` schema family)
-CONTRACTS_QA_V1_COMMIT = "13e00f23da74782af091aec607c47358e9814fc6"
+CONTRACTS_QA_V1_COMMIT = "15a6f6cf79f22d27a920f59969dfeb2732a2d1cb"
 #: sha256 of the golden data files, as documented in docs/qa.md (compatibility statement)
 CANON_VECTORS_SHA256 = "7241c570746a63e75431591b88e42562f6604fc2a8586474a267eedb51908a13"
-INVENTORY_SHA256 = "8ebd0be1488233966ba66dc2cbb7c46b42ec3973a246f405e905130a4d28ba57"
+INVENTORY_SHA256 = "ce8709f40642be7513bd5a80dbd8711acd1f56cce61b3403bada3ec3b5179c6e"
+SCHEMA_SHA256 = "ce1146529e2d3e31ff89083dea11f6cc2719c872c2a653a640976ecd485855c4"
+ADDENDUM_SHA256 = "c2f5faf7c132c4cdeb14a6708676a4167ddfbd5e60ccfdb96ebe4612f72564d8"
+CLARIFICATIONS_SHA256 = "a486ffcb0117e1cbb72600da1404761ac718f3d07df750db97bfa31bd88f9a3e"
 GOLDEN_SHA256 = {
     "qa_canon_vectors.json": CANON_VECTORS_SHA256,
+    "qa_canon_vectors_addendum.json": ADDENDUM_SHA256,
+    "qa_clarifications.json": CLARIFICATIONS_SHA256,
     "qa.inventory.json": INVENTORY_SHA256,
+    "qa.schema.json": SCHEMA_SHA256,
 }
+ADDENDUM_VECTOR_COUNT = 55
 CANON_VECTOR_COUNT = 97
 
 
 def load_vectors():
     return json.loads((GOLDEN / "qa_canon_vectors.json").read_text(encoding="utf-8"))
+
+
+def load_addendum():
+    return json.loads((GOLDEN / "qa_canon_vectors_addendum.json").read_text(encoding="utf-8"))
+
+
+def load_clarifications():
+    return json.loads((GOLDEN / "qa_clarifications.json").read_text(encoding="utf-8"))
 
 
 def load_inventory():

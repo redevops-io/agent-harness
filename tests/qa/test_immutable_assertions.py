@@ -18,7 +18,8 @@ import typing
 import pytest
 
 from agent_harness.qa import classify as C, ports, records as R, recovery_types as RT, specstore as SS, verifier as V
-from agent_harness.qa.errors import (AssertionHashMismatch, QAError, RecoveryPayloadRejected, SpecInvalid)
+from agent_harness.qa.errors import (AssertionHashMismatch, AssertionPinMalformed, AssertionPinNotFound, QAError,
+                                     RecoveryPayloadRejected, SpecInvalid)
 
 from ._fx_verify import (MANIFEST, REF_DOCS, REF_PIN, Mutants, ReadOnlyBrowserAdapter, facts, lineage, manifest,
                   manifest_json, mutated_source, observed, programs, ref_answers, ref_specs, store, vec)
@@ -125,7 +126,7 @@ def probe_pinning(mod=V):
     refused_all = raises(AssertionHashMismatch, new_verifier(mod, adapter).verify_all, unpinned, session="S")
     refused_raw = raises(AssertionHashMismatch, new_verifier(mod, adapter).verify_assertion, list(unpinned.assertions),
                          "a-saved")
-    no_pin = raises(AssertionHashMismatch, mod.load_frozen_assertions, store((REF_PIN, REF_DOCS)), None,
+    no_pin = raises(AssertionPinMalformed, mod.load_frozen_assertions, store((REF_PIN, REF_DOCS)), None,
                     lineage=mod.ApprovedLineage([REF_PIN]), programs=programs())
     return refused_one and refused_all and refused_raw and no_pin and adapter.assert_calls == []
 
@@ -551,7 +552,7 @@ def test_mechanism_9_only_integrity_refusals_halt_and_the_latch_cannot_be_reset(
     assert raises(QAError, V.load_frozen_assertions, store((REF_PIN, [bad])), REF_PIN, lineage=lineage(REF_PIN),
                   programs=programs(), halt=latch)                        # a spec validation failure (TEST_DEFECT)
     assert not latch.tripped
-    assert raises(AssertionHashMismatch, V.load_frozen_assertions, store(), REF_PIN, lineage=lineage(REF_PIN),
+    assert raises(AssertionPinNotFound, V.load_frozen_assertions, store(), REF_PIN, lineage=lineage(REF_PIN),
                   programs=programs(), halt=latch)
     assert latch.tripped
     assert raises(AttributeError, setattr, latch, "_cause", None)
@@ -564,7 +565,9 @@ def test_mechanism_9_the_classifier_halts_on_every_integrity_refusal_code():
     from agent_harness.qa.errors import ERRORS_BY_CODE
     codes = [c for c, k in ERRORS_BY_CODE.items() if k.run_reason == "ASSERTION_INTEGRITY"]
     assert set(codes) == {"ASSERTION_HASH_MISMATCH", "EXPECTED_MISMATCH", "EXECUTOR_MISMATCH",
-                          "RECOVERY_PAYLOAD_REJECTED", "COVERAGE_VIOLATION"}
+                          "RECOVERY_PAYLOAD_REJECTED", "COVERAGE_VIOLATION", "ASSERTION_PROGRAM_MISMATCH",
+                          "ASSERTION_PROGRAM_UNREGISTERED", "ASSERTION_PIN_NOT_FOUND", "ASSERTION_PIN_MALFORMED",
+                          "BATCH_HALTED"}
     for code in codes:
         c = C.classify(facts(error_codes=(code,)))
         assert (c.outcome.value, c.reason, c.halt_batch) == ("INCONCLUSIVE", "ASSERTION_INTEGRITY", True)

@@ -5,7 +5,8 @@ Two families, both subclasses of :class:`QAError`:
 
 * integrity / validation errors raised while reading, hashing or checking records
   (``SPEC_INVALID``, ``ASSERTION_HASH_MISMATCH``, ``RECOVERY_PAYLOAD_REJECTED`` ...). Those whose contract
-  says the run ends ``INCONCLUSIVE(ASSERTION_INTEGRITY)`` carry ``run_outcome`` and ``run_reason``;
+  says the run ends ``INCONCLUSIVE(ASSERTION_INTEGRITY)`` carry ``run_outcome`` and ``run_reason``; the integrity
+  refusal vocabulary is :data:`INTEGRITY_REFUSAL_CODES` and every code in it halts the batch;
 * adapter errors (:class:`QAAdapterError`), one per non-``OK`` ``ResultCode`` of qa-adapter/1, with
   ``category``, ``retryable``, ``recoverable`` and ``class_hint`` of the adapter port.
 
@@ -19,6 +20,22 @@ from typing import Dict, Optional, Type
 
 OUTCOME_INCONCLUSIVE = "INCONCLUSIVE"
 REASON_ASSERTION_INTEGRITY = "ASSERTION_INTEGRITY"
+
+#: The integrity refusal vocabulary: every refusal that ends a run ``INCONCLUSIVE(ASSERTION_INTEGRITY)`` and halts the
+#: batch. ``ASSERTION_INTEGRITY`` is the outcome reason itself. The last five codes tell apart refusals that would
+#: otherwise share ``ASSERTION_HASH_MISMATCH`` (which keeps its meaning: a content hash recomputed from what was handed
+#: over differs from the hash it was pinned or recorded under). A consumer that does not know a code treats it the same
+#: way (see ``classify.classify_refusal``).
+INTEGRITY_REFUSAL_CODES = (
+    "ASSERTION_INTEGRITY", "ASSERTION_HASH_MISMATCH", "EXECUTOR_MISMATCH", "EXPECTED_MISMATCH",
+    "RECOVERY_PAYLOAD_REJECTED", "COVERAGE_VIOLATION", "ASSERTION_PROGRAM_MISMATCH", "ASSERTION_PROGRAM_UNREGISTERED",
+    "ASSERTION_PIN_NOT_FOUND", "ASSERTION_PIN_MALFORMED", "BATCH_HALTED",
+)
+
+#: Codes the contracts side raises for structural problems; the neutral module folds all of them into ``SPEC_INVALID``
+#: (it never raises them) but knows them as codes that are not integrity refusals.
+STRUCTURAL_CODES = ("DUPLICATE_ENTRY", "FLOAT_REFUSED", "INVALID_FIELD", "MISSING_FIELD", "PLAN_INVALID",
+                    "RECORD_INCONSISTENT", "SCHEMA_MISMATCH")
 
 
 class ErrorCategory(enum.StrEnum):
@@ -114,6 +131,37 @@ class ExecutorMismatch(_Integrity):
     code = "EXECUTOR_MISMATCH"
 
 
+class AssertionPinMalformed(_Integrity):
+    """The pinned ``assertion_set_hash`` is not ``rcv1:`` followed by 64 lowercase hex digits (checked first)."""
+
+    code = "ASSERTION_PIN_MALFORMED"
+
+
+class AssertionPinNotFound(_Integrity):
+    """A well-formed pin names an assertion set the spec store does not hold."""
+
+    code = "ASSERTION_PIN_NOT_FOUND"
+
+
+class AssertionProgramUnregistered(_Integrity):
+    """The check program an assertion names has no registry entry."""
+
+    code = "ASSERTION_PROGRAM_UNREGISTERED"
+
+
+class AssertionProgramMismatch(_Integrity):
+    """The registry holds the check program under a different hash than the assertion froze."""
+
+    code = "ASSERTION_PROGRAM_MISMATCH"
+
+
+class BatchHalted(_Integrity):
+    """A call was refused because an earlier integrity refusal halted the batch. The refusal that halted the batch
+    keeps its own code; this is what every later call gets."""
+
+    code = "BATCH_HALTED"
+
+
 class RecoveryPayloadRejected(_Integrity):
     code = "RECOVERY_PAYLOAD_REJECTED"
 
@@ -168,6 +216,7 @@ class ActionTimeout(QAAdapterError):
     code = "ACTION_TIMEOUT"
     category = ErrorCategory.ACTION
     retryable = True            # only if the step is idempotent
+    recoverable = True          # recovery still needs enablement, a permitted mode, caps and the idempotency guard
     class_hint = ClassHint.BENIGN_DRIFT_OR_ENVIRONMENT
 
 
@@ -257,7 +306,8 @@ ERRORS_BY_CODE: Dict[str, Type[QAError]] = {
         for cls in (
             CanonicalizationRefused, SpecInvalid, SchemaVersionUnsupported, UnknownField, UnknownEnumValue,
             CheckProgramRefRequired, HashMismatch, AssertionHashMismatch, ExpectedMismatch, ExecutorMismatch,
-            RecoveryPayloadRejected, CoverageViolation, FaultBindingMismatch, UnsupportedCoverageContract,
+            AssertionPinMalformed, AssertionPinNotFound, AssertionProgramUnregistered, AssertionProgramMismatch,
+            BatchHalted, RecoveryPayloadRejected, CoverageViolation, FaultBindingMismatch, UnsupportedCoverageContract,
         )
     },
     **ADAPTER_ERRORS,

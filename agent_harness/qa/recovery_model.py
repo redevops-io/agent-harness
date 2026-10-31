@@ -688,10 +688,10 @@ class ModelRecoveryEngine:
                 return R_KILL_SWITCH
             return None if within_time() else R_ELAPSED_CAP
 
-        def done(selection: LocatorSelection, extra: Tuple[str, ...] = ()) -> ModelSelection:
-            reasons = tuple(selection.rejected) + extra
+        def done(selection: LocatorSelection) -> ModelSelection:
+            # ``rejected`` is per candidate; why the round as a whole stopped is ``refusal`` (the recovery's reason_code)
             return ModelSelection(target=selection.target, score=selection.score, considered=selection.considered,
-                                  rejected=reasons[:MAX_REASONS], refusal=selection.refusal,
+                                  rejected=tuple(selection.rejected)[:MAX_REASONS], refusal=selection.refusal,
                                   aborted=selection.aborted, spend=spend)
         stop = halted()
         if stop is not None:
@@ -708,9 +708,8 @@ class ModelRecoveryEngine:
             return done(LocatorSelection(None, 0, selection.considered, selection.rejected, recoverer.reason,
                                          aborted=True))
         if selection.target is None and recoverer.reason is not None:
-            extra = (recoverer.reason,)
             return done(LocatorSelection(None, 0, selection.considered, selection.rejected,
-                                         selection.refusal or recoverer.reason, selection.aborted), extra)
+                                         recoverer.reason or selection.refusal, selection.aborted))   # the model's own reason leads
         return done(selection)
 
 
