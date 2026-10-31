@@ -1,0 +1,58 @@
+name: qa
+# The optional QA module (agent_harness.qa) needs Python 3.11+. This workflow is separate from tests.yml, which is
+# unchanged (core suite on 3.10 and 3.12).
+#   qa-suite:        tests/qa on 3.11 and 3.12 in a scrubbed environment (QA_STRICT_ENV=1); fails if no QA test is
+#                    collected or any is skipped (allow-list: tests/qa/ci_skip_allowlist.txt, currently empty).
+#   python-3-10:     core import still works on 3.10, and `import agent_harness.qa` fails there with the guard message.
+# Read-only: no tag trigger, no publish step, no write permission.
+on:
+  pull_request:
+  push:
+    branches: ["main", "master"]
+permissions:
+  contents: read
+jobs:
+  qa-suite:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -m pip install -e ".[dev,qa]"
+      - name: QA suite (scrubbed environment, no skips, non-zero collection)
+        run: |
+          set -euo pipefail
+          env -i HOME="$(mktemp -d)" PATH="$PATH" LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}" PYTHONPATH="$PWD" QA_STRICT_ENV=1 \
+            python tests/qa/ci_gate.py
+  python-3-10:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - run: python -m pip install -e ".[dev]"
+      - name: Core import works and the QA module refuses to import on 3.10
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import sys
+          assert sys.version_info[:2] == (3, 10), sys.version
+          import agent_harness                       # the core must import with nothing else installed
+          assert not any(m == "agent_harness.qa" or m.startswith("agent_harness.qa.") for m in sys.modules)
+          try:
+              import agent_harness.qa
+          except ImportError as exc:
+              assert "requires Python 3.11 or newer" in str(exc), str(exc)
+              assert not any(m.startswith("agent_harness.qa.") for m in sys.modules)
+              print("guard message:", exc)
+          else:
+              raise SystemExit("agent_harness.qa imported on Python 3.10")
+          PY
+      - name: Python floor tests
+        run: python -m pytest tests/qa/test_python_floor.py -q
