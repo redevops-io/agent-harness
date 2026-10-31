@@ -9,6 +9,8 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
+# Optional QA module (agent_harness.qa, Python 3.11+): declares no dependency; enforced by an import guard, not metadata.
+qa = []
 
 [build-system]
 requires = ["hatchling"]
