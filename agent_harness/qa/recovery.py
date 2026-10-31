@@ -88,6 +88,7 @@ PERMIT_OF: Mapping[RecoveryStrategy, PermittedRecovery] = MappingProxyType({
     RecoveryStrategy.SEMANTIC_LOCATOR: PermittedRecovery.SEMANTIC_LOCATOR,
     RecoveryStrategy.RESET_FIXTURE: PermittedRecovery.RESET_FIXTURE,
     RecoveryStrategy.CHECKPOINT_RESUME: PermittedRecovery.CHECKPOINT_RESUME,
+    RecoveryStrategy.MODEL_CANDIDATE: PermittedRecovery.MODEL_CANDIDATE,    # only a ladder given by recovery_model.py names it
 })
 
 #: the recovery modes this module can run (``MODEL_CANDIDATE`` is never chosen here; ``recovery_model.py`` adds it)
@@ -279,6 +280,8 @@ class FaultInputs:
     prior_steps: Tuple[Step, ...] = ()       # earlier steps an environment recovery would replay
     has_fixture: bool = False                # the spec names a known fixture to reset to
     prior_used_recovered_locator: bool = False
+    model_calls_left: int = 0                # model calls the run budget still allows (0 = none, fail closed)
+    model_tokens_left: int = 0               # tokens the run budget still allows (0 = none, fail closed)
 
 
 @dataclass(frozen=True)
@@ -325,10 +328,14 @@ def _exhausted(strategy: RecoveryStrategy, i: FaultInputs) -> bool:
         return i.retries_left <= 0
     if strategy is RecoveryStrategy.SEMANTIC_LOCATOR:
         return strategy in i.tried or i.recovery_attempts_left <= 0     # one deterministic proposal round per step
+    if strategy is RecoveryStrategy.MODEL_CANDIDATE:                    # one model round per step, and a call to make
+        return (strategy in i.tried or i.recovery_attempts_left <= 0 or i.model_calls_left <= 0
+                or i.model_tokens_left <= 0)
     return i.recovery_attempts_left <= 0
 
 
-def plan_recovery(i: FaultInputs, limits: RecoveryLimits, *, kill_switch: bool) -> RecoveryDecision:
+def plan_recovery(i: FaultInputs, limits: RecoveryLimits, *, kill_switch: bool,
+                  ladder_by_fault: Mapping[str, Tuple[RecoveryStrategy, ...]] = LADDER) -> RecoveryDecision:
     """Which recovery (if any) may run for this fault. Pure and deterministic. Order of refusals: kill switch or
     recovery disabled, policy denial, no mode for this fault, mode not permitted by the step, caps and budgets,
     idempotency."""
@@ -336,7 +343,7 @@ def plan_recovery(i: FaultInputs, limits: RecoveryLimits, *, kill_switch: bool) 
         return _no(SuppressedReason.KILL_SWITCH, "RECOVERY_DISABLED")
     if i.error_code == "ACTION_BLOCKED_BY_POLICY":
         return _no(SuppressedReason.POLICY_DENIED, "POLICY_DENIED")
-    ladder = LADDER.get(i.error_code, ())
+    ladder = ladder_by_fault.get(i.error_code, ())
     if not ladder:
         return _no(SuppressedReason.NOT_PERMITTED, "NO_RECOVERY_FOR_FAULT")
     permitted = [s for s in ladder if PERMIT_OF[s] in i.step.permitted_recovery]
