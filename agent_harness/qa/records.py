@@ -26,8 +26,9 @@ from typing import (Annotated, Any, ClassVar, Dict, Iterable, Iterator, List, Op
                     get_args, get_origin, get_type_hints)
 
 from . import canon
-from .errors import (CanonicalizationRefused, CheckProgramRefRequired, CoverageViolation, FaultBindingMismatch,
-                     HashMismatch, QAError, RecoveryPayloadRejected, SpecInvalid, UnknownEnumValue, UnknownField)
+from .errors import (INTEGRITY_REFUSAL_CODES, CanonicalizationRefused, CheckProgramRefRequired, CoverageViolation,
+                     FaultBindingMismatch, HashMismatch, QAError, RecoveryPayloadRejected, SpecInvalid,
+                     UnknownEnumValue, UnknownField)
 from .schemas import (SCHEMA_ID_ACTION_RECEIPT, SCHEMA_ID_ASSERTION_RESULT, SCHEMA_ID_ASSERTION_SET,
                       SCHEMA_ID_ASSERTION_SPEC, SCHEMA_ID_CHECKPOINT, SCHEMA_ID_CLEANUP_REPORT,
                       SCHEMA_ID_FAULT_DETECTION, SCHEMA_ID_FAULT_EVENT, SCHEMA_ID_FAULT_RECOVERY,
@@ -60,6 +61,7 @@ FaultSignal = _senum("FaultSignal", "NONE", "LOCATOR_NOT_FOUND", "LOCATOR_AMBIGU
                      "TRANSITION_NOT_OBSERVED", "ASSERTION_FAILED", "ASSERTION_UNRESOLVABLE", "ENV_UNHEALTHY",
                      "POLICY_DENIED", "NETWORK_BLOCKED", "UNEXPECTED_OVERLAY", "SESSION_LOST")
 Idempotency = _senum("Idempotency", "IDEMPOTENT", "AT_MOST_ONCE", "UNKNOWN")
+IntegrityRefusalCode = _senum("IntegrityRefusalCode", *INTEGRITY_REFUSAL_CODES)
 LocateMode = _senum("LocateMode", "EXACT", "SEMANTIC")
 LocatorStrategy = _senum("LocatorStrategy", "AUTHORED", "SEMANTIC_ALTERNATE", "MODEL_CANDIDATE")
 Outcome = _senum("Outcome", "PASS", "PRODUCT_FAIL", "TEST_DEFECT", "ENVIRONMENT_FAIL", "INCONCLUSIVE")
@@ -70,6 +72,11 @@ PolicyDecisionKind = _senum("PolicyDecisionKind", "ALLOW", "DENY", "REQUIRE_APPR
 PostconditionResult = _senum("PostconditionResult", "SATISFIED", "NOT_SATISFIED", "NOT_EVALUATED")
 PredicateOp = _senum("PredicateOp", "EQUALS", "NOT_EQUALS", "CONTAINS", "MATCHES", "EXISTS", "ABSENT", "LESS_THAN",
                      "GREATER_THAN")
+RecoveryReason = _senum("RecoveryReason", "NO_UI_TARGET", "NO_ROLE_NAME_ANCHOR", "RECOVERER_ERROR",
+                        "CANDIDATE_CAP_EXCEEDED", "ELAPSED_CAP", "KILL_SWITCH", "NO_CANDIDATE", "AMBIGUOUS_CANDIDATES",
+                        "RECOVERY_DISABLED", "BUDGET_EXHAUSTED", "NOT_PERMITTED", "NOT_RETRYABLE", "ALREADY_APPLIED",
+                        "RETRY_UNSAFE", "NO_IDEMPOTENCY_OR_POSTCONDITION_GUARD", "INVALID_INPUT",
+                        "UNKNOWN_SIDE_EFFECT_CLASS", "POSTCONDITION_NOT_VERIFIED")
 RecoveryResult = _senum("RecoveryResult", "NOT_ATTEMPTED", "RECOVERED", "NOT_RECOVERED", "ABORTED")
 RecoveryStrategy = _senum("RecoveryStrategy", "NONE", "RETRY_SAME", "SEMANTIC_LOCATOR", "MODEL_CANDIDATE",
                           "RESET_FIXTURE", "CHECKPOINT_RESUME", "ESCALATE_REVIEW")
@@ -95,9 +102,10 @@ Verdict = _senum("Verdict", "PASS", "FAIL", "INDETERMINATE", "NOT_APPLICABLE")
 ENUMS: Dict[str, Type[enum.StrEnum]] = {
     e.__name__: e for e in (
         ActionKind, CaptureKind, CheckTier, ClaimedClass, Determinism, Executor, FaultSignal, Idempotency,
-        LocateMode, LocatorStrategy, Outcome, PermittedRecovery, Phase, PolicyDecisionKind, PostconditionResult,
-        PredicateOp, RecoveryResult, RecoveryStrategy, ResetScope, Resolution, ResourceKind, ResultCode,
-        RetrySafety, ReviewDecision, SideEffect, SkipReason, SubjectKind, SuppressedReason, TargetKind, Verdict,
+        IntegrityRefusalCode, LocateMode, LocatorStrategy, Outcome, PermittedRecovery, Phase, PolicyDecisionKind,
+        PostconditionResult, PredicateOp, RecoveryReason, RecoveryResult, RecoveryStrategy, ResetScope, Resolution,
+        ResourceKind, ResultCode, RetrySafety, ReviewDecision, SideEffect, SkipReason, SubjectKind, SuppressedReason,
+        TargetKind, Verdict,
     )
 }
 
@@ -212,7 +220,31 @@ class Custody:
 
 
 class SetOf:
-    """Marker: an order-independent set; duplicates are refused and elements are sorted at construction."""
+    """Marker: an order-independent set; duplicates are refused and elements are sorted at construction.
+
+    Sort order is per field (the contracts rule is not one rule): a set of strings is ordered by Unicode code point
+    after NFC, a set of enum members by member value, a set of objects by the canonical JSON text of the element
+    (``SetOf`` alone) or, where the field names one, by the element's key (:class:`SetBy`).
+    """
+
+
+@dataclass(frozen=True)
+class SetBy:
+    """Marker: an order-independent set of objects ordered by the named key of each element (compared by Unicode
+    code point after NFC). Two elements with one key are refused: their relative order would be undefined."""
+
+    key: str
+
+
+class SortedPins:
+    """Marker: a list of strings that is sorted by value (code point after NFC) in the canonical form only, in which a
+    repeated entry is kept, not refused. The object keeps the order it was given, so a record read from JSON and written
+    back is unchanged. (``Check.evidence_refs``: the reused check type sorts its pins when it hashes and never removes
+    one that is listed twice.)"""
+
+
+class Wording:
+    """Marker: free wording. Kept and exported at the top level of its object, but not part of the identity."""
 
 
 _ID = r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}"
@@ -248,6 +280,9 @@ class TypeSpec:
     is_set: bool = False
     custody: bool = False
     compiled: Any = None
+    set_key: Optional[str] = None              # element key of an object set; None: canonical text / value order
+    keep_duplicates: bool = False              # sorted in the canonical form only; a repeated entry is kept
+    wording: bool = False                      # exported at the top level but outside the identity
 
 
 def _parse_type(tp: Any) -> TypeSpec:
@@ -304,6 +339,14 @@ def _parse_type(tp: Any) -> TypeSpec:
             spec.custody = True
         elif m is SetOf:
             spec.is_set = True
+        elif isinstance(m, SetBy):
+            spec.is_set = True
+            spec.set_key = m.key
+        elif m is SortedPins:
+            spec.is_set = True
+            spec.keep_duplicates = True
+        elif m is Wording:
+            spec.wording = True
     return spec
 
 
@@ -313,6 +356,10 @@ class FieldInfo:
     required: bool
     custody: bool
     spec: TypeSpec
+
+    @property
+    def wording(self) -> bool:
+        return self.spec.wording
 
 
 _FIELDS: Dict[type, List[FieldInfo]] = {}
@@ -338,11 +385,18 @@ def field_infos(cls: type) -> List[FieldInfo]:
 # validation, decoding and export
 # ---------------------------------------------------------------------------------------------------------------
 
-def _set_key(elem: Any) -> str:
+def _set_key(elem: Any, key: Optional[str] = None) -> str:
+    """The sort key of one element of a set: its named key, its value (strings after NFC, enums by member value) or,
+    for an object without a named key, its canonical JSON text. Compared by Unicode code point."""
     if isinstance(elem, enum.Enum):
         return str(elem.value)
     if isinstance(elem, str):
         return unicodedata.normalize("NFC", elem)
+    if key is not None:
+        named = getattr(elem, key)
+        if type(named) is not str:
+            raise SpecInvalid(f"{type(elem).__name__}.{key}: a set key must be a string")
+        return unicodedata.normalize("NFC", named)
     return canon.canonical_text(elem.canonical_form())
 
 
@@ -402,8 +456,8 @@ def _check(spec: TypeSpec, value: Any, path: str) -> Any:
         if not isinstance(value, (list, tuple)):
             raise SpecInvalid(f"{path}: expected a list, got {type(value).__name__}")
         items = [_check(spec.elem, v, f"{path}[{i}]") for i, v in enumerate(value)]
-        if spec.is_set:
-            keyed = sorted(((_set_key(e), e) for e in items), key=lambda p: p[0])
+        if spec.is_set and not spec.keep_duplicates:
+            keyed = sorted(((_set_key(e, spec.set_key), e) for e in items), key=lambda p: p[0])
             keys = [k for k, _ in keyed]
             if len(set(keys)) != len(keys):
                 raise SpecInvalid(f"{path}: duplicate elements in a set")
@@ -500,6 +554,10 @@ class _Value:
                 if not identity:
                     custody[info.name] = _plain(value, identity, with_hash)
                 continue
+            if info.wording and identity:
+                continue
+            if identity and info.spec.keep_duplicates:      # listed order is kept; the canonical form sorts
+                value = sorted(value, key=_set_key)
             out[info.name] = _plain(value, identity, with_hash)
         for k, v in self.extras.items():
             out[k] = _plain(v, identity, with_hash)
@@ -595,8 +653,14 @@ def _record(schema_id: str):
 
 # The inventory types the optional strings of these three reused contract types as ``str`` (not ``Optional[str]``) and
 # the golden vectors omit them when unset. The neutral reading: absent is ``None`` and omitted from the canonical
-# form, and an explicit empty string is refused, so "" can never mean two things.
+# form, and an explicit empty string is refused, so "" can never mean two things. Three differences follow the
+# contracts' own hashed form: ``Check.detail`` is wording and never enters the hash; an ``EvidenceRef`` that omits
+# ``modality`` or ``ref_type`` hashes with the defaults ``"text"`` and ``"evidence"``; a ``SecretRef`` that omits
+# ``path`` hashes ``path`` as the empty string (an explicit empty ``path`` is the same thing and is accepted).
 OptText = Optional[Annotated[str, Len(min=1)]]
+
+EVIDENCE_REF_DEFAULT_MODALITY = "text"
+EVIDENCE_REF_DEFAULT_REF_TYPE = "evidence"
 
 
 @_value
@@ -604,8 +668,8 @@ class Check(_Value):
     check_id: str
     verdict: Verdict
     determinism: Determinism = Determinism.NON_DETERMINISTIC   # fail closed when absent
-    detail: OptText = None
-    evidence_refs: Tuple[str, ...] = ()
+    detail: Annotated[OptText, Wording] = None                 # wording: kept, never hashed
+    evidence_refs: Annotated[Tuple[str, ...], SortedPins] = ()  # listed order kept; hashed sorted; a repeated pin is kept
 
 
 @_value
@@ -618,14 +682,27 @@ class EvidenceRef(_Value):
     source: OptText = None
     version: OptText = None
 
+    def _export(self, identity: bool, with_hash: bool) -> Dict[str, Any]:
+        out = super()._export(identity, with_hash)
+        if identity:                                            # the hashed form fills the contracts' defaults
+            out.setdefault("modality", EVIDENCE_REF_DEFAULT_MODALITY)
+            out.setdefault("ref_type", EVIDENCE_REF_DEFAULT_REF_TYPE)
+        return out
+
 
 @_value
 class SecretRef(_Value):
     provider: str
     key: Optional[str] = None
     namespace: OptText = None
-    path: OptText = None
+    path: Optional[str] = None
     version: Optional[str] = None
+
+    def _export(self, identity: bool, with_hash: bool) -> Dict[str, Any]:
+        out = super()._export(identity, with_hash)
+        if identity:                                            # an absent path hashes as the empty string
+            out.setdefault("path", "")
+        return out
 
 
 @_value
@@ -962,13 +1039,13 @@ class TestSpec(_Value):
     version: Annotated[int, Range(ge=1)]
     target: TestTarget
     steps: Tuple[Step, ...]
-    assertions: Annotated[Tuple[AssertionSpec, ...], SetOf]
+    assertions: Annotated[Tuple[AssertionSpec, ...], SetBy("assertion_id")]
     budget: Budget
     egress_profile: Id
     allowed_side_effects: Annotated[Tuple[SideEffect, ...], SetOf] = ()
     cleanup: Tuple[Str512, ...] = ()
     depends_on: Annotated[Tuple[SpecRefStr, ...], SetOf] = ()
-    fixtures: Annotated[Tuple[FixtureRef, ...], SetOf] = ()
+    fixtures: Annotated[Tuple[FixtureRef, ...], SetBy("id")] = ()
     preconditions: Tuple[Str512, ...] = ()
     sensitivity_labels: Annotated[Tuple[Id, ...], SetOf] = ()
     author: Annotated[Optional[Str512], Custody] = None
@@ -1078,7 +1155,8 @@ class FaultRecovery(_Value):
     postcondition_verified: bool
     attempts: NonNegInt = 0
     candidates_considered: NonNegInt = 0
-    candidates_rejected_reasons: Tuple[Reason, ...] = ()
+    candidates_rejected_reasons: Tuple[Reason, ...] = ()       # ordered: one token per rejected candidate
+    reason_code: Optional[RecoveryReason] = None               # why the recovery as a whole did not recover
     suppressed_reason: SuppressedReason = SuppressedReason.NONE
     cost: Annotated[Optional[RecoveryCost], Custody] = None
 
@@ -1086,6 +1164,10 @@ class FaultRecovery(_Value):
         # the result comes from the step's own postcondition check, never from the run outcome
         if self.result is RecoveryResult.RECOVERED and not self.postcondition_verified:
             raise SpecInvalid("FaultRecovery: RECOVERED requires postcondition_verified")
+        if self.result is RecoveryResult.RECOVERED and self.reason_code is not None:
+            raise SpecInvalid("FaultRecovery: a RECOVERED recovery carries no reason_code")
+        if len(self.candidates_rejected_reasons) > self.candidates_considered:
+            raise SpecInvalid("FaultRecovery: candidates_rejected_reasons holds at most one code per candidate considered")
 
 
 @_record(SCHEMA_ID_FAULT_EVENT)
@@ -1190,14 +1272,14 @@ class RunManifest(_Value):
     assertion_set_hash: Rcv1Ref
     assertions_declared: Annotated[Tuple[Id, ...], SetOf]
     assertions_executed: Annotated[Tuple[Id, ...], SetOf]
-    assertions_skipped: Annotated[Tuple[SkippedAssertion, ...], SetOf]
+    assertions_skipped: Annotated[Tuple[SkippedAssertion, ...], SetBy("assertion_id")]
     egress_policy_id: RcvOrSha
     redaction_policy_id: RcvOrSha
     model_recovery_enabled: bool
     recovery_enabled: bool
     outcome: Outcome
     trace_id: Annotated[str, Pat(r"[0-9a-f]{32}")]
-    assertion_results: Annotated[Tuple[AssertionResult, ...], SetOf] = ()
+    assertion_results: Annotated[Tuple[AssertionResult, ...], SetBy("assertion_id")] = ()
     browser: Optional[Str512] = None
     fault_events: Tuple[FaultEvent, ...] = ()
     model: Optional[ModelRef] = None
@@ -1207,11 +1289,24 @@ class RunManifest(_Value):
     resource_limits: Optional[Annotated[Json, JsonMax(4096)]] = None
     sandbox_image_digest: Optional[Sha256Ref] = None
     seeds: Tuple[int, ...] = ()
-    step_results: Annotated[Tuple[StepResult, ...], SetOf] = ()
-    versions: Annotated[Tuple[VersionPin, ...], SetOf] = ()
+    step_results: Annotated[Tuple[StepResult, ...], SetBy("step_id")] = ()
+    versions: Annotated[Tuple[VersionPin, ...], SetBy("component")] = ()
     counters: Annotated[Optional[Counters], Custody] = None
     finished_at: Annotated[Optional[Str512], Custody] = None
     started_at: Annotated[Optional[Str512], Custody] = None
+
+    #: engine limits and kill-switch state are not manifest fields and never enter identity: a manifest that carries a key
+    #: for them is refused as an unknown field (the effect of the kill switch on one fault is recorded as
+    #: ``FaultRecovery.suppressed_reason`` and ``reason_code``)
+    ENGINE_STATE_KEYS: ClassVar[frozenset] = frozenset({"kill_switch", "engine_limits", "operator_caps",
+                                                        "recovery_limits"})
+
+    def _check_extras(self, extras: Any) -> FrozenMap:
+        if isinstance(extras, Mapping):
+            named = sorted(str(k) for k in extras if k in self.ENGINE_STATE_KEYS)
+            if named:
+                raise UnknownField(f"RunManifest: {named} describe the engine, not the run, and are not manifest fields")
+        return super()._check_extras(extras)
 
     def accounting_ok(self) -> bool:
         """declared == executed + skipped, executed and skipped disjoint, executed == ids with a result."""
@@ -1238,7 +1333,8 @@ class RunManifest(_Value):
 # ---------------------------------------------------------------------------------------------------------------
 
 def assertion_set_document(assertions: Iterable[AssertionSpec]) -> Dict[str, Any]:
-    """The document hashed as ``assertion_set_hash``: sorted canonical assertions under the assertion-set schema."""
+    """The document hashed as ``assertion_set_hash``: the canonical assertions ordered by ``assertion_id`` (code point
+    order) under the assertion-set schema."""
     items = list(assertions)
     for a in items:
         if not isinstance(a, AssertionSpec):
@@ -1246,7 +1342,7 @@ def assertion_set_document(assertions: Iterable[AssertionSpec]) -> Dict[str, Any
     ids = [a.assertion_id for a in items]
     if len(set(ids)) != len(ids):
         raise SpecInvalid("assertion_set_document: assertion ids must be unique")
-    forms = sorted((a.canonical_form() for a in items), key=canon.canonical_text)
+    forms = [a.canonical_form() for a in sorted(items, key=lambda a: _set_key(a, "assertion_id"))]
     return {"assertions": forms, "schema_id": SCHEMA_ID_ASSERTION_SET, "schema_version": SCHEMA_VERSION}
 
 
@@ -1277,6 +1373,6 @@ RECORDS_BY_SCHEMA_ID: Dict[str, type] = {r.SCHEMA_ID: r for r in RECORD_TYPES}
 __all__ = sorted(
     [e for e in ENUMS]
     + [c.__name__ for c in RECORD_TYPES + VALUE_TYPES]
-    + ["FrozenMap", "Json", "ENUMS", "RECORD_TYPES", "VALUE_TYPES", "RECORDS_BY_SCHEMA_ID", "FieldInfo", "TypeSpec",
+    + ["FrozenMap", "Json", "ENUMS", "EVIDENCE_REF_DEFAULT_MODALITY", "EVIDENCE_REF_DEFAULT_REF_TYPE", "RECORD_TYPES", "VALUE_TYPES", "RECORDS_BY_SCHEMA_ID", "FieldInfo", "TypeSpec",
        "field_infos", "assertion_set_document", "assertion_set_hash"]
 )
