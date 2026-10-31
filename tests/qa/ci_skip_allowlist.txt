@@ -1,0 +1,7 @@
+# Skips the QA CI gate (tests/qa/ci_gate.py) accepts in `tests/qa`.
+#
+# The QA suite has no permitted skip: it needs nothing beyond pytest and the standard library, so a skip means a test
+# did not run. Every skip fails the Python 3.11 and 3.12 `qa` job unless it is listed here.
+#
+# To allow one, add a comment line that says why, then the test id on the next line (`<file>::<name>`; shell-style
+# wildcards are accepted). An entry without a comment line directly above it fails the gate.
