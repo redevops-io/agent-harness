@@ -104,6 +104,8 @@ on Windows a Python child gets the legacy code page unless `PYTHONUTF8` is passe
   `*PASS*`, `*AUTH*`, `*DSN*`, `DATABASE*`, cloud and provider prefixes ...) is passed, and when a passed value embeds
   credentials in a URL (`scheme://user:password@host`).
 - **Explicit values from code:** `child_env(extra={"NAME": "value"})`.
+  Passing `PATH` itself (by name, in `AGENT_HARNESS_ENV_PASS`, or as an explicit value) is honoured but logs a WARNING,
+  because it un-pins `PATH` from the trusted directories.
 - **Opt out entirely:** `AGENT_HARNESS_ENV_INHERIT=1` (exactly `1`) or `child_env(inherit_all=True)` passes the whole
   environment, with a WARNING on every call. `PATH` stays pinned to the trusted directories unless `inherit_path=True` is
   given.

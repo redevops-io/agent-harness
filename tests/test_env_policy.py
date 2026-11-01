@@ -244,3 +244,17 @@ def test_the_windows_todo_marker_only_absorbs_assertion_and_key_errors():
     from tests._native import windows_todo
     kw = windows_todo("x").kwargs
     assert kw["strict"] is True and set(kw["raises"]) == {AssertionError, KeyError}
+
+
+def test_passing_path_by_name_or_as_an_explicit_value_warns_that_it_unpins_path(caplog):
+    caplog.set_level(logging.INFO, logger="agent_harness.env_policy")
+    for kw, env in (({"pass_through": ["PATH"]}, posix_env()), ({"extra": {"PATH": "/opt/x"}}, posix_env()),
+                    ({}, posix_env(AGENT_HARNESS_ENV_PASS="MY_APP_SETTING,PATH"))):
+        caplog.clear()
+        out = child_env(environ=env, **kw)
+        assert out["PATH"] != TRUSTED                                          # the explicit decision is honoured ...
+        warnings = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
+        assert any("PATH" in w and "trusted" in w for w in warnings), (kw, warnings)   # ... and is not silent
+    caplog.clear()
+    child_env(pass_through=["MY_APP_SETTING"], environ=posix_env())
+    assert not [r for r in caplog.records if r.levelno == logging.WARNING]

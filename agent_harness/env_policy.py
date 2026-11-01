@@ -151,6 +151,9 @@ def child_env(*, preset: str = "tool", path: Optional[str] = None, inherit_path:
     if leaky:
         log.warning("env policy: the value of %s embeds credentials (scheme://user:password@host) and is being passed to the "
                     "child", ", ".join(leaky))
+    if any(_norm(n) == "PATH" for n in passed):
+        log.warning("env policy: PATH was passed explicitly (by name or as a value), so it is no longer pinned to the trusted "
+                    "directories")
     if passed:
         log.info("env policy: passing %d named variable(s) to the child: %s", len(passed), ", ".join(sorted(set(passed))))
     if risky:
