@@ -15,12 +15,12 @@ from __future__ import annotations
 
 import argparse
 import json
-import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from ...process_runner import run_subprocess
 from ..cells import arm_id, task_dir_name
 from ._common import opencode_diagnostics, opencode_env
 
@@ -79,7 +79,7 @@ def parse_result(stdout: str) -> Dict[str, Any]:
     raise ValueError("child printed no RESULT line")
 
 
-def generate(exp, cell, workers: int = 1, runner=subprocess.run) -> None:
+def generate(exp, cell, workers: int = 1, runner=run_subprocess) -> None:
     import os
     lim = exp.cfg.get("limits", {})
     cwd = Path(exp.cfg["harness2_root"]).expanduser()

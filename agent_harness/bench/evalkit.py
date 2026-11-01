@@ -22,6 +22,8 @@ from math import comb
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
+from ..process_runner import run_subprocess
+
 FAIL_PREFIX = "Failed to get judge response"
 
 
@@ -131,7 +133,7 @@ def judge_batch(task_id: str, tasks_base: Path, candidates: Dict[str, Path], det
             cmd += ["--candidate", f"{k}={d}"]
         env = {**os.environ, "JUDGE_API_KEY": cfg.api_key, "JUDGE_REASONING_EFFORT": cfg.reasoning_effort}
         try:
-            subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=cfg.timeout_s)
+            run_subprocess(cmd, env=env, capture_output=True, text=True, timeout=cfg.timeout_s)
         except (subprocess.SubprocessError, OSError) as e:
             for k in todo:
                 last[k] = JudgeResult("ungraded", attempts=attempt, reason=f"judge process failed: {type(e).__name__}")
@@ -177,7 +179,7 @@ def judge_output(task_id: str, tasks_base: Path, deliver: Path, details_file: Pa
                "--timeout-per-rubric", str(cfg.rubric_timeout_s), "--evaluated-model", "own"]
         env = {**os.environ, "JUDGE_API_KEY": cfg.api_key, "JUDGE_REASONING_EFFORT": cfg.reasoning_effort}
         try:
-            subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=cfg.timeout_s)
+            run_subprocess(cmd, env=env, capture_output=True, text=True, timeout=cfg.timeout_s)
         except (subprocess.SubprocessError, OSError) as e:
             last = JudgeResult("ungraded", attempts=attempt, reason=f"judge process failed: {type(e).__name__}")
             if attempt < cfg.attempts:

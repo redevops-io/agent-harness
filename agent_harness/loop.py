@@ -10,6 +10,7 @@ the ``Supervisor`` (agent_harness.supervisor) is the single authority on repeate
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import time
 from dataclasses import dataclass, field
@@ -21,6 +22,7 @@ from .llm import ChatClient, ChatError
 from .context import (ELIDED, BasicContextManager, ContextManager, clip_text as _clip, elide_old_tool_outputs,  # noqa: F401
                       estimate_tokens, messages_chars, placeholder_arg, shrink_tool_call_args)
 from .integrity import check_message_integrity
+from .process_runner import run_control
 from .multimodal import ImageCapError, enforce_image_cap, image_message, parse_image_limit, prune_images
 from .supervisor import Decision, Supervisor, SupervisorConfig
 from .trace import TraceRecorder
@@ -38,7 +40,7 @@ class Supervision:
 
 @dataclass
 class LoopResult:
-    stop: str                     # done | verified_complete | max_turns | max_seconds | model_error | context_overflow | blocked | integrity_error | request_invalid
+    stop: str                     # done | verified_complete | max_turns | max_seconds | cancelled | model_error | context_overflow | blocked | integrity_error | request_invalid
     turns: int = 0
     seconds: float = 0.0
     final_text: str = ""
@@ -98,10 +100,13 @@ def run_loop(client: ChatClient, registry: ToolRegistry, system: str, task: str,
              on_turn: Optional[Callable[[int, Dict[str, Any]], None]] = None,
              context_manager: Optional[ContextManager] = None, compact_to: float = 0.5,
              trace: Optional[TraceRecorder] = None, supervision: Optional[Supervision] = Supervision(),
-             check_integrity: bool = False, keep_images: int = 2, max_images: Optional[int] = None) -> LoopResult:
+             check_integrity: bool = False, keep_images: int = 2, max_images: Optional[int] = None,
+             cancel: Optional[Callable[[], bool]] = None) -> LoopResult:
     """``supervision=None`` turns the supervisor off (a bare loop, for ablations). ``check_integrity`` validates the message list before every model call and
     ends the run as ``integrity_error`` rather than send a corrupt history. ``max_images`` is the endpoint's limit of images per prompt: enforced on every request
-    (oldest images become labelled text notes), never more than that many images attached in one turn, and learned from the endpoint's own error if it is not given."""
+    (oldest images become labelled text notes), never more than that many images attached in one turn, and learned from the endpoint's own error if it is not given.
+    ``max_seconds`` and ``cancel`` (a cooperative ``() -> bool``) apply during a tool call too, not only between turns: a process a tool starts through
+    ``agent_harness.sandbox`` is stopped, with everything it started, when the time is up or ``cancel()`` is true, and the run ends as ``max_seconds`` or ``cancelled``."""
     if max_tool_chars is None:
         max_tool_chars = min(12000, int(0.2 * max_context_tokens))
     messages: List[Dict[str, Any]] = [{"role": "system", "content": system}, {"role": "user", "content": task}]
@@ -131,10 +136,15 @@ def run_loop(client: ChatClient, registry: ToolRegistry, system: str, task: str,
     last_prompt, sent_len = 0, 0
     refused: Set[str] = set()                       # call ids the supervisor refused (their old arguments are shrunk, see shrink_refused_calls)
     shrunk = 0
+    controls = contextlib.ExitStack()
+    controls.enter_context(run_control(max_seconds=max_seconds, cancel=cancel))
     try:
         while True:
             if not guard.check():
                 res.stop = "max_turns"
+                break
+            if cancel is not None and cancel():
+                res.stop = "cancelled"
                 break
             if time.time() - t0 > max_seconds:
                 res.stop = "max_seconds"
@@ -243,6 +253,8 @@ def run_loop(client: ChatClient, registry: ToolRegistry, system: str, task: str,
                                                  f"shortened in your history to save space). Nothing was run. Write the real content, or "
                                                  f"get the original text back first (read_archive / re-read the source file)."), res.tool_errors + 1
                         emit("placeholder_blocked", name=name, arg=ph)
+                    elif cancel is not None and cancel():
+                        text, res.tool_errors = "ERROR: cancelled; not run.", res.tool_errors + 1
                     elif sup and not (decision := sup.before(call_id, name, args, messages)).run:
                         text, res.tool_errors = sup.attach_pending(decision.text), res.tool_errors + 1
                         refused.add(call_id)
@@ -281,6 +293,7 @@ def run_loop(client: ChatClient, registry: ToolRegistry, system: str, task: str,
                     emit("supervisor", action="stop", reason=reason)
                     break
     finally:
+        controls.close()
         if sup:
             res.supervisor = sup.report()
         res.seconds = round(time.time() - t0, 1)

@@ -160,7 +160,7 @@ class LocalSandbox:
                                  detail="process spawn denied by policy", **base)
 
         cwd = policy.writable_paths[0] if policy.writable_paths else None
-        out = _sandbox.run(action, cwd=cwd, timeout=timeout)
+        out = _sandbox.run(action, cwd=cwd, timeout=timeout, cancel=cancel)
 
         if cancel is not None and cancel():
             return SandboxResult(terminal=Terminal.CANCELLED, failure=Failure.CANCELLED, **base)
