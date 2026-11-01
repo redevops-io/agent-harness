@@ -24,6 +24,7 @@ import subprocess
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
+from ...env_policy import child_env as policy_env
 from ...process_runner import run_subprocess
 from ..cells import arm_id, task_dir_name
 from ._common import opencode_diagnostics, opencode_env
@@ -168,7 +169,7 @@ def generate(exp, cell, workers: int = 1, runner=run_subprocess) -> None:
         splits.write_text(json.dumps({"benchmark": "jb", "train": [], "test": group}))
         with open(log, "ab") as f:
             p = runner(command(splits, workers), cwd=Path(exp.cfg["harness2_root"]).expanduser(),
-                       env={**os.environ, **env_for(exp, cell, runs)}, stdout=f, stderr=subprocess.STDOUT)
+                       env=policy_env(preset="bench", inherit_path=True, extra=env_for(exp, cell, runs)), stdout=f, stderr=subprocess.STDOUT)
         collect(exp, cell)
         rc = getattr(p, "returncode", 0) or 0
         if rc:

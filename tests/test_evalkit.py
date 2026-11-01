@@ -39,6 +39,7 @@ def rig(tmp_path, monkeypatch):
     deliver.mkdir()
     (deliver / "a.md").write_text("hello")
     cfg = JudgeConfig(sys.executable, str(script), "m", "http://x", attempts=3, backoff_s=0, timeout_s=5)
+    monkeypatch.setenv("AGENT_HARNESS_ENV_PASS", "FAKE_MODE")      # the judge child gets the allowlist plus this one named variable
     return cfg, tmp_path / "base", deliver, tmp_path / "details.json"
 
 

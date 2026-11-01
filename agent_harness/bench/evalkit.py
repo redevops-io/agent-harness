@@ -22,7 +22,15 @@ from math import comb
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
+from ..env_policy import child_env
 from ..process_runner import run_subprocess
+
+def _judge_env(cfg) -> Dict[str, str]:
+    """The judge process gets the allowlisted environment (the real ``PATH``, ``HOME``, proxy and CA variables) and the two
+    values it is configured with; the rest of the parent environment is not inherited (see :mod:`agent_harness.env_policy`)."""
+    return child_env(preset="bench", inherit_path=True,
+                     extra={"JUDGE_API_KEY": cfg.api_key, "JUDGE_REASONING_EFFORT": cfg.reasoning_effort})
+
 
 FAIL_PREFIX = "Failed to get judge response"
 
@@ -131,7 +139,7 @@ def judge_batch(task_id: str, tasks_base: Path, candidates: Dict[str, Path], det
                "--max-retries", str(cfg.max_retries), "--timeout-per-rubric", str(cfg.rubric_timeout_s)]
         for k, d in todo.items():
             cmd += ["--candidate", f"{k}={d}"]
-        env = {**os.environ, "JUDGE_API_KEY": cfg.api_key, "JUDGE_REASONING_EFFORT": cfg.reasoning_effort}
+        env = _judge_env(cfg)
         try:
             run_subprocess(cmd, env=env, capture_output=True, text=True, timeout=cfg.timeout_s)
         except (subprocess.SubprocessError, OSError) as e:
@@ -177,7 +185,7 @@ def judge_output(task_id: str, tasks_base: Path, deliver: Path, details_file: Pa
                "--details-file", str(details_file), "--judge-model", cfg.model, "--api-base", cfg.base_url,
                "--max-workers", str(cfg.workers), "--max-retries", str(cfg.max_retries),
                "--timeout-per-rubric", str(cfg.rubric_timeout_s), "--evaluated-model", "own"]
-        env = {**os.environ, "JUDGE_API_KEY": cfg.api_key, "JUDGE_REASONING_EFFORT": cfg.reasoning_effort}
+        env = _judge_env(cfg)
         try:
             run_subprocess(cmd, env=env, capture_output=True, text=True, timeout=cfg.timeout_s)
         except (subprocess.SubprocessError, OSError) as e:
