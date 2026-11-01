@@ -3,6 +3,27 @@
 Notable changes to `agent-harness`. The package version in `pyproject.toml` is `0.2.0` (tag `v0.2.0`; the previous tag is `v0.1.0`).
 The 0.2.0 release was checked against [QA_RELEASE_CHECKLIST.md](QA_RELEASE_CHECKLIST.md).
 
+## Next release (not yet tagged)
+
+### Changed (behaviour changes)
+
+- **Process execution (`agent_harness.process_runner`, used by `sandbox.run_shell`, the judge launches and the OpenCode and
+  Harness2 launches).** Each child now runs in its own process group (POSIX) or Job Object (Windows), and the whole tree is
+  stopped on a timeout, on a cancel, and when the call ends. See [configuration.md](configuration.md#process-execution).
+  - Processes a command leaves running are **killed when the call returns**: a service started in one call (for example
+    `python -m http.server &` or `nohup ... &`) is gone in the next. A process that starts its own session escapes the group;
+    the call then waits up to about 2.5 s for the output to drain and reports `drain_complete=False`.
+  - The child's stdin is closed (`DEVNULL`) instead of inherited.
+  - Output is read as bytes and decoded as UTF-8 with `errors="replace"` (it was the locale codec, with newline translation):
+    `\r\n` from a command is now preserved, undecodable bytes become U+FFFD, and the sandbox keeps at most 4 MiB per stream.
+  - `sandbox.run_shell` and `sandbox.run` take `cancel=`; their result gains `tree_gone`; a cancelled run returns code 130
+    (a timeout is still 124). `agent_harness.sandbox` no longer imports `subprocess`.
+  - `run_loop` takes `cancel=`; `max_seconds` and a cancel now also apply while a tool is running, and the run can end
+    with `stop="cancelled"`.
+  - SIGTERM and SIGHUP sent to the parent stop its running children before the signal takes its normal course (a handler is
+    installed on first use from the main thread, unless the application ignores the signal); an `atexit` hook does the same.
+    SIGKILL of the parent cannot be handled on POSIX; on Windows the Job Object ends the children.
+
 ## [0.2.0] - 2026-10-31
 
 ### Added

@@ -22,8 +22,10 @@ from __future__ import annotations
 
 import contextlib
 import contextvars
+import atexit
 import os
-import select
+import selectors
+import signal
 import subprocess
 import sys
 import threading
@@ -37,6 +39,16 @@ DEFAULT_GRACE = 2.0           # seconds between SIGTERM and SIGKILL (POSIX); Win
 DEFAULT_DRAIN = 2.0           # seconds to wait for the output readers after the tree is stopped
 DEFAULT_MAX_OUTPUT = 1_000_000  # bytes kept per stream; the excess is counted and dropped
 _POLL = 0.02
+
+
+class RunCancelled(subprocess.SubprocessError):
+    """Raised by :func:`run_subprocess` when the run was cancelled (a cancel set by an enclosing :func:`run_control`).
+    A ``SubprocessError``, like ``TimeoutExpired``, so callers that already treat a failed launch as a failed run keep
+    working; it is never mistaken for a normal exit."""
+
+    def __init__(self, cmd, returncode=None, output=None, stderr=None) -> None:
+        super().__init__(f"command cancelled: {cmd!r}")
+        self.cmd, self.returncode, self.output, self.stderr = cmd, returncode, output, stderr
 
 
 class ProcessRunnerError(RuntimeError):
@@ -117,6 +129,7 @@ class RunResult:
     drain_complete: bool = True        # both output readers reached end of file
     elapsed: float = 0.0
     error: str = ""
+    read_error: str = ""               # an output reader failed (not an end of file); the output may be incomplete
     stdout_bytes: bytes = b""          # the same output before decoding
     stderr_bytes: bytes = b""
 
@@ -243,21 +256,25 @@ class _Reader(threading.Thread):
         self.kept = 0
         self.dropped = 0
         self.eof = False
+        self.error = ""
         self.stop = threading.Event()
 
     def run(self) -> None:
-        fd = self.stream.fileno() if not IS_WINDOWS else None
+        sel = None
         try:
+            if not IS_WINDOWS:
+                # POSIX: wake up regularly so a reader can be told to stop even if a descendant that left the process
+                # group still holds the write end of the pipe. A selector (poll/epoll/kqueue) has no descriptor-number
+                # limit, unlike select.select, which fails for descriptors >= 1024.
+                sel = selectors.DefaultSelector()
+                sel.register(self.stream.fileno(), selectors.EVENT_READ)
             while True:
-                if fd is not None:
-                    # POSIX: wake up regularly so a reader can be told to stop even if a descendant that left
-                    # the process group still holds the write end of the pipe.
+                if sel is not None:
                     if self.stop.is_set():
                         return
-                    ready, _, _ = select.select([fd], [], [], 0.05)
-                    if not ready:
+                    if not sel.select(0.05):
                         continue
-                    data = os.read(fd, 65536)
+                    data = os.read(self.stream.fileno(), 65536)
                 else:
                     data = self.stream.read(65536)
                 if not data:
@@ -272,14 +289,80 @@ class _Reader(threading.Thread):
                     self.chunks.append(data[:room])
                     self.kept += min(room, len(data))
                 self.dropped += max(0, len(data) - max(room, 0))
-        except (OSError, ValueError):
-            self.eof = True
+        except BaseException as e:          # never turn an unexpected failure into a clean end of file: report it
+            self.error = f"{type(e).__name__}: {e}"
+        finally:
+            if sel is not None:
+                sel.close()
 
     def raw(self) -> bytes:
         return b"".join(self.chunks)
 
     def text(self, encoding: str) -> str:
         return self.raw().decode(encoding, errors="replace")
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# POSIX: live process groups, stopped if this interpreter exits or receives SIGTERM/SIGHUP
+# ---------------------------------------------------------------------------------------------------------------
+# The child runs in its own session, so a signal sent to the parent's group (a closing terminal, ``kill -- -pgid``)
+# does not reach it. The groups started here are therefore recorded, and killed from an ``atexit`` hook and, if this
+# module may install it (main thread, default disposition or a Python handler), from a SIGTERM/SIGHUP handler that then
+# lets the signal take its normal course. SIGKILL of the parent cannot be handled by a library; on Windows the
+# Job Object's kill-on-close does that job.
+_LIVE: "dict[int, bool]" = {}
+_PREVIOUS_HANDLERS: "dict[int, object]" = {}
+_HANDLERS_INSTALLED = False
+
+
+def _kill_live_groups() -> None:
+    for pgid in list(_LIVE):
+        try:
+            os.killpg(pgid, signal.SIGKILL)
+        except (ProcessLookupError, PermissionError, OSError):
+            pass
+
+
+def _on_fatal_signal(signum, frame) -> None:
+    _kill_live_groups()
+    previous = _PREVIOUS_HANDLERS.get(signum)
+    if callable(previous):
+        previous(signum, frame)
+        return
+    signal.signal(signum, signal.SIG_DFL)
+    os.kill(os.getpid(), signum)
+
+
+def _install_signal_cleanup() -> None:
+    global _HANDLERS_INSTALLED
+    if _HANDLERS_INSTALLED or IS_WINDOWS or threading.current_thread() is not threading.main_thread():
+        return
+    for name in ("SIGTERM", "SIGHUP"):
+        signum = getattr(signal, name, None)
+        if signum is None:
+            continue
+        try:
+            previous = signal.getsignal(signum)
+            if previous == signal.SIG_IGN:
+                continue                     # the application ignores it on purpose: leave that alone
+            _PREVIOUS_HANDLERS[signum] = previous
+            signal.signal(signum, _on_fatal_signal)
+        except (ValueError, OSError):
+            pass
+    _HANDLERS_INSTALLED = True
+
+
+def _track(pgid: int) -> None:
+    _LIVE[pgid] = True
+    _install_signal_cleanup()
+
+
+def _untrack(pgid: int) -> None:
+    _LIVE.pop(pgid, None)
+
+
+if not IS_WINDOWS:
+    atexit.register(_kill_live_groups)
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -355,15 +438,17 @@ class ProcessRunner:
 
     def _run(self, argv, cwd, env, timeout, want_cancel, limit, t0, stdout_to=None, merge_stderr=False) -> RunResult:
         proc, job = self._spawn(argv, cwd, env, merge_stderr)
+        if job is None:
+            _track(proc.pid)                 # POSIX: a fatal signal or interpreter exit stops this group too
         out_r = _Reader(proc.stdout, limit, stdout_to)
         err_r = _Reader(proc.stderr, limit) if proc.stderr is not None else None
         readers = [r for r in (out_r, err_r) if r is not None]
-        for r in readers:
-            r.start()
         timed_out = cancelled = False
         tree_gone, leftovers = False, True
         deadline = None if timeout is None else t0 + timeout
         try:
+            for r in readers:
+                r.start()
             while proc.poll() is None:
                 if want_cancel():
                     cancelled = True
@@ -378,10 +463,16 @@ class ProcessRunner:
             # The leader is done or must be stopped. Either way nothing it started may outlive the call.
             tree_gone, leftovers = self._stop_tree(proc, job, graceful=timed_out or cancelled)
         except BaseException:            # e.g. Ctrl-C: the child is in its own group and would not see it, so stop it here
-            self._stop_tree(proc, job, graceful=True)
+            try:
+                self._stop_tree(proc, job, graceful=True)
+            except BaseException:        # a second interrupt during the grace period: fall through to the hard kill
+                pass
+            finally:
+                self._hard_kill(proc, job)
             raise
         finally:
-            drain_ok = self._drain(*readers)
+            _untrack(proc.pid)
+            drain_ok = self._drain(*[r for r in readers if r.ident is not None])
             for r, s in ((out_r, proc.stdout), (err_r, proc.stderr)):
                 if r is not None and not r.is_alive():              # never close a handle another thread is still blocked on
                     try:
@@ -393,9 +484,22 @@ class ProcessRunner:
         return RunResult(out_r.text(self.encoding), err_r.text(self.encoding) if err_r else "", proc.returncode,
                          timed_out=timed_out, cancelled=cancelled,
                          stdout_truncated=out_r.dropped, stderr_truncated=err_r.dropped if err_r else 0,
+                         read_error="; ".join(r.error for r in readers if r.error),
                          stdout_bytes=out_r.raw(), stderr_bytes=err_r.raw() if err_r else b"",
                          tree_stopped=timed_out or cancelled or leftovers, tree_gone=tree_gone,
                          drain_complete=drain_ok, elapsed=time.monotonic() - t0)
+
+    @staticmethod
+    def _hard_kill(proc: subprocess.Popen, job) -> None:
+        """Unconditional, immediate stop of the whole tree (no grace, nothing that can wait)."""
+        if job is not None:
+            job.terminate()
+        else:
+            ProcessRunner._signal(proc.pid, signal.SIGKILL)
+        try:
+            proc.wait(timeout=5)
+        except (subprocess.TimeoutExpired, OSError):
+            pass
 
     def _drain(self, *readers: _Reader) -> bool:
         end = time.monotonic() + self.drain
@@ -434,19 +538,20 @@ class ProcessRunner:
             pass
 
     def _stop_group(self, proc: subprocess.Popen, graceful: bool):
-        import signal
         pgid = proc.pid                      # new session: the leader's pid is the group id
         leader_running = proc.poll() is None
         if not leader_running and not self._group_alive(pgid):
             return True, False               # the leader exited and left nothing behind
-        if graceful:
-            self._signal(pgid, signal.SIGTERM)
-            end = time.monotonic() + self.grace
-            while time.monotonic() < end:
-                if proc.poll() is not None and not self._group_alive(pgid):
-                    break
-                time.sleep(_POLL)
-        self._signal(pgid, signal.SIGKILL)
+        try:
+            if graceful:
+                self._signal(pgid, signal.SIGTERM)
+                end = time.monotonic() + self.grace
+                while time.monotonic() < end:
+                    if proc.poll() is not None and not self._group_alive(pgid):
+                        break
+                    time.sleep(_POLL)
+        finally:
+            self._signal(pgid, signal.SIGKILL)       # even if the grace period was interrupted
         try:
             proc.wait(timeout=5)
         except subprocess.TimeoutExpired:
@@ -502,6 +607,10 @@ def run_subprocess(argv: Sequence[str], *, cwd=None, env=None, capture_output: b
                                                    merge_stderr=stderr == subprocess.STDOUT)
     if res.returncode is None and res.error and not res.cancelled:
         raise OSError(res.error)
+    if res.cancelled:
+        raise RunCancelled(list(argv), res.returncode, res.stdout_bytes, res.stderr_bytes)
+    if res.read_error:
+        raise OSError(f"reading the child's output failed: {res.read_error}")
     if res.timed_out:
         raise subprocess.TimeoutExpired(list(argv), timeout or 0, output=res.stdout_bytes, stderr=res.stderr_bytes)
     keep = capture_output or stdout == subprocess.PIPE

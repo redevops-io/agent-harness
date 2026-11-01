@@ -61,7 +61,7 @@ def run_shell(cmd: str, cwd: str = None, timeout: int = 30,
         if ctl is not None:
             remaining = ctl.remaining()
             if remaining is not None:
-                timeout = min(timeout, remaining)
+                timeout = remaining if timeout is None else min(timeout, remaining)
             if ctl.cancel is not None:
                 cancel = ctl.cancel if cancel is None else (lambda a=cancel, b=ctl.cancel: bool(a() or b()))
         res = ProcessRunner(max_output=MAX_OUTPUT_BYTES).run(argv, cwd=cwd, env=env, timeout=timeout, cancel=cancel)
@@ -71,6 +71,9 @@ def run_shell(cmd: str, cwd: str = None, timeout: int = 30,
             return {"stdout": "", "stderr": "timeout", "returncode": TIMEOUT_RC, "tree_gone": res.tree_gone}
         if res.returncode is None:
             return {"stdout": "", "stderr": res.error, "returncode": 1}
+        if res.read_error:
+            return {"stdout": res.stdout, "stderr": (res.stderr + f"\n[output read error: {res.read_error}]").lstrip("\n"),
+                    "returncode": res.returncode if res.returncode else 1, "tree_gone": res.tree_gone}
         return {
             "stdout": res.stdout,
             "stderr": res.stderr,

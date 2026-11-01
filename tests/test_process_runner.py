@@ -320,3 +320,146 @@ def test_run_subprocess_raises_oserror_for_a_missing_executable():
     from agent_harness.process_runner import run_subprocess
     with pytest.raises(OSError):
         run_subprocess(["this-executable-does-not-exist-9f3"], capture_output=True, timeout=5)
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# Review fixes: many open fds, parent-death signals, timeout=None under a deadline, a cancelled run_subprocess
+# ---------------------------------------------------------------------------------------------------------------
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+@pytest.fixture
+def many_open_fds():
+    """Hold more than 1100 descriptors open so that the next pipes get numbers above FD_SETSIZE (1024)."""
+    held = []
+    try:
+        try:
+            import resource
+            soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+            want = 1500 if hard == resource.RLIM_INFINITY else min(hard, 1500)
+            if soft != resource.RLIM_INFINITY and soft < want:
+                resource.setrlimit(resource.RLIMIT_NOFILE, (want, hard))
+        except ImportError:
+            pass                                           # Windows: the C runtime's own limit applies
+        while len(held) < 1100:
+            try:
+                held.append(os.open(os.devnull, os.O_RDONLY))
+            except OSError:
+                break
+        if not IS_WINDOWS and len(held) < 1100:
+            pytest.skip("cannot raise the descriptor limit above 1100 here")
+        yield len(held)
+    finally:
+        for fd in held:
+            os.close(fd)
+
+
+def test_output_is_read_correctly_when_the_pipe_descriptors_are_above_1024(many_open_fds):
+    r = run_process([PY, "-c", "print('hello')"], timeout=30)
+    assert (r.stdout, r.returncode, r.drain_complete) == ("hello\n", 0, True)
+    big = run_process([PY, "-c", "import sys; sys.stdout.buffer.write(b'x' * 200000)"], timeout=30)
+    assert len(big.stdout) == 200000 and big.returncode == 0 and not big.timed_out
+
+
+@pytest.mark.skipif(IS_WINDOWS, reason="POSIX only: the reader on Windows reads through the stream, not a selector")
+def test_a_reader_error_is_surfaced_not_turned_into_a_clean_end_of_file(monkeypatch):
+    import selectors
+    from agent_harness import process_runner as pr
+
+    class Broken(selectors.DefaultSelector):
+        def select(self, timeout=None):
+            raise OSError(5, "simulated read failure")
+    monkeypatch.setattr(pr.selectors, "DefaultSelector", Broken)
+    r = run_process([PY, "-c", "print('hello')"], timeout=10)
+    assert r.read_error and "simulated read failure" in r.read_error and r.drain_complete is False
+
+
+PARENT_SCRIPT = r'''
+import sys
+sys.path.insert(0, sys.argv[2])
+from agent_harness import sandbox
+child = ("import os, signal, time\n"
+         "if %r: signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
+         "open(%r, 'w').write(str(os.getpid()))\n"
+         "time.sleep(300)\n") % (sys.argv[3] == "ignore", sys.argv[1])
+try:
+    sandbox.run_shell("", argv=[sys.executable, "-c", child], timeout=300)
+except KeyboardInterrupt:
+    print("saw KeyboardInterrupt", flush=True)
+'''
+
+
+def _start_parent(tmp_path, mode="plain"):
+    pidfile = tmp_path / "child.pid"
+    env = {**os.environ, "PYTHONPATH": ROOT}
+    parent = subprocess.Popen([PY, "-c", PARENT_SCRIPT, str(pidfile), ROOT, mode], env=env, stdout=subprocess.PIPE,
+                              start_new_session=not IS_WINDOWS)
+    end = time.monotonic() + 30
+    while time.monotonic() < end and not (pidfile.exists() and pidfile.read_text().strip()):
+        time.sleep(0.05)
+    return parent, int(pidfile.read_text())
+
+
+@pytest.mark.skipif(IS_WINDOWS, reason="POSIX only: SIGHUP/SIGTERM sent to the parent's process group; the Windows "
+                                      "equivalent (the parent is killed) is the next test")
+@pytest.mark.parametrize("sig", ["SIGHUP", "SIGTERM"])
+def test_a_group_signal_to_the_parent_does_not_leave_the_sandbox_child_running(tmp_path, guard, sig):
+    import signal
+    parent, child = _start_parent(tmp_path)
+    guard.append(child)
+    os.killpg(parent.pid, getattr(signal, sig))            # what a closing terminal or `kill -- -pgid` does
+    parent.wait(timeout=30)
+    assert wait_gone(child), f"{sig}: the sandbox child outlived its parent"
+
+
+@pytest.mark.skipif(not IS_WINDOWS, reason="Windows only: the job object kills its processes when the parent dies")
+def test_killing_the_parent_kills_the_job(tmp_path, guard):
+    parent, child = _start_parent(tmp_path)
+    guard.append(child)
+    parent.kill()
+    parent.wait(timeout=30)
+    assert wait_gone(child), "the child outlived its parent (KILL_ON_JOB_CLOSE did not take effect)"
+
+
+@pytest.mark.skipif(IS_WINDOWS, reason="POSIX only: SIGINT delivered twice to the parent's process group")
+def test_a_second_interrupt_during_the_grace_period_still_kills_the_child(tmp_path, guard):
+    import signal
+    parent, child = _start_parent(tmp_path, "ignore")       # the child ignores SIGTERM, so the grace period lasts
+    guard.append(child)
+    os.killpg(parent.pid, signal.SIGINT)
+    time.sleep(0.5)
+    os.killpg(parent.pid, signal.SIGINT)
+    parent.wait(timeout=30)
+    assert wait_gone(child), "a second Ctrl-C left the sandbox child running"
+
+
+def test_timeout_none_under_a_run_control_deadline_is_a_deadline_not_a_crash():
+    from agent_harness import sandbox
+    from agent_harness.process_runner import run_control
+    with run_control(max_seconds=60):
+        out = sandbox.run_shell("", argv=[PY, "-c", "print('ok')"], timeout=None)
+    assert out["returncode"] == 0 and out["stdout"].strip() == "ok", out
+    with run_control(max_seconds=1.5):
+        out = sandbox.run_shell("", argv=[PY, "-c", "import time; time.sleep(60)"], timeout=None)
+    assert out["returncode"] == 124 and out["stderr"] == "timeout"
+
+
+def test_a_cancelled_run_subprocess_is_not_a_normal_exit(guard, tmp_path):
+    from agent_harness.process_runner import RunCancelled, run_subprocess
+    pidfile = tmp_path / "pids.txt"
+    token = CancelToken()
+    threading.Timer(4.0, token.cancel).start()
+    with pytest.raises(RunCancelled) as e:
+        with __import__("agent_harness.process_runner", fromlist=["run_control"]).run_control(cancel=token):
+            run_subprocess([PY, "-c", TREE_TO_FILE, str(pidfile)], capture_output=True, text=True, timeout=120)
+    assert isinstance(e.value, subprocess.SubprocessError)    # the judge launchers already catch this family
+    parent, grandchild = pids(pidfile.read_text())
+    guard += [parent, grandchild]
+    assert wait_gone(parent) and wait_gone(grandchild)
+
+
+def test_sandbox_output_is_utf8_with_replacement_and_crlf_is_preserved():
+    from agent_harness import sandbox
+    out = sandbox.run_shell("", argv=[PY, "-c", "import sys; sys.stdout.buffer.write(b'caf\\xc3\\xa9 \\xff\\r\\nx')"], timeout=30)
+    assert out["stdout"] == "café �\r\nx"
