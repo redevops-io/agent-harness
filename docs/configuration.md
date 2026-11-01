@@ -68,6 +68,16 @@ which owns the child's whole process tree:
   (`contextvars.copy_context().run`, `asyncio.to_thread`).
 - Output is decoded as UTF-8 with replacement characters; `\r\n` is preserved; the sandbox keeps at most 4 MiB per
   stream (the excess is counted, not stored). The child's stdin is closed.
+- **Signals (POSIX).** The first run on the main thread installs a SIGTERM/SIGHUP handler (skipped if the application
+  ignores the signal; never removed; runs that are all on other threads get only the `atexit` hook). On a signal it
+  **SIGKILLs every live group first**, then calls the application's previous handler (or restores the default and re-raises),
+  so a running command returns code -9 even if the application's handler wanted a graceful stop. It is not inherited by
+  a forked child: a forked worker owns none of the parent's groups. SIGKILL of the parent cannot be handled; on Windows the
+  Job Object ends the children when the parent dies.
+- **Output read errors are explicit.** If an output reader fails while the child runs, the tree is stopped at once and the
+  call reports the error (`read_error`; `run_shell` returns a non-zero code with `[output read error: ...]`;
+  `run_subprocess` raises `OSError`), ahead of a timeout. The sandbox truncates only at its stated 4 MiB cap, and counts
+  what it drops.
 - A process group and a Job Object are process-tree control, not isolation: files, network and system calls are not
   restricted.
 
