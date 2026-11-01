@@ -86,7 +86,7 @@ _BUILTIN_SPECS = (
     ("write_file", "Write a text file inside the workspace root.",
      {"type": "object", "properties": {"path": {"type": "string"}, "content": {"type": "string"}},
       "required": ["path", "content"]}, True),
-    ("run_bash", "Run one allowlisted command in the workspace root.",
+    ("run_bash", "Run one allowlisted command in the workspace root. Processes the command starts are stopped when it returns.",
      {"type": "object", "properties": {"cmd": {"type": "string"}}, "required": ["cmd"]}, True),
     ("finish", "Finish the task with a result.",
      {"type": "object", "properties": {"result": {"type": "string"}}}, False),

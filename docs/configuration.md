@@ -48,3 +48,36 @@ runs with `cwd` set to the root.
 
 This is a policy check, not isolation: allowed commands still run as the host
 user. Use an OS-level sandbox or container for untrusted workloads.
+
+## Process execution
+
+Commands run by `agent_harness.sandbox` (and the judge and benchmark launches) go through `agent_harness.process_runner`,
+which owns the child's whole process tree:
+
+- **POSIX (Linux, macOS):** the child starts in a new session and process group. On a timeout or a cancel the group gets
+  `SIGTERM`, then `SIGKILL` after a grace period (2 s), and is reaped.
+- **Windows:** the child is created suspended, assigned to a Job Object with kill-on-close, then resumed; stopping
+  terminates the job.
+- **Descendants are killed at the end of every call.** A command that starts a background process does not leave it
+  running: a service started in one tool call is gone in the next. Tell the model so if it matters for your tools.
+- A process that starts its own session (`setsid`, `git gc --auto`, `tmux -d`, `ssh-agent`) leaves the group on POSIX and can
+  hold the output pipes; the call then waits up to about 2.5 s for the output to drain, returns what it has, and reports
+  `drain_complete=False`. On Windows a descendant cannot leave the job.
+- `max_seconds` and `cancel` of `run_loop` apply while a tool runs (a contextvar, `run_control`): a tool that runs
+  `run_shell` in a new thread does not inherit it unless the thread runs in a copied context
+  (`contextvars.copy_context().run`, `asyncio.to_thread`).
+- Output is decoded as UTF-8 with replacement characters; `\r\n` is preserved; the sandbox keeps at most 4 MiB per
+  stream (the excess is counted, not stored). The child's stdin is closed.
+- **Signals (POSIX).** The first run on the main thread installs a SIGTERM/SIGHUP handler (skipped if the application
+  ignores the signal; never removed; runs that are all on other threads get only the `atexit` hook). On a signal it
+  **SIGKILLs every live group first**, then calls the application's previous handler (or restores the default and re-raises),
+  so a running command returns code -9 even if the application's handler wanted a graceful stop. It is not inherited by
+  a forked child: a forked worker owns none of the parent's groups. SIGKILL of the parent cannot be handled; on Windows the
+  Job Object ends the children when the parent dies.
+- **Output read errors are explicit.** If an output reader fails while the child runs, the tree is stopped at once and the
+  call reports the error (`read_error`; `run_shell` returns a non-zero code with `[output read error: ...]`;
+  `run_subprocess` raises `OSError`), ahead of a timeout. The sandbox truncates only at its stated 4 MiB cap, and counts
+  what it drops.
+- A process group and a Job Object are process-tree control, not isolation: files, network and system calls are not
+  restricted.
+

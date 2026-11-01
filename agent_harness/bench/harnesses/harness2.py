@@ -24,6 +24,7 @@ import subprocess
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
+from ...process_runner import run_subprocess
 from ..cells import arm_id, task_dir_name
 from ._common import opencode_diagnostics, opencode_env
 
@@ -151,7 +152,7 @@ def chunks(tasks: Sequence[str], size: int) -> List[List[str]]:
     return [list(tasks[i:i + size]) for i in range(0, len(tasks), size)]
 
 
-def generate(exp, cell, workers: int = 1, runner=subprocess.run) -> None:
+def generate(exp, cell, workers: int = 1, runner=run_subprocess) -> None:
     """Run upstream's pipeline over the tasks in FIXED groups of ``workers`` (one upstream invocation and one run directory per
     group; a group re-run after a crash is the same set, so upstream resumes it) and register each group's results as soon as it
     ends, so judging can start long before the last task. A group whose tasks are all registered is skipped. Every group is
