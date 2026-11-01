@@ -458,7 +458,15 @@ class ProcessRunner:
 
     # Windows -------------------------------------------------------------------------------------------------------
     def _stop_job(self, proc: subprocess.Popen, job):
-        leftovers = proc.poll() is None or job.active_processes() > 0
+        if proc.poll() is None:
+            leftovers = True
+        else:
+            # The leader has exited; the job's process count can lag a moment behind. Anything still counted after the
+            # settle time is a descendant that outlived it.
+            end = time.monotonic() + 0.5
+            while job.active_processes() > 0 and time.monotonic() < end:
+                time.sleep(0.01)
+            leftovers = job.active_processes() > 0
         if leftovers:
             job.terminate()
         try:
