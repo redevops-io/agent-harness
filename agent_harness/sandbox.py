@@ -65,15 +65,16 @@ def run_shell(cmd: str, cwd: str = None, timeout: int = 30,
             if ctl.cancel is not None:
                 cancel = ctl.cancel if cancel is None else (lambda a=cancel, b=ctl.cancel: bool(a() or b()))
         res = ProcessRunner(max_output=MAX_OUTPUT_BYTES).run(argv, cwd=cwd, env=env, timeout=timeout, cancel=cancel)
+        if res.read_error:                     # evidence could not be read completely: say so, ahead of timeout or cancel
+            return {"stdout": res.stdout, "stderr": (res.stderr + f"\n[output read error: {res.read_error}]").lstrip("\n"),
+                    "returncode": res.returncode if res.returncode not in (None, 0, -9, -15) else 1,
+                    "tree_gone": res.tree_gone}
         if res.cancelled:
             return {"stdout": "", "stderr": "cancelled", "returncode": CANCELLED_RC, "tree_gone": res.tree_gone}
         if res.timed_out:
             return {"stdout": "", "stderr": "timeout", "returncode": TIMEOUT_RC, "tree_gone": res.tree_gone}
         if res.returncode is None:
             return {"stdout": "", "stderr": res.error, "returncode": 1}
-        if res.read_error:
-            return {"stdout": res.stdout, "stderr": (res.stderr + f"\n[output read error: {res.read_error}]").lstrip("\n"),
-                    "returncode": res.returncode if res.returncode else 1, "tree_gone": res.tree_gone}
         return {
             "stdout": res.stdout,
             "stderr": res.stderr,

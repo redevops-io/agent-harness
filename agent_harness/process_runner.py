@@ -310,13 +310,16 @@ class _Reader(threading.Thread):
 # module may install it (main thread, default disposition or a Python handler), from a SIGTERM/SIGHUP handler that then
 # lets the signal take its normal course. SIGKILL of the parent cannot be handled by a library; on Windows the
 # Job Object's kill-on-close does that job.
-_LIVE: "dict[int, bool]" = {}
+_LIVE: "dict[int, int]" = {}                # process group id -> pid of the process that started it
 _PREVIOUS_HANDLERS: "dict[int, object]" = {}
 _HANDLERS_INSTALLED = False
 
 
 def _kill_live_groups() -> None:
-    for pgid in list(_LIVE):
+    me = os.getpid()
+    for pgid, owner in list(_LIVE.items()):
+        if owner != me:                      # inherited across fork(): not this process's to kill
+            continue
         try:
             os.killpg(pgid, signal.SIGKILL)
         except (ProcessLookupError, PermissionError, OSError):
@@ -353,7 +356,7 @@ def _install_signal_cleanup() -> None:
 
 
 def _track(pgid: int) -> None:
-    _LIVE[pgid] = True
+    _LIVE[pgid] = os.getpid()
     _install_signal_cleanup()
 
 
@@ -363,6 +366,8 @@ def _untrack(pgid: int) -> None:
 
 if not IS_WINDOWS:
     atexit.register(_kill_live_groups)
+    if hasattr(os, "register_at_fork"):
+        os.register_at_fork(after_in_child=_LIVE.clear)      # a forked child owns none of the parent's groups
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -443,13 +448,16 @@ class ProcessRunner:
         out_r = _Reader(proc.stdout, limit, stdout_to)
         err_r = _Reader(proc.stderr, limit) if proc.stderr is not None else None
         readers = [r for r in (out_r, err_r) if r is not None]
-        timed_out = cancelled = False
+        timed_out = cancelled = read_failed = False
         tree_gone, leftovers = False, True
         deadline = None if timeout is None else t0 + timeout
         try:
             for r in readers:
                 r.start()
             while proc.poll() is None:
+                if any(r.error for r in readers):
+                    read_failed = True         # an output reader died: the child would block on a full pipe; stop now
+                    break
                 if want_cancel():
                     cancelled = True
                     break
@@ -486,7 +494,7 @@ class ProcessRunner:
                          stdout_truncated=out_r.dropped, stderr_truncated=err_r.dropped if err_r else 0,
                          read_error="; ".join(r.error for r in readers if r.error),
                          stdout_bytes=out_r.raw(), stderr_bytes=err_r.raw() if err_r else b"",
-                         tree_stopped=timed_out or cancelled or leftovers, tree_gone=tree_gone,
+                         tree_stopped=timed_out or cancelled or read_failed or leftovers, tree_gone=tree_gone,
                          drain_complete=drain_ok, elapsed=time.monotonic() - t0)
 
     @staticmethod
@@ -607,10 +615,10 @@ def run_subprocess(argv: Sequence[str], *, cwd=None, env=None, capture_output: b
                                                    merge_stderr=stderr == subprocess.STDOUT)
     if res.returncode is None and res.error and not res.cancelled:
         raise OSError(res.error)
+    if res.read_error:                       # evidence could not be read completely: fail explicitly, ahead of cancel/timeout
+        raise OSError(f"reading the child's output failed: {res.read_error}")
     if res.cancelled:
         raise RunCancelled(list(argv), res.returncode, res.stdout_bytes, res.stderr_bytes)
-    if res.read_error:
-        raise OSError(f"reading the child's output failed: {res.read_error}")
     if res.timed_out:
         raise subprocess.TimeoutExpired(list(argv), timeout or 0, output=res.stdout_bytes, stderr=res.stderr_bytes)
     keep = capture_output or stdout == subprocess.PIPE

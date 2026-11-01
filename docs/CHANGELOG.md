@@ -20,9 +20,15 @@ The 0.2.0 release was checked against [QA_RELEASE_CHECKLIST.md](QA_RELEASE_CHECK
     (a timeout is still 124). `agent_harness.sandbox` no longer imports `subprocess`.
   - `run_loop` takes `cancel=`; `max_seconds` and a cancel now also apply while a tool is running, and the run can end
     with `stop="cancelled"`.
-  - SIGTERM and SIGHUP sent to the parent stop its running children before the signal takes its normal course (a handler is
-    installed on first use from the main thread, unless the application ignores the signal); an `atexit` hook does the same.
-    SIGKILL of the parent cannot be handled on POSIX; on Windows the Job Object ends the children.
+  - SIGTERM and SIGHUP sent to the parent stop its running children before the signal takes its normal course. A handler is
+    installed on the first run, only if that run is on the main thread and the application does not ignore the signal, and
+    it is never removed; an application whose runs are all on other threads gets only the `atexit` hook (normal exit). The
+    handler **SIGKILLs every live group first** and then chains to the application's own handler (or restores the default
+    and re-raises); a command that was running therefore returns code -9. SIGKILL of the parent cannot be handled on POSIX;
+    on Windows the Job Object ends the children. A forked child does not inherit the parent's live groups.
+  - A failure of an output reader while the child is running (for example EIO or EMFILE) stops the tree at once and is
+    reported as an error (`read_error`; `run_shell` returns a non-zero code with `[output read error: ...]`, `run_subprocess`
+    raises `OSError`), ahead of a timeout or cancel; output is never silently dropped.
 - **Child environment (`agent_harness.env_policy`): children no longer inherit the parent's environment.** Before, the
   sandbox passed the whole of `os.environ` to every command and the judge and evaluation-runner launches passed `{**os.environ, ...}`,
   so a credential exported in the launching shell reached every child. Now a child starts from an allowlist. This breaks any

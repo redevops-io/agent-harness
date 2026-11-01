@@ -376,7 +376,12 @@ def test_a_reader_error_is_surfaced_not_turned_into_a_clean_end_of_file(monkeypa
 
 
 PARENT_SCRIPT = r'''
-import sys
+import signal, sys
+# a test runner started as a background job may have these ignored; the tests need the normal dispositions
+signal.signal(signal.SIGINT, signal.default_int_handler)
+for _name in ("SIGHUP", "SIGTERM"):
+    if hasattr(signal, _name):
+        signal.signal(getattr(signal, _name), signal.SIG_DFL)
 sys.path.insert(0, sys.argv[2])
 from agent_harness import sandbox
 child = ("import os, signal, time\n"
@@ -475,3 +480,127 @@ def test_the_loop_ends_as_max_seconds_when_a_tool_hit_the_deadline_even_if_the_w
     res = run_loop(_script(_slow_call(), {"role": "assistant", "content": "unreached"}),
                    _loop_registry([PY, "-c", "import time; time.sleep(60)"]), "sys", "task", max_seconds=1.5, supervision=None)
     assert res.stop == "max_seconds" and "rc=124 timeout" in res.messages[-1]["content"]
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# Retest fixes: a reader that fails while the child runs, fork inheritance, the documented signal behaviour
+# ---------------------------------------------------------------------------------------------------------------
+
+FLOOD = "import sys; sys.stdout.buffer.write(b'x' * 3000000); sys.stdout.flush()"
+
+
+@pytest.fixture
+def failing_reader(monkeypatch):
+    """The output reader of the next run fails at once (what an EIO or EMFILE from the pipe would do), while the child
+    is still running and is about to block on a full pipe that nobody drains."""
+    from agent_harness import process_runner as pr
+
+    def run(self):
+        self.error = "OSError: [Errno 5] injected read failure"
+    monkeypatch.setattr(pr._Reader, "run", run)
+
+
+def _within(seconds, fn):
+    """Run ``fn`` in a thread so that a hang fails the test instead of hanging the suite."""
+    box = {}
+    t = threading.Thread(target=lambda: box.update(result=fn()), daemon=True)
+    t.start()
+    t.join(seconds)
+    assert not t.is_alive(), f"still running after {seconds} s (a hang)"
+    return box["result"]
+
+
+def test_a_reader_failure_while_the_child_runs_stops_the_tree_and_is_reported_first(failing_reader):
+    t0 = time.monotonic()
+    r = _within(40, lambda: ProcessRunner(grace=0.5).run([PY, "-c", FLOOD], timeout=20))
+    assert "injected read failure" in r.read_error and not r.timed_out and r.drain_complete is False
+    assert time.monotonic() - t0 < 15                      # not the 20 s timeout
+
+
+def test_a_reader_failure_without_a_timeout_does_not_hang_run_subprocess(failing_reader):
+    from agent_harness.process_runner import run_subprocess
+
+    def call():
+        try:
+            run_subprocess([PY, "-c", FLOOD], capture_output=True, text=True)
+        except OSError as e:
+            return str(e)
+    msg = _within(40, call)
+    assert msg and "injected read failure" in msg
+
+
+def test_run_shell_reports_a_reader_failure_ahead_of_a_timeout(failing_reader):
+    from agent_harness import sandbox
+    out = _within(40, lambda: sandbox.run_shell("", argv=[PY, "-c", FLOOD], timeout=3))
+    assert out["returncode"] not in (0, 124) and "output read error" in out["stderr"] and "injected read failure" in out["stderr"]
+
+
+FORK_SCRIPT = r"""
+import os, signal, sys, threading, time
+signal.signal(signal.SIGTERM, signal.SIG_DFL)
+sys.path.insert(0, sys.argv[2])
+from agent_harness import sandbox
+sandbox.run_shell("", argv=[sys.executable, "-c", "pass"], timeout=30)       # first use installs the handler (main thread)
+child = "import os, time; open(%r, 'w').write(str(os.getpid())); time.sleep(300)" % sys.argv[1]
+t = threading.Thread(target=lambda: sandbox.run_shell("", argv=[sys.executable, "-c", child], timeout=300), daemon=True)
+t.start()
+while not (os.path.exists(sys.argv[1]) and open(sys.argv[1]).read().strip()):
+    time.sleep(0.05)
+cpid = int(open(sys.argv[1]).read())
+worker = os.fork()
+if worker == 0:
+    time.sleep(120)
+    os._exit(0)
+time.sleep(0.5)
+os.kill(worker, signal.SIGTERM)                        # what Process.terminate() does to a forked worker
+os.waitpid(worker, 0)
+time.sleep(1.0)
+try:
+    os.kill(cpid, 0)
+    print("PARENT COMMAND ALIVE", flush=True)
+except ProcessLookupError:
+    print("PARENT COMMAND KILLED", flush=True)
+try:
+    os.kill(cpid, 9)
+except ProcessLookupError:
+    pass
+"""
+
+
+@pytest.mark.skipif(IS_WINDOWS, reason="POSIX only: os.fork and signal handlers")
+def test_a_forked_worker_does_not_kill_the_parents_running_command(tmp_path, guard):
+    pidfile = tmp_path / "child.pid"
+    p = subprocess.run([PY, "-c", FORK_SCRIPT, str(pidfile), ROOT], env={**os.environ, "PYTHONPATH": ROOT},
+                       capture_output=True, text=True, timeout=120)
+    if pidfile.exists() and pidfile.read_text().strip():
+        guard.append(int(pidfile.read_text()))
+    assert "PARENT COMMAND ALIVE" in p.stdout, p.stdout + p.stderr
+
+
+APP_HANDLER_SCRIPT = r"""
+import os, signal, sys
+sys.path.insert(0, sys.argv[2])
+def app_handler(signum, frame):
+    print("app handler ran", flush=True)
+signal.signal(signal.SIGTERM, app_handler)             # installed before the first use: the library chains to it
+from agent_harness import sandbox
+child = "import os, time; open(%r, 'w').write(str(os.getpid())); time.sleep(300)" % sys.argv[1]
+out = sandbox.run_shell("", argv=[sys.executable, "-c", child], timeout=300)
+print("rc", out["returncode"], flush=True)
+"""
+
+
+@pytest.mark.skipif(IS_WINDOWS, reason="POSIX only: SIGTERM handlers")
+def test_the_documented_signal_behaviour_live_groups_are_killed_first_then_the_app_handler_runs(tmp_path, guard):
+    import signal
+    pidfile = tmp_path / "child.pid"
+    p = subprocess.Popen([PY, "-c", APP_HANDLER_SCRIPT, str(pidfile), ROOT], env={**os.environ, "PYTHONPATH": ROOT},
+                         stdout=subprocess.PIPE, text=True)
+    end = time.monotonic() + 30
+    while time.monotonic() < end and not (pidfile.exists() and pidfile.read_text().strip()):
+        time.sleep(0.05)
+    guard.append(int(pidfile.read_text()))
+    p.send_signal(signal.SIGTERM)
+    out = p.communicate(timeout=60)[0]
+    assert "app handler ran" in out and "rc -9" in out, out   # documented: SIGKILLed first, run_shell returns -9
+    assert wait_gone(int(pidfile.read_text()))
