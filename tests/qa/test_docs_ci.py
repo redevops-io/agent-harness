@@ -139,14 +139,19 @@ def test_the_loop_statements_match_the_code():
         assert "single-step agent loop" not in text, rel
 
 
+# The release tree is the base commit plus the QA module; it has none of the later execution-supervisor files. On a tree that has them
+# (main) the line numbers in the checklist move, and the docs may name those files, so the checks below fall back to file-level facts.
+RELEASE_TREE = not (ROOT / "agent_harness" / "netpolicy.py").exists()
+
+
 def test_the_docs_do_not_describe_files_that_are_absent_at_this_tree():
-    assert not (ROOT / "agent_harness" / "netpolicy.py").exists()
-    assert not (ROOT / "agent_harness" / "supervisor.py").exists()
-    assert not (DOCS / "execution-supervision.md").exists()
+    candidates = (("netpolicy", ROOT / "agent_harness" / "netpolicy.py"), ("supervisor", ROOT / "agent_harness" / "supervisor.py"),
+                  ("execution-supervision", DOCS / "execution-supervision.md"))
     for rel in STATEMENT_DOCS:
         text = read(ROOT / rel).lower()
-        for absent in ("netpolicy", "supervisor", "execution-supervision"):
-            assert absent not in text, f"{rel} mentions {absent}, which does not exist at this tree"
+        for absent, path in candidates:
+            if not path.exists():
+                assert absent not in text, f"{rel} mentions {absent}, which does not exist at this tree"
 
 
 def test_the_readme_status_and_architecture_point_at_the_qa_doc():
@@ -370,11 +375,14 @@ def test_the_checklist_lists_the_lazy_context_runtime_imports_with_the_right_lin
     text = read(DOCS / "QA_RELEASE_CHECKLIST.md")
     selfcheck = ROOT / "agent_harness" / "bench" / "selfcheck.py"
     jobbench = ROOT / "agent_harness" / "bench" / "jobbench.py"
-    assert (f"| `agent_harness/bench/selfcheck.py` | {_line_of(selfcheck, 'import context_runtime  # noqa')} |"
-            in text)
-    assert (f"| `agent_harness/bench/jobbench.py` | "
-            f"{_line_of(jobbench, 'from context_runtime.integrations.agent_harness import ContextRuntimeManager')} |"
-            in text)
+    for path, needle in ((selfcheck, "import context_runtime  # noqa"),
+                         (jobbench, "from context_runtime.integrations.agent_harness import ContextRuntimeManager")):
+        row = f"| `agent_harness/bench/{path.name}` | "
+        assert row in text, f"the checklist has no row for {path.name}"
+        if RELEASE_TREE:
+            assert f"{row}{_line_of(path, needle)} |" in text
+        else:
+            assert any(needle in line for line in read(path).splitlines()), f"{path.name} no longer holds the documented import"
 
 
 def test_the_documented_lazy_imports_are_all_the_context_runtime_imports_outside_qa():
@@ -385,7 +393,10 @@ def test_the_documented_lazy_imports_are_all_the_context_runtime_imports_outside
         for number, line in enumerate(read(path).splitlines(), 1):
             if re.match(r"\s*(import|from)\s+context_runtime\b", line):
                 found.append(f"{path.relative_to(ROOT).as_posix()}:{number}")
-    assert found == ["agent_harness/bench/jobbench.py:80", "agent_harness/bench/selfcheck.py:121"], found
+    if RELEASE_TREE:
+        assert found == ["agent_harness/bench/jobbench.py:80", "agent_harness/bench/selfcheck.py:121"], found
+    else:
+        assert sorted({item.split(":")[0] for item in found}) == ["agent_harness/bench/jobbench.py", "agent_harness/bench/selfcheck.py"], found
 
 
 # ---------------------------------------------------------------------------------------------------------------
