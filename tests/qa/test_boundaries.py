@@ -148,7 +148,7 @@ def test_pyproject_declares_an_empty_qa_extra_and_no_contracts_dependency():
     assert project["optional-dependencies"]["dev"] == ["pytest>=8.0"]
     assert set(project["optional-dependencies"]) == {"dev", "qa"}
     assert project["requires-python"] == ">=3.10"
-    assert project["version"] == "0.1.0"
+    assert project["version"] == "0.2.0"
     assert project["license"] == "AGPL-3.0-or-later"
     text = (ROOT / "pyproject.toml").read_text(encoding="utf-8").lower()
     for name in ("runtime-contracts", "runtime_contracts", "context-runtime", "context_runtime", "redevops-qa",

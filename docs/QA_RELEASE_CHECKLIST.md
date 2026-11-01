@@ -1,12 +1,11 @@
 # QA module release checklist
 
-Status: **preparation only.** No tag is created, no GitHub release is made and the package version is not changed by the
-work this checklist belongs to. `pyproject.toml` keeps `version = "0.1.0"`; releasing is a separate step that the
-maintainers approve.
+Status: **released as `v0.2.0` on 2026-10-31**, with maintainer approval, from the QA release branch built on the base commit below. This
+checklist is kept as the record of what was verified.
 
-* **The target tag `v0.2.0` is a proposed target, not an authorised one.** Nothing in this repository or its workflows
+* **The tag `v0.2.0` was authorised by the maintainer on 2026-10-31.** Nothing in this repository or its workflows
   creates or triggers a tag.
-* The existing `v0.1.0` has two duplicate GitHub releases. A future tag gets exactly one.
+* The existing `v0.1.0` has two duplicate GitHub releases. The `v0.2.0` tag gets exactly one.
 
 ## Release-engineering rule: the release is built from the `6b8ba3a` base
 
