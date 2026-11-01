@@ -3,6 +3,7 @@
 Deterministic: resolver, connector, sandbox and Docker are faked. The live Docker checks at the bottom run only with AGENT_HARNESS_DOCKER_TESTS=1
 (and the one that needs the internet only with AGENT_HARNESS_NET_TESTS=1).
 """
+from tests._native import posix_only
 import hashlib
 import json
 import os
@@ -323,6 +324,7 @@ def test_read_file_pages_and_refuses_binary_and_missing(tmp_path):
 
 
 # ---- edits ------------------------------------------------------------------------------------------------------------------------
+@posix_only("permission bits (0o640) do not exist on Windows, which only has a read-only attribute; mode preservation is not behaviour a Windows build provides")
 def test_edit_replaces_one_exact_match_and_preserves_mode(tmp_path):
     p = tmp_path / "f.py"
     p.write_text("a = 1\nb = 2\nc = 3\n")
@@ -571,7 +573,7 @@ def test_gateway_stage_contains_only_the_two_policy_modules(tmp_path, monkeypatc
     monkeypatch.setattr(sbmod.time, "sleep", lambda s: None)
     gw = sbmod.EgressGateway()
     gw.start()
-    files = sorted(str(p.relative_to(gw.stage)) for p in gw.stage.rglob("*") if p.is_file())
+    files = sorted(p.relative_to(gw.stage).as_posix() for p in gw.stage.rglob("*") if p.is_file())
     assert files == ["agent_harness/__init__.py", "agent_harness/egress_proxy.py", "agent_harness/netpolicy.py"]
     gw.stop()
     assert not gw.stage.exists()

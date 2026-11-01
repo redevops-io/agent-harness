@@ -1,5 +1,7 @@
 import json
+import os
 import sys
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -27,7 +29,7 @@ def test_child_environment_routes_the_executor_through_the_proxy_with_the_cells_
         env = oc.child_env(e, e.cells[0])
         cfg = json.loads(env["OPENCODE_CONFIG_CONTENT"])["provider"]["px48"]
         assert cfg["options"]["baseURL"] == f"http://127.0.0.1:8765/px48/{label}/v1" and cfg["models"]["M"]["limit"] == {"context": 65536, "output": 16384}
-        assert env["HARNESS2_SOLVER_MODEL"] == "px48/M" and env["HARNESS2_RUNS_DIR"].endswith("exp/opencode/q8")
+        assert env["HARNESS2_SOLVER_MODEL"] == "px48/M" and Path(env["HARNESS2_RUNS_DIR"]) == tmp_path / "exp" / "opencode" / "q8"
         assert env["HTTPS_PROXY"] == "http://127.0.0.1:8766"
 
 
@@ -64,7 +66,7 @@ def test_generate_registers_outputs_no_output_and_crashes_differently(tmp_path):
     a = arm_id("opencode", "q8")
     assert e.board.finished(a, "a/task1") and e.board.info(a, "a/task1")["deliverables"] == ["r.md"] and e.board.info(a, "a/task1")["peak_prompt"] == 1000
     assert not e.board.finished(a, "b/task1") and "boom" in e.board.info(a, "b/task1")["error"]            # crash: not finished, not 0
-    assert calls[0][1].endswith("/h2") and calls[0][2] == "px48/M"
+    assert Path(calls[0][1]).name == "h2" and calls[0][2] == "px48/M"
     # a runner that exhausted its time with nothing delivered is a FINISHED rollout with no output
     calls.clear()
     oc.generate(e, cell, 1, runner=lambda *a, **k: SimpleNamespace(returncode=0, stdout="RESULT " + json.dumps({"out": None}), stderr=""))
@@ -83,4 +85,4 @@ def test_the_child_runs_this_checkout_not_an_installed_copy(tmp_path, monkeypatc
     oc.generate(e, e.cells[0], 1, runner=runner)
     root = str(Path(oc.__file__).resolve().parents[3])
     assert (Path(root) / "agent_harness" / "bench" / "harnesses" / "opencode.py").is_file()
-    assert seen and all(p.split(":")[0] == root and p.endswith("/somewhere/else") for p in seen)    # ours first, the caller's kept
+    assert seen and all(p.split(os.pathsep)[0] == root and p.endswith(os.pathsep + "/somewhere/else") for p in seen)    # ours first, the caller's kept

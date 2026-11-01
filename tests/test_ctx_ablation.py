@@ -1,3 +1,4 @@
+from pathlib import Path
 from types import SimpleNamespace
 
 from agent_harness.bench import experiment as ex, harnesses, jobbench as jb
@@ -68,7 +69,7 @@ def test_the_nocr_arms_are_discoverable_and_pass_context_none_under_their_own_na
         return {"deliverables": ["r.md"], "stop": "done", "archived_items": 0, "retrieval_calls": 0, "seconds": 1.0}
     for mod in (ours, ours_nocr, ours_h2, ours_h2_nocr):
         mod.generate(e, e.cells[0], 1, run_task=run_task, client_factory=lambda: SimpleNamespace(model="M"))
-    assert [(o.split("/exp/")[1].split("/")[0], c) for o, c in seen] == [("ours", "context-runtime"), ("ours-nocr", "none"),
+    assert [(Path(o).relative_to(tmp_path / "exp").parts[0], c) for o, c in seen] == [("ours", "context-runtime"), ("ours-nocr", "none"),
                                                                          ("ours-h2", "context-runtime"), ("ours-h2-nocr", "none")]
     for arm in ("ours", "ours-nocr", "ours-h2", "ours-h2-nocr"):
         assert e.board.finished(arm_id(arm, "q8"), "a/task1")

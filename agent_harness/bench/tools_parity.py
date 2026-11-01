@@ -122,7 +122,7 @@ def parity_registry(workspace: Path, sandbox, *, policy: Optional[NetPolicy] = N
             f.write(json.dumps({"seq": edit_seq[0], "t": round(time.time(), 1), "tool": tool, "path": str(a_path_norm(path)), "ok": ok, "category": category}) + "\n")
 
     def a_path_norm(path: str) -> str:
-        return "/work/" + str(conf(path).relative_to(ws)) if str(path).strip() else str(path)
+        return "/work/" + conf(path).relative_to(ws).as_posix() if str(path).strip() else str(path)
 
     def write_file(a):
         p = conf(a["path"])
@@ -130,7 +130,7 @@ def parity_registry(workspace: Path, sandbox, *, policy: Optional[NetPolicy] = N
             return ToolResult(ok=False, error=f"{a['path']} is a directory")
         p.parent.mkdir(parents=True, exist_ok=True)
         fd, tmp = tempfile.mkstemp(dir=str(p.parent), prefix=f".{p.name}.", suffix=".tmp")
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="") as f:          # no newline translation
             f.write(str(a["content"]))
         os.chmod(tmp, 0o666)
         os.replace(tmp, p)
@@ -236,7 +236,7 @@ def parity_registry(workspace: Path, sandbox, *, policy: Optional[NetPolicy] = N
         os.chmod(man.parent, 0o777)
         with open(man, "a", encoding="utf-8") as m:
             m.write(json.dumps({"t": round(time.time(), 1), "url": url, "final_url": res.final_url, "redirects": len(res.chain) - 1, "chain": res.chain,
-                                "path": "/work/" + str(dest.relative_to(ws)), "size": res.size, "sha256": res.sha256, "content_type": res.content_type}) + "\n")
+                                "path": "/work/" + dest.relative_to(ws).as_posix(), "size": res.size, "sha256": res.sha256, "content_type": res.content_type}) + "\n")
         ledger.record("web_download", only=dest)
         return ToolResult(text=f"saved {res.size} bytes to {a['path']} (sha256 {res.sha256[:16]}...; {len(res.chain) - 1} redirect(s); final URL {res.final_url})")
 

@@ -1,0 +1,33 @@
+name: native
+# Native-host lanes: the same install and test commands as the Ubuntu job in tests.yml, on Windows x86-64 and macOS
+# Apple Silicon (Python 3.12 only). Not a required check; they report how the suite behaves on those hosts.
+# This is a separate workflow so tests.yml stays exactly as pinned by tests/qa/test_docs_ci.py.
+# Read-only: no tag trigger, no publish step, no write permission.
+on:
+  pull_request:
+  push:
+    branches: ["main", "master"]
+permissions:
+  contents: read
+jobs:
+  pytest-native:
+    name: pytest (${{ matrix.os }}, py3.12)
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        # macos-15 is Apple Silicon (arm64). macos-14 images are retired on 2026-11-02 and are in brownout.
+        os: [windows-latest, macos-15]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -e ".[dev]"
+      # One test is deselected on these lanes: the hosted macOS and Windows images can only provide CPython 3.12.10
+      # (later 3.12.x builds are not published for them), and that mutation probe in tests/qa needs the
+      # IPv6 text of a later 3.12.x or 3.13. It passes on the Ubuntu lane (3.12.15). The product code is not involved.
+      - run: >-
+          python -m pytest -q -rfEs --durations=15
+          "--deselect=tests/qa/test_evidence_mutations.py::test_removing_the_guard_makes_the_probe_fail[egress: IPv6 text depends on the Python version]"

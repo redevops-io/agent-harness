@@ -44,7 +44,8 @@ class OutputStore:
         name = f"{kind}-{self.n:04d}.txt"
         p = self.dir / name
         tmp = self.dir / (name + ".tmp")
-        tmp.write_text(text, encoding="utf-8", errors="replace")
+        with open(tmp, "w", encoding="utf-8", errors="replace", newline="") as f:      # no newline translation: the bytes are what the model was shown
+            f.write(text)
         os.chmod(tmp, 0o666)
         os.replace(tmp, p)
         return f"/work/{STORE_DIR}/{name}"
@@ -82,7 +83,7 @@ class FileLedger:
                 st = p.stat()
             except OSError:
                 continue
-            rel = str(p.relative_to(self.ws))
+            rel = p.relative_to(self.ws).as_posix()
             key = (st.st_size, st.st_mtime_ns)
             if self._seen.get(rel) == key:
                 continue
