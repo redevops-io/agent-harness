@@ -356,7 +356,7 @@ def many_open_fds():
 
 
 def test_output_is_read_correctly_when_the_pipe_descriptors_are_above_1024(many_open_fds):
-    r = run_process([PY, "-c", "print('hello')"], timeout=30)
+    r = run_process([PY, "-c", "import sys; sys.stdout.buffer.write(b'hello\\n')"], timeout=30)
     assert (r.stdout, r.returncode, r.drain_complete) == ("hello\n", 0, True)
     big = run_process([PY, "-c", "import sys; sys.stdout.buffer.write(b'x' * 200000)"], timeout=30)
     assert len(big.stdout) == 200000 and big.returncode == 0 and not big.timed_out
@@ -463,3 +463,15 @@ def test_sandbox_output_is_utf8_with_replacement_and_crlf_is_preserved():
     from agent_harness import sandbox
     out = sandbox.run_shell("", argv=[PY, "-c", "import sys; sys.stdout.buffer.write(b'caf\\xc3\\xa9 \\xff\\r\\nx')"], timeout=30)
     assert out["stdout"] == "café �\r\nx"
+
+
+def test_the_loop_ends_as_max_seconds_when_a_tool_hit_the_deadline_even_if_the_wall_clock_lags(monkeypatch):
+    """The tool's deadline is monotonic; the loop must not depend on time.time() having advanced as far (its resolution is
+    coarse on Windows), or it would ask the model once more after the tool was stopped."""
+    import types
+    from agent_harness import loop
+    from agent_harness.loop import run_loop
+    monkeypatch.setattr(loop, "time", types.SimpleNamespace(time=lambda: 1000.0, monotonic=time.monotonic))
+    res = run_loop(_script(_slow_call(), {"role": "assistant", "content": "unreached"}),
+                   _loop_registry([PY, "-c", "import time; time.sleep(60)"]), "sys", "task", max_seconds=1.5, supervision=None)
+    assert res.stop == "max_seconds" and "rc=124 timeout" in res.messages[-1]["content"]

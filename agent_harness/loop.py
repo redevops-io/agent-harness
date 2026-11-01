@@ -137,7 +137,7 @@ def run_loop(client: ChatClient, registry: ToolRegistry, system: str, task: str,
     refused: Set[str] = set()                       # call ids the supervisor refused (their old arguments are shrunk, see shrink_refused_calls)
     shrunk = 0
     controls = contextlib.ExitStack()
-    controls.enter_context(run_control(max_seconds=max_seconds, cancel=cancel))
+    ctl = controls.enter_context(run_control(max_seconds=max_seconds, cancel=cancel))
     try:
         while True:
             if not guard.check():
@@ -146,7 +146,7 @@ def run_loop(client: ChatClient, registry: ToolRegistry, system: str, task: str,
             if cancel is not None and cancel():
                 res.stop = "cancelled"
                 break
-            if time.time() - t0 > max_seconds:
+            if time.time() - t0 > max_seconds or (ctl.deadline is not None and time.monotonic() >= ctl.deadline):
                 res.stop = "max_seconds"
                 break
             if sup:
