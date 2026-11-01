@@ -56,7 +56,7 @@ _GRADER = re.compile(r"^(rubrics?\b|eval_result|.*_judge\.json$)", re.I)
 
 def assert_workspace_clean(ws: Path) -> None:
     """The agent must never see grader material. Abort the run (not just the task) if any is in its workspace."""
-    leaks = sorted(str(p.relative_to(ws)) for p in ws.rglob("*") if _GRADER.search(p.name))
+    leaks = sorted(p.relative_to(ws).as_posix() for p in ws.rglob("*") if _GRADER.search(p.name))
     if leaks:
         raise RuntimeError(f"grader artifacts in the agent workspace, refusing to run: {leaks[:5]}")
 
@@ -243,7 +243,7 @@ def run_task(tasks_base: Path, task_id: str, out_dir: Path, client: ChatClient, 
             kept = ""
             if preserve_incomplete and (res.stop not in ("done", "verified_complete") or not completion.ok):
                 kept = _preserve_incomplete(ws, out_dir / f"incomplete{attempt}")
-            files = sorted(str(p.relative_to(deliver)) for p in deliver.rglob("*") if p.is_file())
+            files = sorted(p.relative_to(deliver).as_posix() for p in deliver.rglob("*") if p.is_file())
             summary = {"task": task_id, "attempt": attempt, "stop": res.stop, "turns": res.turns, "seconds": res.seconds,
                        "prompt_tokens": res.prompt_tokens, "completion_tokens": res.completion_tokens,
                        "tool_calls": res.tool_calls, "tool_errors": res.tool_errors, "deliverables": files,

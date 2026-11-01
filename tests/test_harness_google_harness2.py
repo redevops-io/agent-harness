@@ -107,8 +107,8 @@ def test_generate_runs_fixed_groups_each_in_its_own_run_directory_and_registers_
     h2.generate(e, e.cells[0], 2, runner=runner)
     base = str(h2.runs_dir(e, e.cells[0]))
     assert [c[0] for c in calls] == [["a/task1", "b/task1"], ["c/task1"]]                      # fixed groups of `workers`
-    assert calls[0][3] == base and calls[1][3] == base + "/chunk01"                            # upstream pins a run dir to one task set
-    assert calls[0][1].endswith("/h2") and calls[0][2] == "px48/M"
+    assert calls[0][3] == base and Path(calls[1][3]) == Path(base) / "chunk01"                            # upstream pins a run dir to one task set
+    assert Path(calls[0][1]).name == "h2" and calls[0][2] == "px48/M"
     a = arm_id("harness2", "q8")
     assert e.board.finished(a, "a/task1") and e.board.finished(a, "c/task1") and not e.board.finished(a, "b/task1")
     assert h2.adapt_dir(e, e.cells[0], "c/task1").parts[-5] == "chunk01"                       # found in the chunk that ran it

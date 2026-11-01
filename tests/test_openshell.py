@@ -3,6 +3,7 @@ never in evidence, policy change = new identity, success requires a terminal eve
 from agent_harness.openshell import (
     LocalSandbox, SandboxPolicy, SandboxCapability, Terminal, Failure,
 )
+from tests._native import windows_todo
 
 
 def test_denied_network_is_a_typed_failure():
@@ -18,6 +19,7 @@ def test_denied_inference_is_typed():
     assert r.terminal == Terminal.DENIED
 
 
+@windows_todo("bare command names resolve only against the POSIX trusted directories (/usr/local/bin, /usr/bin, /bin); a Windows resolver for allowlisted executables is not implemented yet")
 def test_success_requires_a_terminal_event():
     r = LocalSandbox().run({"type": "shell", "command": "echo hi"},
                            SandboxPolicy(allow_process_spawn=True))

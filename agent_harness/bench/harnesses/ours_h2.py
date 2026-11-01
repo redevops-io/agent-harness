@@ -38,8 +38,8 @@ SCAFFOLD = re.compile(r"^(plugin|scripts|skills|sub_agents|tool_descriptions)/RE
 
 
 def read_tree(d: Path) -> Dict[str, str]:
-    return {str(p.relative_to(d)): p.read_text(encoding="utf-8") for p in sorted(d.rglob("*"))
-            if p.is_file() and not SCAFFOLD.match(str(p.relative_to(d)))}
+    return {p.relative_to(d).as_posix(): p.read_text(encoding="utf-8") for p in sorted(d.rglob("*"))
+            if p.is_file() and not SCAFFOLD.match(p.relative_to(d).as_posix())}
 
 
 def _description(skill_md: str) -> str:

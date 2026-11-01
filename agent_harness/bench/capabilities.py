@@ -85,7 +85,7 @@ def workspace_snapshot(root: Path, max_hash_bytes: int = 4_000_000) -> dict:
                 st = os.stat(full)
             except OSError:
                 continue
-            rel = os.path.relpath(full, root)
+            rel = Path(os.path.relpath(full, root)).as_posix()      # logical, OS-neutral names
             key = (full, st.st_size, st.st_mtime_ns)
             d = _DIGESTS.get(key)
             if d is None:

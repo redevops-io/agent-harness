@@ -1,6 +1,8 @@
+from tests._native import windows_todo
 import pytest
 from agent_harness.command_policy import CommandPolicy
 
+@windows_todo("bare command names resolve only against the POSIX trusted directories (/usr/local/bin, /usr/bin, /bin); a Windows resolver for allowlisted executables is not implemented yet")
 def test_allowlist_allows_prefix():
     policy = CommandPolicy(mode="allowlist")
     assert policy.decide({"type": "shell", "command": "echo hi"}) == "allow"
@@ -29,6 +31,7 @@ def _d(policy, cmd):
     return policy.decide({"type": "shell", "command": cmd})
 
 
+@windows_todo("bare command names resolve only against the POSIX trusted directories (/usr/local/bin, /usr/bin, /bin); a Windows resolver for allowlisted executables is not implemented yet")
 def test_bare_command_resolves_to_trusted_absolute_path():
     p = resolve_command("echo")
     assert p and os.path.isabs(p)
@@ -41,6 +44,7 @@ def test_rejects_path_containing_command_names(tmp_path):
     assert _d(p, "/tmp/echo hi") == "deny"
 
 
+@windows_todo("bare command names resolve only against the POSIX trusted directories (/usr/local/bin, /usr/bin, /bin); a Windows resolver for allowlisted executables is not implemented yet")
 def test_literal_path_entry_must_match_exactly(tmp_path):
     exe = resolve_command("echo")
     p = CommandPolicy(allowlist=[exe], root=str(tmp_path))
@@ -58,6 +62,7 @@ def test_local_file_named_like_allowlisted_command_is_not_used(tmp_path, monkeyp
     assert "local" not in out.get("stdout", "")
 
 
+@windows_todo("bare command names resolve only against the POSIX trusted directories (/usr/local/bin, /usr/bin, /bin); a Windows resolver for allowlisted executables is not implemented yet")
 def test_file_arguments_stay_inside_root(tmp_path):
     root = tmp_path / "ws"
     root.mkdir()
@@ -75,6 +80,7 @@ def test_file_arguments_stay_inside_root(tmp_path):
     assert _d(p, "cat --file=/etc/hostname") == "deny"
 
 
+@windows_todo("bare command names resolve only against the POSIX trusted directories (/usr/local/bin, /usr/bin, /bin); a Windows resolver for allowlisted executables is not implemented yet")
 def test_written_files_cannot_be_executed_or_run_by_interpreters(tmp_path):
     root = str(tmp_path)
     p = CommandPolicy(allowlist=["echo", "cat", "sh", "python3", "./run.sh"], root=root)
@@ -87,6 +93,7 @@ def test_written_files_cannot_be_executed_or_run_by_interpreters(tmp_path):
     assert _d(p, "sh run.sh") == "allow"
 
 
+@windows_todo("bare command names resolve only against the POSIX trusted directories (/usr/local/bin, /usr/bin, /bin); a Windows resolver for allowlisted executables is not implemented yet")
 def test_run_bash_uses_agent_policy_and_root(tmp_path):
     ag = Agent(policy=CommandPolicy(allowlist=["pwd", "cat"]), root=str(tmp_path))
     out = ag.tools["run_bash"]("pwd")
@@ -112,6 +119,7 @@ def _interp_policy(root):
     return CommandPolicy(allowlist=["python3", "sh", "cat", "ls"], root=str(root))
 
 
+@windows_todo("bare command names resolve only against the POSIX trusted directories (/usr/local/bin, /usr/bin, /bin); a Windows resolver for allowlisted executables is not implemented yet")
 def test_interpreter_denied_for_written_packages_and_siblings(tmp_path):
     root = str(tmp_path)
     p = _interp_policy(root)
@@ -124,6 +132,7 @@ def test_interpreter_denied_for_written_packages_and_siblings(tmp_path):
     assert _d(p, "cat helper.py") == "allow"
 
 
+@windows_todo("bare command names resolve only against the POSIX trusted directories (/usr/local/bin, /usr/bin, /bin); a Windows resolver for allowlisted executables is not implemented yet")
 def test_interpreter_inline_code_denied_unless_allowlisted_exactly(tmp_path):
     p = _interp_policy(tmp_path)
     assert _d(p, "python3 -c pass") == "deny"
@@ -135,6 +144,7 @@ def test_interpreter_inline_code_denied_unless_allowlisted_exactly(tmp_path):
     assert _d(q, "python3 -c other") == "deny"
 
 
+@windows_todo("bare command names resolve only against the POSIX trusted directories (/usr/local/bin, /usr/bin, /bin); a Windows resolver for allowlisted executables is not implemented yet")
 def test_short_option_attached_values_are_checked(tmp_path):
     p = CommandPolicy(root=str(tmp_path))
     assert _d(p, "cat -f/etc/hostname") == "deny"

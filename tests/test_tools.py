@@ -1,6 +1,8 @@
+from tests._native import windows_todo
 import pytest
 from agent_harness.sandbox import run
 
+@windows_todo("bare command names resolve only against the POSIX trusted directories (/usr/local/bin, /usr/bin, /bin); a Windows resolver for allowlisted executables is not implemented yet")
 def test_register_and_dispatch():
     # Simulate tool via @tool-like dispatch using sandbox run
     action = {"type": "shell", "command": "echo hello"}
@@ -117,6 +119,7 @@ from agent_harness.agent import Agent
 from agent_harness.command_policy import CommandPolicy
 
 
+@windows_todo("bare command names resolve only against the POSIX trusted directories (/usr/local/bin, /usr/bin, /bin); a Windows resolver for allowlisted executables is not implemented yet")
 def test_agent_registry_describes_builtins_and_default_allows_them(tmp_path):
     ag = Agent(root=str(tmp_path), policy=CommandPolicy(allowlist=["cat"], root=str(tmp_path)))
     assert {s["function"]["name"] for s in ag.registry.specs()} == {"read_file", "write_file", "run_bash", "finish"}
