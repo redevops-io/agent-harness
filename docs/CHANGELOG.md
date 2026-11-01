@@ -29,6 +29,16 @@ The 0.2.0 release was checked against [QA_RELEASE_CHECKLIST.md](QA_RELEASE_CHECK
   - A failure of an output reader while the child is running (for example EIO or EMFILE) stops the tree at once and is
     reported as an error (`read_error`; `run_shell` returns a non-zero code with `[output read error: ...]`, `run_subprocess`
     raises `OSError`), ahead of a timeout or cancel; output is never silently dropped.
+- **Child environment (`agent_harness.env_policy`): children no longer inherit the parent's environment.** Before, the
+  sandbox passed the whole of `os.environ` to every command and the judge and evaluation-runner launches passed `{**os.environ, ...}`,
+  so a credential exported in the launching shell reached every child. Now a child starts from an allowlist. This breaks any
+  child that relied on inheritance. See [configuration.md](configuration.md#child-environment) for exactly what is kept,
+  what a sandboxed command loses, and how to opt in.
+  - Sandboxed commands keep only `PATH` (pinned to the trusted directories; on Windows the system directories), locale
+    (`LANG`, `LANGUAGE`, `LC_*`), `TZ`, `TERM` and the temp directory; on Windows also the system and profile variables.
+  - Opt in by name with `run_shell(env_pass=("NAME",))` or `AGENT_HARNESS_ENV_PASS=NAME,OTHER` (logged by name, never value);
+    opt out entirely with `AGENT_HARNESS_ENV_INHERIT=1` (a warning on every call; `PATH` stays pinned unless the caller asks).
+
 
 ## [0.2.0] - 2026-10-31
 

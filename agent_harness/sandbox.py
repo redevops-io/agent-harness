@@ -11,9 +11,10 @@ running untrusted commands.
 """
 import os
 import shlex
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Sequence
 
-from agent_harness.command_policy import TRUSTED_PATH, resolve_command
+from agent_harness.command_policy import TRUSTED_PATH, resolve_command  # noqa: F401  (TRUSTED_PATH kept importable)
+from agent_harness.env_policy import child_env
 from agent_harness.process_runner import ProcessRunner, current_control
 
 # Per stream; the process runner counts what it drops. Tool output is clipped much lower by the loop.
@@ -27,7 +28,8 @@ def _is_path(name: str) -> bool:
 
 def run_shell(cmd: str, cwd: str = None, timeout: int = 30,
               argv: Optional[List[str]] = None,
-              cancel: Optional[Callable[[], bool]] = None) -> Dict[str, Any]:
+              cancel: Optional[Callable[[], bool]] = None,
+              env_pass: Sequence[str] = ()) -> Dict[str, Any]:
     """Run ``cmd`` (or a pre-resolved ``argv``) without a shell.
 
     Bare command names are resolved against a fixed trusted search path, never
@@ -36,6 +38,11 @@ def run_shell(cmd: str, cwd: str = None, timeout: int = 30,
     The child runs under :mod:`agent_harness.process_runner`: it and everything it starts are stopped together on a
     timeout or a cancel (``cancel``, or the one set by an enclosing ``run_control``), and the effective timeout is
     never longer than the time left in an enclosing ``run_control``. The result also carries ``tree_gone``.
+
+    The child does **not** inherit the parent's environment: it gets the allowlist in :mod:`agent_harness.env_policy`
+    (a fixed ``PATH``, locale, temp directory and, on Windows, the system and profile variables). ``env_pass`` names
+    parent variables to pass on as well (logged by name); ``AGENT_HARNESS_ENV_PASS`` does the same process-wide and
+    ``AGENT_HARNESS_ENV_INHERIT=1`` turns the policy off with a warning.
     """
     if cwd is None:
         cwd = os.getcwd()
@@ -49,8 +56,7 @@ def run_shell(cmd: str, cwd: str = None, timeout: int = 30,
             if exe is None:
                 return {"stdout": "", "stderr": "command not found", "returncode": 127}
             argv = [exe] + list(argv[1:])
-        env = dict(os.environ)
-        env["PATH"] = os.pathsep.join(TRUSTED_PATH)
+        env = child_env(pass_through=env_pass if isinstance(env_pass, (str, bytes)) else tuple(env_pass))   # a bare str is refused
         ctl = current_control()
         if ctl is not None:
             remaining = ctl.remaining()
@@ -79,10 +85,10 @@ def run_shell(cmd: str, cwd: str = None, timeout: int = 30,
         return {"stdout": "", "stderr": str(e), "returncode": 1}
 
 def run(action: Dict[str, Any], cwd: str = None, timeout: int = 30,
-        cancel: Optional[Callable[[], bool]] = None) -> Dict[str, Any]:
+        cancel: Optional[Callable[[], bool]] = None, env_pass: Sequence[str] = ()) -> Dict[str, Any]:
     if action.get("type") == "shell":
         return run_shell(action.get("command", ""), cwd, timeout,
-                         argv=action.get("argv"), cancel=cancel)
+                         argv=action.get("argv"), cancel=cancel, env_pass=env_pass)
     return {"stdout": "", "stderr": "unknown action", "returncode": 1}
 
 

@@ -16,7 +16,10 @@ IS_WINDOWS = sys.platform == "win32"
 
 
 def windows_todo(reason: str):
-    return pytest.mark.xfail(IS_WINDOWS, reason="to implement (Windows): " + reason, strict=True)
+    # raises=: only the failures these tests showed (a failed assertion, a missing result key) are absorbed; any other
+    # error on Windows is a real failure.
+    return pytest.mark.xfail(IS_WINDOWS, reason="to implement (Windows): " + reason, strict=True,
+                             raises=(AssertionError, KeyError))
 
 
 def posix_only(reason: str):
