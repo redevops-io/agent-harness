@@ -20,6 +20,7 @@ from __future__ import annotations
 import fnmatch
 import logging
 import os
+import re
 import sys
 from typing import Dict, Iterable, Mapping, Optional, Sequence
 
@@ -42,21 +43,39 @@ _BENCH = ("HOME", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME", "XDG_STA
           "all_proxy", "SSL_CERT_FILE", "SSL_CERT_DIR", "REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE", "NODE_EXTRA_CA_CERTS")
 
 SECRET_PATTERNS = ("*KEY*", "*TOKEN*", "*SECRET*", "*PASSWORD*", "*PASSWD*", "*CREDENTIAL*", "*AUTH*", "*COOKIE*",
-                   "*PRIVATE*", "*SIGNATURE*", "AWS_*", "AZURE_*", "GOOGLE_*", "GCP_*", "GITHUB_*", "GITLAB_*", "GH_*",
+                   "*PRIVATE*", "*SIGNATURE*", "*PASS*", "*DSN*", "*DATABASE*", "*WEBHOOK*", "*CONNECTION*", "*CONN*STR*", "AWS_*", "AZURE_*", "GOOGLE_*", "GCP_*", "GITHUB_*", "GITLAB_*", "GH_*",
                    "NPM_*", "DOCKER_*", "VAULT_*", "OPENAI_*", "ANTHROPIC_*", "NIM_*", "JUDGE_*")
 
 
+# Configuration values that share a credential-shaped prefix but are not credentials.
+NOT_SECRET = frozenset({"JUDGE_MAX_COMPLETION_TOKENS", "JUDGE_REASONING_EFFORT"})
+
+# scheme://user:password@host: a credential embedded in a URL value (a proxy, a database address)
+_URL_CREDENTIALS = re.compile(r"[A-Za-z][A-Za-z0-9+.-]*://[^/\s:@]+:[^@\s/]+@")
+
+
 def _norm(name: str) -> str:
-    return name.upper() if IS_WINDOWS else name           # Windows names are case-insensitive
+    return name.upper() if IS_WINDOWS else name           # Windows names are case-insensitive, POSIX names are not
 
 
 def _match(name: str, patterns: Iterable[str]) -> bool:
-    n = name.upper()                                      # the secret patterns are written upper-case
-    return any(fnmatch.fnmatchcase(n, p.upper()) for p in patterns)
+    """Allowlist matching follows the host: case-insensitive on Windows, case-sensitive on POSIX."""
+    if IS_WINDOWS:
+        n = name.upper()
+        return any(fnmatch.fnmatchcase(n, p.upper()) for p in patterns)
+    return any(fnmatch.fnmatchcase(name, p) for p in patterns)
 
 
 def looks_secret(name: str) -> bool:
-    return _match(name, SECRET_PATTERNS)
+    """Credential-shaped names, on every host regardless of case (the patterns are written upper-case)."""
+    n = name.upper()
+    if n in NOT_SECRET:
+        return False
+    return any(fnmatch.fnmatchcase(n, p) for p in SECRET_PATTERNS)
+
+
+def has_embedded_credentials(value: str) -> bool:
+    return bool(_URL_CREDENTIALS.search(value or ""))
 
 
 def allowed_names(preset: str = "tool") -> tuple:
@@ -89,10 +108,15 @@ def child_env(*, preset: str = "tool", path: Optional[str] = None, inherit_path:
     """Build a child environment from an allowlist. ``path`` overrides ``PATH`` (default :func:`default_child_path`);
     ``inherit_path=True`` keeps the parent's ``PATH`` instead (for a benchmark runner that has to find ``node`` or its
     interpreter). ``pass_through`` names are copied from the parent when set; ``extra`` values are given explicitly."""
+    if isinstance(pass_through, (str, bytes)):
+        raise TypeError("pass_through must be a sequence of names, not a single string (got %r)" % (pass_through,))
     src = dict(os.environ if environ is None else environ)
     if inherit_all or src.get(ENV_INHERIT_VAR) == "1":
         out = dict(src)
         out.pop(ENV_INHERIT_VAR, None)
+        if path is not None or not inherit_path:        # opting out of the credential policy does not unpin PATH
+            out = {k: v for k, v in out.items() if _norm(k) != "PATH"}
+            out["PATH"] = path if path is not None else default_child_path(src)
         if extra:
             out.update(extra)
         log.warning("env policy OFF (%s): the child inherits the whole parent environment (%d variables), including any "
@@ -123,6 +147,10 @@ def child_env(*, preset: str = "tool", path: Optional[str] = None, inherit_path:
         for k, v in extra.items():
             out[k] = v
         passed.extend(k for k in extra if k not in passed)
+    leaky = sorted(k for k, v in out.items() if _norm(k) != "PATH" and has_embedded_credentials(v))
+    if leaky:
+        log.warning("env policy: the value of %s embeds credentials (scheme://user:password@host) and is being passed to the "
+                    "child", ", ".join(leaky))
     if passed:
         log.info("env policy: passing %d named variable(s) to the child: %s", len(passed), ", ".join(sorted(set(passed))))
     if risky:

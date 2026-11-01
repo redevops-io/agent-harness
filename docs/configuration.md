@@ -71,3 +71,30 @@ which owns the child's whole process tree:
 - A process group and a Job Object are process-tree control, not isolation: files, network and system calls are not
   restricted.
 
+## Child environment
+
+A child process started by the sandbox, the judge launch or a benchmark launch does **not** inherit the parent's
+environment (`agent_harness.env_policy`). It starts from an allowlist, so a credential in the launching shell does not reach
+it. Names are matched case-sensitively on POSIX and case-insensitively on Windows.
+
+| Child | Gets |
+|---|---|
+| Sandboxed command (`preset="tool"`) | `PATH` (POSIX: `/usr/local/bin:/usr/bin:/bin`; Windows: the system directories under `SYSTEMROOT`), `LANG`, `LANGUAGE`, `LC_*`, `TZ`, `TERM`, and `TMPDIR` (POSIX) or `TEMP`, `TMP` (Windows). Windows also: `PATHEXT`, `SYSTEMROOT`, `SYSTEMDRIVE`, `WINDIR`, `COMSPEC`, `USERPROFILE`, `APPDATA`, `LOCALAPPDATA`, `PROGRAMDATA`, `PROGRAMFILES*`, `COMMONPROGRAMFILES*`, `ALLUSERSPROFILE`, `PUBLIC`, `HOMEDRIVE`, `HOMEPATH`, `OS`, `PROCESSOR_ARCHITECTURE`, `NUMBER_OF_PROCESSORS` |
+| Judge and benchmark launches (`preset="bench"`, the real `PATH` is kept) | the above plus `HOME`, `XDG_*_HOME`, `PYTHONPATH`, `PYTHONUTF8`, `PYTHONIOENCODING`, `HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`, `ALL_PROXY` (both cases), `SSL_CERT_FILE`, `SSL_CERT_DIR`, `REQUESTS_CA_BUNDLE`, `CURL_CA_BUNDLE`, `NODE_EXTRA_CA_CERTS`; the judge also gets `JUDGE_API_KEY` and `JUDGE_REASONING_EFFORT` from its configuration and `JUDGE_MAX_COMPLETION_TOKENS` when set |
+
+What a sandboxed command therefore **loses**: `HOME`, `USER`/`LOGNAME`, `VIRTUAL_ENV`, proxy variables, CA bundle variables,
+`XDG_*`, `SSH_AUTH_SOCK`, `DOCKER_HOST`, `JAVA_HOME`, `NODE_*`, `PYTHONUTF8`/`PYTHONIOENCODING`, and every credential.
+Practical effects: a command behind a corporate proxy or a private CA fails unless the variables are passed; `git commit`
+authors with a guessed `user@host` identity and ignores `~/.gitconfig` (pass `HOME`, or set the identity in the command);
+on Windows a Python child gets the legacy code page unless `PYTHONUTF8` is passed.
+
+- **Opt in by name:** `sandbox.run_shell(..., env_pass=("HOME", "HTTPS_PROXY"))` (a sequence; a bare string is refused), or
+  process-wide `AGENT_HARNESS_ENV_PASS="HOME,HTTPS_PROXY"`. Each opt-in is logged by `agent_harness.env_policy` (names only,
+  never values); a WARNING is logged when an ambient variable that looks like a credential (`*KEY*`, `*TOKEN*`, `*SECRET*`,
+  `*PASS*`, `*AUTH*`, `*DSN*`, `DATABASE*`, cloud and provider prefixes ...) is passed, and when a passed value embeds
+  credentials in a URL (`scheme://user:password@host`).
+- **Explicit values from code:** `child_env(extra={"NAME": "value"})`.
+- **Opt out entirely:** `AGENT_HARNESS_ENV_INHERIT=1` (exactly `1`) or `child_env(inherit_all=True)` passes the whole
+  environment, with a WARNING on every call. `PATH` stays pinned to the trusted directories unless `inherit_path=True` is
+  given.
+

@@ -29,6 +29,7 @@ def _judge_env(cfg) -> Dict[str, str]:
     """The judge process gets the allowlisted environment (the real ``PATH``, ``HOME``, proxy and CA variables) and the two
     values it is configured with; the rest of the parent environment is not inherited (see :mod:`agent_harness.env_policy`)."""
     return child_env(preset="bench", inherit_path=True,
+                     pass_through=("JUDGE_MAX_COMPLETION_TOKENS",),       # read by judge_batch_script.py; the operator's value is kept
                      extra={"JUDGE_API_KEY": cfg.api_key, "JUDGE_REASONING_EFFORT": cfg.reasoning_effort})
 
 

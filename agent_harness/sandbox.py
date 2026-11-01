@@ -56,7 +56,7 @@ def run_shell(cmd: str, cwd: str = None, timeout: int = 30,
             if exe is None:
                 return {"stdout": "", "stderr": "command not found", "returncode": 127}
             argv = [exe] + list(argv[1:])
-        env = child_env(pass_through=tuple(env_pass))
+        env = child_env(pass_through=env_pass if isinstance(env_pass, (str, bytes)) else tuple(env_pass))   # a bare str is refused
         ctl = current_control()
         if ctl is not None:
             remaining = ctl.remaining()

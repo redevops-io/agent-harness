@@ -50,7 +50,7 @@ def test_unknown_preset_is_refused():
 
 def test_secret_looking_names():
     for n in ("OPENAI_API_KEY", "github_token", "DB_PASSWORD", "AWS_SESSION_TOKEN", "GOOGLE_APPLICATION_CREDENTIALS",
-              "SSH_AUTH_SOCK", "ANTHROPIC_FOO", "NIM_BASE_URL", "JUDGE_REASONING_EFFORT"):
+              "SSH_AUTH_SOCK", "ANTHROPIC_FOO", "NIM_BASE_URL", "JUDGE_API_KEY"):
         assert looks_secret(n), n
     for n in ("PATH", "LANG", "TMPDIR", "HOME", "USERPROFILE", "SYSTEMROOT", "HTTPS_PROXY", "PYTHONPATH"):
         assert not looks_secret(n), n
@@ -170,3 +170,77 @@ def test_the_judge_launcher_gets_its_configured_values_but_not_ambient_credentia
 def test_the_default_path_is_the_command_resolvers_trusted_path():
     from agent_harness.command_policy import TRUSTED_PATH
     assert env_policy.default_child_path() == os.pathsep.join(TRUSTED_PATH)
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# Review fixes
+# ---------------------------------------------------------------------------------------------------------------
+
+TRUSTED = os.pathsep.join(("/usr/local/bin", "/usr/bin", "/bin"))
+
+
+def test_opting_out_still_pins_path_to_the_trusted_directories():
+    env = posix_env(PATH="/tmp/evil:/usr/bin")
+    assert child_env(environ=env, inherit_all=True)["PATH"] == TRUSTED
+    assert child_env(environ={**env, "AGENT_HARNESS_ENV_INHERIT": "1"})["PATH"] == TRUSTED
+    assert child_env(environ=env, inherit_all=True, inherit_path=True)["PATH"] == "/tmp/evil:/usr/bin"   # explicit request
+    assert child_env(environ=env, inherit_all=True, path="/opt/x")["PATH"] == "/opt/x"
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX only: the trusted directories are POSIX paths")
+def test_opting_out_through_the_environment_variable_keeps_the_sandbox_path_pinned(monkeypatch):
+    from agent_harness import sandbox
+    monkeypatch.setenv("AGENT_HARNESS_ENV_INHERIT", "1")
+    monkeypatch.setenv("PATH", "/tmp/evil:" + os.environ["PATH"])
+    out = sandbox.run_shell("", argv=[PY, "-c", "import os; print(os.environ['PATH'])"], timeout=30)
+    assert out["stdout"].strip() == TRUSTED
+
+
+def test_a_plain_string_is_not_split_into_variable_names():
+    with pytest.raises(TypeError):
+        child_env(pass_through="MY_APP_SETTING", environ=posix_env(A="1"))
+    with pytest.raises(TypeError):
+        child_env(pass_through=b"MY_APP_SETTING", environ=posix_env(A="1"))
+    from agent_harness import sandbox
+    out = sandbox.run_shell("", argv=[PY, "-c", "print(1)"], timeout=30, env_pass="MY_APP_SETTING")
+    assert out["returncode"] != 0 and "sequence of names" in out["stderr"]
+
+
+def test_the_judge_keeps_its_completion_token_setting_without_a_credential_warning(monkeypatch, caplog):
+    from agent_harness.bench.evalkit import JudgeConfig, _judge_env
+    monkeypatch.setenv("JUDGE_MAX_COMPLETION_TOKENS", "4096")
+    monkeypatch.setenv("JUDGE_REASONING_EFFORT", "ambient-should-lose-to-config")
+    caplog.set_level(logging.INFO, logger="agent_harness.env_policy")
+    env = _judge_env(JudgeConfig(PY, "judge.py", "m", "http://x", reasoning_effort="high"))
+    assert env["JUDGE_MAX_COMPLETION_TOKENS"] == "4096" and env["JUDGE_REASONING_EFFORT"] == "high"
+    assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
+
+
+def test_more_credential_shaped_names_are_recognised():
+    for n in ("DATABASE_URL", "SENTRY_DSN", "DSN", "PGPASS", "PGPASSWORD", "SLACK_WEBHOOK_URL", "DB_CONN_STR", "MY_PASS"):
+        assert looks_secret(n), n
+    for n in ("JUDGE_MAX_COMPLETION_TOKENS", "JUDGE_REASONING_EFFORT", "PATH", "HTTPS_PROXY"):
+        assert not looks_secret(n), n
+
+
+def test_a_proxy_value_with_embedded_credentials_warns_without_logging_the_value(caplog):
+    caplog.set_level(logging.INFO, logger="agent_harness.env_policy")
+    out = child_env(preset="bench", inherit_path=True,
+                    environ={"PATH": "/usr/bin", "HTTPS_PROXY": "http://alice:s3cr3t@proxy.example:3128",
+                             "HTTP_PROXY": "http://proxy.example:3128"})
+    assert out["HTTPS_PROXY"] and out["HTTP_PROXY"]                       # still passed: the warning is the control
+    warnings = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
+    assert any("HTTPS_PROXY" in w for w in warnings) and not any("HTTP_PROXY" in w.replace("HTTPS_PROXY", "") for w in warnings)
+    assert "s3cr3t" not in caplog.text and "alice" not in caplog.text
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX only: environment names are case-sensitive there")
+def test_posix_matching_is_case_sensitive():
+    out = child_env(environ={"path": "/x", "tz": "UTC", "Lang": "en", "lc_all": "C", "TZ": "UTC", "LC_ALL": "C.UTF-8"})
+    assert set(out) == {"PATH", "TZ", "LC_ALL"} and out["LC_ALL"] == "C.UTF-8"
+
+
+def test_the_windows_todo_marker_only_absorbs_assertion_and_key_errors():
+    from tests._native import windows_todo
+    kw = windows_todo("x").kwargs
+    assert kw["strict"] is True and set(kw["raises"]) == {AssertionError, KeyError}
