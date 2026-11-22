@@ -257,6 +257,21 @@ def as_authorization(raw: Any) -> Authorization:
 AuthorizerReturn = Union[Authorization, Optional[str], bool]
 Authorizer = Callable[[object, ToolSpec, dict], AuthorizerReturn]
 
+
+def engine_authorizer_of(fn: Optional[Authorizer]) -> Optional[Authorizer]:
+    """The callable a registry should actually invoke for an authorizer that came from somewhere else.
+
+    A policy plane outside this repository answers in its own contract, where a bare ``None`` means *allowed* — the
+    exact shape this repository reads as "nobody decided" and denies (see :func:`as_authorization`). A plane that
+    hands its callable over for use as a process default or a registry's authorizer therefore attaches
+    ``engine_authorizer``: the same decisions expressed in this repository's contract. When that attribute is
+    present it is the only callable whose "yes" a registry can act on, so it is the one that gets called; an
+    authorizer that speaks this contract already carries nothing and is returned untouched.
+    """
+    twin = getattr(fn, "engine_authorizer", None)
+    return twin if callable(twin) else fn
+
+
 _default_authorizer: Optional[Authorizer] = None
 
 
@@ -428,7 +443,7 @@ class ToolRegistry:
 
     def authorize(self, spec: ToolSpec, args: dict, principal=None) -> Authorization:
         """Ask the installed authorizer about one call. Never raises; every failure mode is a denial."""
-        authorizer = self.authorizer or _default_authorizer
+        authorizer = engine_authorizer_of(self.authorizer or _default_authorizer)
         if authorizer is None:
             if self.authorizer_required:
                 return Authorization.deny(

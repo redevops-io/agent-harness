@@ -14,7 +14,7 @@ from tests._authz import reset_local_trust_warning
 
 from agent_harness.tools import (ApprovalPolicy, Authorization, Decision, PolicyReason, ToolRegistry, ToolResult,
                                  ToolSpec, as_authorization, current_principal, default_authorizer_installed,
-                                 local_trusted_authorizer, set_default_authorizer)
+                                 engine_authorizer_of, local_trusted_authorizer, set_default_authorizer)
 
 
 # -- fixtures ---------------------------------------------------------------------------------------------
@@ -323,6 +323,73 @@ def test_a_typed_decision_passes_through_untouched():
 
 # -- the explicit opt-outs --------------------------------------------------------------------------------------
 
+
+# -- an authorizer installed from another repository's contract ---------------------------------------------------
+
+
+def _foreign_plane():
+    """A policy plane written outside this repository, handed over as the process default.
+
+    It answers the way a platform authorizer answers — ``None`` for allowed, a string for why not — and it carries
+    ``engine_authorizer``, the same decisions in this repository's contract. They cannot be the same callable: here
+    a bare ``None`` is "nobody decided" and denies (K-01), so calling the plane directly would deny every call the
+    plane just allowed.
+    """
+
+    def plane(principal, spec, args):
+        return None if spec.name == "probe" else "the plane has no grant for that"
+
+    def engine_shaped(principal, spec, args):
+        if spec.name == "probe":
+            return Authorization.allow(reason=PolicyReason.EXPLICIT_GRANT, detail="the plane granted it",
+                                       plane="the foreign plane")
+        return Authorization.deny("the plane has no grant for that")
+
+    plane.engine_authorizer = engine_shaped
+    return plane
+
+
+def test_a_foreign_process_default_runs_the_tools_it_allows(body):
+    """The install point takes one callable; the shape a registry can act on travels on it."""
+    set_default_authorizer(_foreign_plane())
+    reg = ToolRegistry()
+    reg.register(body.tool())
+    assert reg.run("probe", {}).ok and body.ran, "the plane allowed this call and the registry denied it"
+
+
+def test_a_foreign_process_default_still_denies_what_the_plane_denies(body):
+    """The twin is a translation, not a loosening: what the plane refused stays refused, in the plane's words."""
+    set_default_authorizer(_foreign_plane())
+    reg = ToolRegistry()
+    reg.register(body.tool(name="other"))
+    res = reg.run("other", {})
+    assert not res.ok and not body.ran and "the plane has no grant for that" in res.text
+
+
+def test_a_foreign_authorizer_handed_to_one_registry_is_read_the_same_way(body):
+    """The convention is about the callable, not about the seat it sits in."""
+    reg = ToolRegistry(authorizer=_foreign_plane())
+    reg.register(body.tool())
+    assert reg.run("probe", {}).ok and body.ran
+
+
+def test_the_engine_shape_is_chosen_only_when_it_is_there():
+    plane = _foreign_plane()
+    assert engine_authorizer_of(plane) is plane.engine_authorizer
+    assert engine_authorizer_of(allow) is allow            # already speaks this contract: untouched
+    assert engine_authorizer_of(None) is None              # nothing installed stays nothing installed
+
+
+def test_a_non_callable_engine_shape_is_not_trusted():
+    """An attribute that is not a callable is a bug in whoever set it; falling back to the callable that answers
+    is at least a legible denial, and never a crash inside the gate."""
+    def speaks_ours(principal, spec, args):
+        return Authorization.allow()
+
+    speaks_ours.engine_authorizer = "not a callable"
+    assert engine_authorizer_of(speaks_ours) is speaks_ours
+
+
 def test_local_trusted_authorizer_allows_and_says_so(body):
     reg = ToolRegistry(authorizer=local_trusted_authorizer())
     reg.register(body.tool())
@@ -365,6 +432,6 @@ def test_the_package_exports_the_contract():
     import agent_harness.tools as tools
 
     for name in ("Authorization", "Decision", "PolicyReason", "as_authorization", "local_trusted_authorizer",
-                 "default_authorizer_installed", "set_default_authorizer", "ToolRegistry"):
+                 "default_authorizer_installed", "set_default_authorizer", "engine_authorizer_of", "ToolRegistry"):
         assert hasattr(tools, name), name
     assert default_authorizer_installed() is False        # nothing leaks from another test
