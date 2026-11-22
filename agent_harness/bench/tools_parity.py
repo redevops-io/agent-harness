@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence
 
 from ..netpolicy import NetPolicy, safe_fetch
-from ..tools import ApprovalPolicy, ToolRegistry, ToolResult, function_tool
+from ..tools import ApprovalPolicy, ToolRegistry, ToolResult, function_tool, local_trusted_authorizer
 from ..multimodal import load_image
 from .edit import edit_text_ex
 from .outputs import FileLedger, OutputStore, STORE_DIR
@@ -57,7 +57,8 @@ def describe_bash(network: str, found: Sequence[str], stdout_chars: int = 7800, 
 def parity_registry(workspace: Path, sandbox, *, policy: Optional[NetPolicy] = None, web: bool = True, bash_timeout: int = 180,
                     network: str = "egress", found: Sequence[str] = (), blocked_log: Optional[List[str]] = None,
                     fetch: Callable[..., Any] = safe_fetch, store: Optional[OutputStore] = None, ledger: Optional[FileLedger] = None,
-                    output_budget: int = DEFAULT_BUDGET, vision: bool = False, max_images: Optional[int] = None) -> ToolRegistry:
+                    output_budget: int = DEFAULT_BUDGET, vision: bool = False, max_images: Optional[int] = None,
+                    authorizer: Optional[Callable] = None) -> ToolRegistry:
     """``output_budget`` is the number of characters the caller will admit per tool result (the loop's ``max_tool_chars``). Every tool here returns at most that,
     so the context manager's admission clip is only a safety net and never cuts a page or its continuation hint. ``vision`` adds ``view_image``."""
     PAGE = max(500, output_budget - HINT_RESERVE)
@@ -66,7 +67,10 @@ def parity_registry(workspace: Path, sandbox, *, policy: Optional[NetPolicy] = N
     policy = policy or NetPolicy()
     store = store or OutputStore(ws)
     ledger = ledger or FileLedger(ws)
-    reg = ToolRegistry(ApprovalPolicy("allowlist", allow=["bash", "write_file", "edit_file", "web_download"]))
+    # Local trust, recorded: the sandbox confinement and egress policy are the enforcement here, and there
+    # is no policy plane to consult. Pass ``authorizer`` to benchmark against a real one.
+    reg = ToolRegistry(ApprovalPolicy("allowlist", allow=["bash", "write_file", "edit_file", "web_download"]),
+                       authorizer=authorizer or local_trusted_authorizer(plane="bench_local"))
     s = {"type": "string"}
     i = lambda d: {"type": "integer", "description": d}   # noqa: E731
     cache: Dict[str, str] = {}

@@ -19,6 +19,7 @@ from agent_harness.loop import Supervision, run_loop                            
 from agent_harness.netpolicy import FetchResult                                    # noqa: E402
 from agent_harness.supervisor import SupervisorConfig                              # noqa: E402
 from agent_harness.tools import ApprovalPolicy, ToolRegistry, ToolResult, function_tool   # noqa: E402
+from tests._authz import allow_all
 from agent_harness.trace import TraceRecorder                                      # noqa: E402
 
 BIG = "DATA " * 400
@@ -43,7 +44,7 @@ class Script:
 
 
 def reg(counter=None, schema=SCHEMA, **fns):
-    r = ToolRegistry(ApprovalPolicy("allowlist", allow=list(fns)))
+    r = ToolRegistry(ApprovalPolicy("allowlist", allow=list(fns)), authorizer=allow_all)
     for name, fn in fns.items():
         def run(a, name=name, fn=fn):
             if counter is not None:

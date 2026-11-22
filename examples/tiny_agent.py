@@ -2,13 +2,17 @@
 """Tiny self-contained agent example using agent_harness."""
 
 from agent_harness import llm, sandbox
-from agent_harness.tools import ToolRegistry, ToolResult, function_tool
+from agent_harness.tools import ToolRegistry, ToolResult, function_tool, local_trusted_authorizer
 
 def add(args: dict) -> ToolResult:
     return ToolResult(ok=True, data=args["a"] + args["b"], text=str(args["a"] + args["b"]))
 
 def main():
-    registry = ToolRegistry()  # default policy: side-effecting tools are denied unless approved
+    # Two gates run on every call. The approval policy denies side effects unless approved, and the
+    # authorizer answers "may this caller run this tool" — a registry with no authorizer denies everything,
+    # so a standalone example says out loud that it is running under local trust. Behind a service, install
+    # the platform's authorizer instead: ToolRegistry(authorizer=my_authz.authorize).
+    registry = ToolRegistry(authorizer=local_trusted_authorizer())
     registry.register(function_tool("add", add, description="Add two integers", parameters={
         "type": "object", "properties": {"a": {"type": "integer"}, "b": {"type": "integer"}}}))
     client = llm.Client()

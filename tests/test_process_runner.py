@@ -225,11 +225,12 @@ def test_no_child_of_this_process_is_left_after_a_series_of_runs(guard):
 def _loop_registry(argv, **sandbox_kw):
     from agent_harness import sandbox
     from agent_harness.tools import ApprovalPolicy, ToolRegistry, ToolResult, function_tool
+    from tests._authz import allow_all
 
     def run(_args):
         out = sandbox.run_shell("", argv=argv, timeout=120, **sandbox_kw)
         return ToolResult(text=f"rc={out['returncode']} {out['stderr']}\n{out['stdout']}")
-    reg = ToolRegistry(ApprovalPolicy("allowlist", allow=["slow"]))
+    reg = ToolRegistry(ApprovalPolicy("allowlist", allow=["slow"]), authorizer=allow_all)
     reg.register(function_tool("slow", run, side_effecting=True))
     return reg
 

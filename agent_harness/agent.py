@@ -4,7 +4,8 @@ from typing import Any, Callable, Dict, List, Optional
 import agent_harness.command_policy as command_policy
 import agent_harness.guardrails as guardrails
 import agent_harness.sandbox as sandbox
-from agent_harness.tools import ApprovalPolicy, ToolRegistry, ToolResult, function_tool
+from agent_harness.tools import (ApprovalPolicy, ToolRegistry, ToolResult, function_tool,
+                                 local_trusted_authorizer)
 
 # Built-in tools
 TOOLS = {}
@@ -108,10 +109,16 @@ def _adapt(fn: Callable) -> Callable[[Dict[str, Any]], ToolResult]:
 
 class Agent:
     def __init__(self, llm: Optional[Callable] = None, policy: Optional[command_policy.CommandPolicy] = None, callbacks: Optional[Dict[str, Callable]] = None, root: Optional[str] = None,
-                 approval: Optional[ApprovalPolicy] = None):
+                 approval: Optional[ApprovalPolicy] = None, authorizer: Optional[Callable] = None):
         # ``policy`` vets the content of shell commands and edits; ``approval`` is the tool-level gate that
         # decides whether a side-effecting tool may run at all. By default the Agent's own side-effecting
         # built-ins are allowed at the tool level and left to ``policy``; pass ``approval`` to require more.
+        #
+        # ``authorizer`` is the third gate (``tools.ToolRegistry``): "may this principal run this tool". The
+        # Agent ships with the explicit local-trust authorizer because it runs where it is put, with no
+        # policy plane to consult — that choice is now stated and audited instead of being the default. An
+        # embedding service passes its own authorizer (the platform's authz/v1 one, say) to put every call
+        # behind real policy; passing ``None`` keeps local trust, it does not mean "unchecked".
         self.llm = llm
         self.policy = policy or command_policy.CommandPolicy()
         self.root = os.path.realpath(root) if root else _sandbox_root()
@@ -135,7 +142,8 @@ class Agent:
         self.tools["run_bash"] = run_bash
         self.loop_guard = guardrails.LoopGuard()
 
-        self.registry = ToolRegistry(approval or ApprovalPolicy("allowlist", allow=["write_file", "run_bash"]))
+        self.registry = ToolRegistry(approval or ApprovalPolicy("allowlist", allow=["write_file", "run_bash"]),
+                                     authorizer=authorizer or local_trusted_authorizer(plane="agent_local"))
         for name, desc, params, effect in _BUILTIN_SPECS:
             self.registry.register(function_tool(
                 name, _adapt(self.tools[name]), description=desc, parameters=params, side_effecting=effect))

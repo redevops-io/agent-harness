@@ -21,8 +21,10 @@ def test_export_openai_spec():
 
 
 # --- tool contract (same cases as context-runtime's tests/test_tools.py and test_tool_authorizer.py) ---------
-from agent_harness.tools import (ApprovalPolicy, ToolPlugin, ToolRegistry, ToolResult, ToolSpec, current_principal,
-                                 function_tool, set_default_authorizer)
+from agent_harness.tools import (ApprovalPolicy, Authorization, PolicyReason, ToolPlugin, ToolRegistry, ToolResult,
+                                 ToolSpec, current_principal, function_tool, local_trusted_authorizer,
+                                 set_default_authorizer)
+from tests._authz import allow_all
 
 
 def _read_tool():
@@ -35,14 +37,14 @@ def _side_effect_tool():
 
 
 def test_read_tool_runs_and_satisfies_protocol():
-    reg = ToolRegistry()
+    reg = ToolRegistry(authorizer=allow_all)
     assert isinstance(reg.register(_read_tool()), ToolPlugin)
     res = reg.run("echo_docs", {"query": "k8s"})
     assert res.ok and "k8s" in res.hits[0]["text"]
 
 
 def test_side_effecting_tool_denied_by_default_and_audited():
-    reg = ToolRegistry()
+    reg = ToolRegistry(authorizer=allow_all)
     reg.register(_side_effect_tool())
     res = reg.run("nuke", {})
     assert not res.ok and "denied" in res.error
@@ -50,7 +52,8 @@ def test_side_effecting_tool_denied_by_default_and_audited():
 
 
 def test_approver_allows():
-    reg = ToolRegistry(ApprovalPolicy(mode="deny_side_effects", approver=lambda a: a["tool"] == "nuke"))
+    reg = ToolRegistry(ApprovalPolicy(mode="deny_side_effects", approver=lambda a: a["tool"] == "nuke"),
+                       authorizer=allow_all)
     reg.register(_side_effect_tool())
     assert reg.run("nuke", {}).text == "boom" and reg.audit[-1]["allowed"] is True
 
@@ -61,7 +64,7 @@ def test_allowlist_and_bypass_and_unknown_mode():
                            (ApprovalPolicy("allowlist", allow=["other"]), False),
                            (ApprovalPolicy("bypass"), True),
                            (ApprovalPolicy("typo"), False)):
-        reg = ToolRegistry(policy)
+        reg = ToolRegistry(policy, authorizer=allow_all)
         reg.register(t)
         assert reg.run("nuke", {}).ok is expect
 
@@ -75,7 +78,7 @@ def test_openai_specs():
 
 
 def test_unknown_tool_and_crashing_tool_are_failed_results():
-    reg = ToolRegistry()
+    reg = ToolRegistry(authorizer=allow_all)
     assert "unknown tool" in reg.run("missing", {}).error
     reg.register(function_tool("boomer", lambda a: (_ for _ in ()).throw(ValueError("kaboom"))))
     res = reg.run("boomer", {})
@@ -91,27 +94,35 @@ def _reg(authorizer=None):
 def test_authorizer_denies_by_principal_and_exposes_principal_to_tool():
     def authz(principal, spec, args):
         roles = (principal or {}).get("roles", set())
-        return None if "security" in roles else "not permitted"
+        return (Authorization.allow(grant_ids=("sec-ops",)) if "security" in roles
+                else Authorization.deny("not permitted"))
 
     reg = _reg(authz)
     assert reg.run("read_vulns", {}, principal={"roles": {"security"}}).ok
     denied = reg.run("read_vulns", {}, principal={"roles": {"guest"}})
     assert not denied.ok and "not permitted" in denied.error and reg.audit[-1]["allowed"] is False
     seen = []
-    r2 = ToolRegistry()
+    r2 = ToolRegistry(authorizer=allow_all)
     r2.register(function_tool("who", lambda a: seen.append(current_principal()) or ToolResult()))
     r2.run("who", {}, principal="alice")
     assert seen == ["alice"] and current_principal() is None
 
 
-def test_default_authorizer_governs_registries_then_clears():
+def test_default_authorizer_governs_registries_and_clearing_denies():
+    # A process-wide authorizer governs every registry without its own. Clearing it is not a return to
+    # "everything allowed": with no authorizer installed, every call — a read tool included — is denied.
     reg = _reg()
     set_default_authorizer(lambda p, spec, args: "blocked fleet-wide")
     try:
         assert not reg.run("read_vulns", {}).ok
     finally:
         set_default_authorizer(None)
-    assert reg.run("read_vulns", {}).ok
+    cleared = reg.run("read_vulns", {})
+    assert not cleared.ok and "missing_explicit_grant" in cleared.error
+    assert reg.audit[-1]["policy_reason"] == PolicyReason.MISSING_EXPLICIT_GRANT
+    # ...and a registry that names its own authorizer is unaffected by the process default either way.
+    own = _reg(lambda p, spec, args: Authorization.allow(grant_ids=("own-grant",)))
+    assert own.run("read_vulns", {}).ok
 
 
 # --- Agent built-ins go through the registry --------------------------------------------------------------

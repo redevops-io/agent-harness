@@ -7,6 +7,7 @@ from agent_harness.bench.harnesses import ours, ours_h2, ours_h2_nocr, ours_nocr
 from agent_harness.context import BasicContextManager, NoCompactionManager
 from agent_harness.loop import run_loop
 from agent_harness.tools import ToolRegistry
+from tests._authz import allow_all
 from tests.test_harness_ours_h2 import put, trees
 
 
@@ -41,7 +42,7 @@ def test_the_loop_with_none_never_compacts_proactively():
             return {"message": {"role": "assistant", "content": "done", "tool_calls": call}, "usage": {"prompt_tokens": 40000, "completion_tokens": 1},
                     "finish_reason": "stop"}
     from agent_harness.tools import function_tool, ToolResult
-    reg = ToolRegistry()
+    reg = ToolRegistry(authorizer=allow_all)
     reg.register(function_tool("big", lambda a: ToolResult(text="y" * 5000), "big"))
     events = []
     import tempfile, pathlib, json

@@ -9,6 +9,7 @@ from agent_harness.context import (ELIDED, BasicContextManager, NoCompactionMana
                                    placeholder_in)
 from agent_harness.loop import run_loop
 from agent_harness.tools import ToolRegistry, ToolResult, function_tool
+from tests._authz import allow_all
 from agent_harness.trace import TraceRecorder
 
 
@@ -28,7 +29,7 @@ class Script:
 
 
 def registry(log):
-    reg = ToolRegistry()
+    reg = ToolRegistry(authorizer=allow_all)
 
     def write(a):
         log.append(a)
