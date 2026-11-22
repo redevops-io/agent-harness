@@ -70,7 +70,8 @@ def parity_registry(workspace: Path, sandbox, *, policy: Optional[NetPolicy] = N
     # Local trust, recorded: the sandbox confinement and egress policy are the enforcement here, and there
     # is no policy plane to consult. Pass ``authorizer`` to benchmark against a real one.
     reg = ToolRegistry(ApprovalPolicy("allowlist", allow=["bash", "write_file", "edit_file", "web_download"]),
-                       authorizer=authorizer or local_trusted_authorizer(plane="bench_local"))
+                       authorizer=authorizer or local_trusted_authorizer(plane="bench_local"),
+                       classify_required=True)
     s = {"type": "string"}
     i = lambda d: {"type": "integer", "description": d}   # noqa: E731
     cache: Dict[str, str] = {}
@@ -157,16 +158,16 @@ def parity_registry(workspace: Path, sandbox, *, policy: Optional[NetPolicy] = N
         return ToolResult(text="\n".join(sorted(f"{c.name}{'/' if c.is_dir() else ''}" for c in p.iterdir() if not c.name.startswith("."))) or "[empty]")
 
     reg.register(function_tool("bash", bash, describe_bash(network, found, BASH_STDOUT, vision),
-                               {"type": "object", "properties": {"command": s, "timeout": i("seconds, default 180")}, "required": ["command"]}, side_effecting=True))
+                               {"type": "object", "properties": {"command": s, "timeout": i("seconds, default 180")}, "required": ["command"]}, side_effecting=True, action="write"))
     reg.register(function_tool("read_file", read_file, f"Read a UTF-8 text file under /work, {PAGE} characters per call; offset and limit page through longer files.",
-                               {"type": "object", "properties": {"path": s, "offset": i("first character"), "limit": i(f"characters, at most {PAGE}")}, "required": ["path"]}))
+                               {"type": "object", "properties": {"path": s, "offset": i("first character"), "limit": i(f"characters, at most {PAGE}")}, "required": ["path"]}, action="read"))
     reg.register(function_tool("write_file", write_file, "Create or overwrite a UTF-8 text file under /work (atomic). To change part of an existing file use edit_file.",
-                               {"type": "object", "properties": {"path": s, "content": s}, "required": ["path", "content"]}, side_effecting=True))
+                               {"type": "object", "properties": {"path": s, "content": s}, "required": ["path", "content"]}, side_effecting=True, action="write"))
     reg.register(function_tool("edit_file", edit_file,
                                "Replace text in an existing UTF-8 file under /work. old_string must match exactly (including whitespace) and occur exactly once, unless "
                                "replace_all is true. The edit is atomic; on any failure the file is unchanged and the reply says why.",
                                {"type": "object", "properties": {"path": s, "old_string": s, "new_string": s, "replace_all": {"type": "boolean"}},
-                                "required": ["path", "old_string", "new_string"]}, side_effecting=True))
+                                "required": ["path", "old_string", "new_string"]}, side_effecting=True, action="write"))
     def view_image(a):
         att, why = load_image(conf(a["path"]), str(a["path"]))
         if att is None:
@@ -181,8 +182,8 @@ def parity_registry(workspace: Path, sandbox, *, policy: Optional[NetPolicy] = N
                                    "is reported as such and not shown; never guess values you cannot read."
                                    + (f" At most {max_images} images can be shown at once: when you view more, the oldest drop out of view (the files are unchanged), so "
                                       f"write down what you read from each image (for example in a notes file) before you view more." if max_images else ""),
-                                   {"type": "object", "properties": {"path": s}, "required": ["path"]}))
-    reg.register(function_tool("list_dir", list_dir, "List a directory under /work.", {"type": "object", "properties": {"path": s}, "required": ["path"]}))
+                                   {"type": "object", "properties": {"path": s}, "required": ["path"]}, action="read"))
+    reg.register(function_tool("list_dir", list_dir, "List a directory under /work.", {"type": "object", "properties": {"path": s}, "required": ["path"]}, action="read"))
 
     # ---- web -------------------------------------------------------------------------------------------------------------
     def note_block(res):
@@ -248,9 +249,13 @@ def parity_registry(workspace: Path, sandbox, *, policy: Optional[NetPolicy] = N
         reg.register(function_tool("web_fetch", web_fetch,
                                    f"Fetch a web page as text, {PAGE} characters per call; offset reads further into a long page, and the full text is saved under /work/{STORE_DIR}/. "
                                    "Public http(s) addresses only; some hosts are blocked.",
-                                   {"type": "object", "properties": {"url": s, "offset": i("first character")}, "required": ["url"]}))
+                                   {"type": "object", "properties": {"url": s, "offset": i("first character")}, "required": ["url"]}, action="read"))
         reg.register(function_tool("web_download", web_download,
                                    f"Download a URL's file into /work (up to {MAX_DOWNLOAD_BYTES // 1_000_000} MB) so bash can read it. Records the SHA-256. Public http(s) "
                                    "addresses only; redirects are re-checked; nothing is saved if the file is too large.",
-                                   {"type": "object", "properties": {"url": s, "path": s}, "required": ["url", "path"]}, side_effecting=True))
+                                   {"type": "object", "properties": {"url": s, "path": s}, "required": ["url", "path"]}, side_effecting=True, action="write"))
+    # Boot-time check, not a per-call one: every tool here carries a risk class and an authorizer is
+    # installed, so a mis-built benchmark registry fails when it is built rather than as a denial in
+    # the middle of a run.
+    reg.validate(strict=True)
     return reg

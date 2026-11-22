@@ -22,6 +22,59 @@ class ToolError(RuntimeError):
     pass
 
 
+class ToolClassificationError(ValueError):
+    """A tool's declared risk class contradicts what the tool is, or is not a risk class at all.
+
+    Raised by ``ToolRegistry.register`` — that is, at import/registration time, when a stack can still fail to
+    start — and never during a tool call. A registry that accepts a self-contradictory classification has
+    volunteered to deny a capability it will later ask for, so the mistake is not one the call path can fix.
+    """
+
+
+class RegistryConfigurationError(ToolError):
+    """``ToolRegistry.validate(strict=True)`` found a problem a process should not start with — no authorizer
+    installed, or a tool with no risk class where classification is required. Raised at boot, deliberately:
+    the alternative is discovering it as a denial in front of a user, where it looks like the policy plane
+    misbehaving rather than the service being built wrong."""
+
+
+#: The grant actions a tool may require: the platform's action vocabulary (``agentic_os.permissions.ACTIONS``),
+#: repeated here for the same reason :class:`PolicyReason` is — this package declares no dependency, and the
+#: spelling is the contract. There is deliberately no weaker grade than ``read`` and no ``execute`` action:
+#: a tool that runs a process or directs one is classified by what that can accomplish (``write``), not by
+#: how innocent the command looks. A tool nobody has classified has an empty action and is not permitted.
+ACTIONS = ("read", "write", "delete")
+
+#: Strength order, used only to tell a re-registration that raises a risk class from one that lowers it.
+#: ``delete`` sits above ``write`` because that is the difference between changing what exists and removing
+#: the thing a grant was written about.
+_ACTION_RANK = {action: rank for rank, action in enumerate(ACTIONS)}
+
+#: The ``authz/v1`` resource kind a tool is authorized against. The decision envelope asks for a resource and
+#: an action; a tool call is exactly that, and naming the kind here means every consumer in the stack asks for
+#: the same capability instead of each inventing a resource string at its own call site.
+TOOL_RESOURCE_KIND = "tool"
+
+
+@dataclass(frozen=True)
+class ValidationReport:
+    """What ``ToolRegistry.validate()`` found. ``problems`` are why a service must not start; ``warnings`` are
+    things a reviewer should see but which do not stop the process."""
+
+    problems: tuple = ()
+    warnings: tuple = ()
+    authorizer: str = "none"            # "registry", "process_default", "opt_out" or "none"
+    classified: tuple = ()              # (name, action) for every tool that carries a risk class
+
+    @property
+    def ok(self) -> bool:
+        return not self.problems
+
+    def as_dict(self) -> dict:
+        return {"ok": self.ok, "authorizer": self.authorizer, "problems": list(self.problems),
+                "warnings": list(self.warnings), "classified": dict(self.classified)}
+
+
 @dataclass(frozen=True)
 class ToolSpec:
     name: str
@@ -29,6 +82,7 @@ class ToolSpec:
     parameters: dict = field(default_factory=lambda: {"type": "object", "properties": {}})
     side_effecting: bool = False      # mutates the outside world (block_ip, file_ticket, write_file)
     approval_required: bool = False   # gate even read tools if they touch sensitive data
+    action: str = ""                  # required grant action, one of ACTIONS; "" = unclassified (not permitted)
 
     def openai(self) -> dict:
         """OpenAI-style function spec for tool-calling models."""
@@ -264,20 +318,111 @@ class ToolRegistry:
     ``authorizer_required`` (default ``True``) is what makes the absence of a policy plane a denial instead
     of a pass-through. Setting it to ``False`` restores the old behaviour and is a deliberate, loud opt-out:
     it warns at construction and every decision it produces is audited as a wildcard/legacy grant.
+
+    ``classify_required`` (default ``False``) is read by :meth:`validate`: when true, a tool that arrives
+    without a risk class is a startup failure rather than a runtime surprise. Classification is *reported* by
+    the registry and *enforced* by the plane — the registry states which capability a call needs, the plane
+    decides whether the principal holds it. Two places making that decision is how a stack gets a second,
+    quieter authorization layer, so the registry never denies on classification grounds itself.
     """
 
     def __init__(self, policy: Optional[ApprovalPolicy] = None, authorizer: Optional[Authorizer] = None,
-                 *, authorizer_required: bool = True):
+                 *, authorizer_required: bool = True, classify_required: bool = False):
         self._tools: dict = {}
         self.policy = policy or ApprovalPolicy()
         self.authorizer = authorizer      # authorization gate; falls back to the process default
         self.authorizer_required = authorizer_required
+        self.classify_required = classify_required
         self.audit: list = []             # append-only record of every decision
         if not authorizer_required:
             warnings.warn("agent_harness: ToolRegistry(authorizer_required=False) runs tools with no "
                           "authorization decision. Every call is audited as a wildcard grant; use "
                           "local_trusted_authorizer() instead when local/direct execution is the intent.",
                           stacklevel=2)
+
+    # -- what this registry requires -----------------------------------------------------------------------
+
+    def classification(self) -> dict:
+        """``{tool_name: action}`` for every registered tool, ``""`` where it carries no risk class. The point
+        of reading it from the registry rather than keeping a separate table next to it is that there is then
+        one list of tools and one classification of them; a dict maintained beside the registry drifts from the
+        registry the first time a tool is added to one and not the other."""
+        return {name: tool.spec().action for name, tool in sorted(self._tools.items())}
+
+    def unclassified(self) -> list:
+        return [name for name, action in self.classification().items() if not action]
+
+    def required_capability(self, name: str) -> dict:
+        """The ``authz/v1`` capability triple a call to ``name`` needs, in the envelope's own field names.
+
+        This is the seam the plane reads: instead of a consumer assembling
+        ``{"resource_kind": "tool", "resource_name": ..., "requested_action": ...}`` at its own call site —
+        where it can name any resource and pick any action — it asks the registry that owns the tool. An
+        unclassified tool yields an empty action, which no grant can match: the unknown stays unknown instead
+        of becoming the developer's choice of default.
+        """
+        action = self.get(name).spec().action
+        return {"resource_kind": TOOL_RESOURCE_KIND, "resource_name": name, "requested_action": action}
+
+    def validate(self, *, require_classification: Optional[bool] = None,
+                 strict: bool = False) -> ValidationReport:
+        """Everything a boot-time check needs before this registry serves traffic.
+
+        Called by ``Agent.__init__`` and meant to be called by every service that builds its own registry.
+        Fatal problems are the ones where the registry cannot do its job — no authorizer installed, or a tool
+        with no risk class when classification is required. Warnings are reachability facts a reviewer needs
+        to see (a gated tool the approval policy can never approve) that do not justify killing a process.
+
+        ``strict`` raises :class:`RegistryConfigurationError` on any problem instead of returning the report —
+        what a service constructor wants, because the report only helps whoever reads it.
+        """
+        require_cls = self.classify_required if require_classification is None else require_classification
+        problems: list = []
+        warnings_: list = []
+        if self.authorizer is not None:
+            who = "registry"
+        elif _default_authorizer is not None:
+            who = "process_default"
+        elif not self.authorizer_required:
+            who = "opt_out"
+            warnings_.append("authorizer_required=False: every call is authorized by a wildcard grant, and "
+                             "the audit will say so")
+        else:
+            who = "none"
+            problems.append("no authorizer is installed and authorizer_required is true: every tool call will "
+                            f"be denied with missing_explicit_grant. Pass authorizer=..., call "
+                            f"set_default_authorizer(...), or use local_trusted_authorizer() for local runs.")
+        if who == "opt_out" and not self._tools:
+            warnings_.append("registry is empty and opted out of authorization")
+        unclassified = self.unclassified()
+        if unclassified and require_cls:
+            problems.append(f"{len(unclassified)} tool(s) have no risk class: {unclassified}. Pass action=... "
+                            f"at registration; an unclassified tool cannot be the basis of a capability.")
+        elif unclassified:
+            warnings_.append(f"{len(unclassified)} tool(s) have no risk class: {unclassified}")
+        for name, tool in sorted(self._tools.items()):
+            spec = tool.spec()
+            if not (spec.side_effecting or spec.approval_required):
+                continue
+            if self.policy.mode == "bypass":
+                continue
+            if self.policy.mode == "allowlist":
+                if name not in self.policy.allow:
+                    warnings_.append(f"{name}: gated (side_effecting={spec.side_effecting} or "
+                                     f"approval_required={spec.approval_required}) and not in the approval "
+                                     f"allowlist, so it can never run here")
+            elif self.policy.mode == "deny_side_effects":
+                if self.policy.approver is None:
+                    warnings_.append(f"{name}: gated and the approval policy has no approver, so it can "
+                                     f"never run here")
+            else:
+                warnings_.append(f"{name}: gated and approval mode {self.policy.mode!r} is not a mode this "
+                                 f"policy knows, so every gated call is denied")
+        report = ValidationReport(problems=tuple(problems), warnings=tuple(warnings_), authorizer=who,
+                                  classified=tuple((n, a) for n, a in self.classification().items() if a))
+        if strict and problems:
+            raise RegistryConfigurationError("tool registry is not ready to serve: " + "; ".join(problems))
+        return report
 
     # -- the authorization gate ----------------------------------------------------------------------------
 
@@ -323,8 +468,53 @@ class ToolRegistry:
                 and "policy_reason" in a and not a.get("grant_ids") and not a.get("break_glass")]
 
     def register(self, tool: ToolPlugin) -> ToolPlugin:
-        self._tools[tool.spec().name] = tool
+        spec = tool.spec()
+        self._check_classifiable(spec)
+        previous = self._tools.get(spec.name)
+        if previous is not None:
+            self._check_no_downgrade(previous.spec(), spec)
+        self._tools[spec.name] = tool
         return tool
+
+    def _check_classifiable(self, spec: ToolSpec) -> None:
+        """Reject, at registration, a risk class that cannot be honored. Two checks, both about a
+        contradiction the call path could never resolve:
+
+        * the action is not one of :data:`ACTIONS` (a typo is not a risk class);
+        * ``action="read"`` on a tool the spec itself calls side-effecting or approval-gated. A ``read`` grant
+          is the weakest thing the plane issues, and a tool that mutates or launches work cannot be authorized
+          with it — registering it that way guarantees a denial at the least opportune moment, which is how a
+          classification table and the tools it describes drift apart unnoticed. The other direction is legal:
+          a ``write`` classification on a read-only tool only ever asks for more than it needs.
+        """
+        if not spec.action:
+            return                                    # unclassified is a startup finding, not a registration error
+        if spec.action not in ACTIONS:
+            raise ToolClassificationError(
+                f"{spec.name}: action {spec.action!r} is not one of {ACTIONS}")
+        if spec.action == "read" and (spec.side_effecting or spec.approval_required):
+            raise ToolClassificationError(
+                f"{spec.name}: classified 'read' but the spec says side_effecting={spec.side_effecting} / "
+                f"approval_required={spec.approval_required}. Classify it 'write', or drop the flag if the "
+                f"tool really does nothing but return existing state.")
+
+    def _check_no_downgrade(self, old: ToolSpec, new: ToolSpec) -> None:
+        """Re-registering a name — a hot reload, a plugin overwrite, a second builder handed the same registry —
+        may keep or raise its risk class, never lower it. A class travels with the code that implements the
+        tool, so a path that lets the newer registration win silently turns "this tool can delete rows" into
+        "this tool reads" at the moment someone swaps the implementation. Raising is the only answer that
+        leaves the process in a state worth debugging.
+        """
+        if not old.action:
+            return                       # adding a class to a previously unclassified tool
+        if not new.action:
+            raise ToolClassificationError(
+                f"{new.name}: re-registered without a risk class; it was {old.action!r}. Classifications are "
+                f"not removed by re-registration — pass action={old.action!r} or a stronger class.")
+        if _ACTION_RANK[new.action] < _ACTION_RANK[old.action]:
+            raise ToolClassificationError(
+                f"{new.name}: re-registered as {new.action!r}, downgrading the previous classification "
+                f"{old.action!r}. A re-registration may raise a tool's risk class, never lower it.")
 
     def get(self, name: str) -> ToolPlugin:
         if name not in self._tools:
@@ -366,11 +556,18 @@ class ToolRegistry:
 
 def function_tool(name: str, fn: Callable[[dict], ToolResult], description: str = "",
                   parameters: Optional[dict] = None, side_effecting: bool = False,
-                  approval_required: bool = False) -> ToolPlugin:
-    """Adapt a plain ``fn(args) -> ToolResult`` into a ToolPlugin."""
+                  approval_required: bool = False, action: str = "") -> ToolPlugin:
+    """Adapt a plain ``fn(args) -> ToolResult`` into a ToolPlugin.
+
+    ``action`` is the risk class: which capability this call will be checked for. It is set here, by the
+    code that registers the tool, and never read from the function's name, its docstring, or a remote
+    server's ``readOnlyHint``: the thing asking to be run is not allowed to grade its own risk. Omit it
+    only while a service is mid-migration; ``ToolRegistry.validate()`` reports every tool left
+    unclassified.
+    """
     _spec = ToolSpec(name=name, description=description,
                      parameters=parameters or {"type": "object", "properties": {}},
-                     side_effecting=side_effecting, approval_required=approval_required)
+                     side_effecting=side_effecting, approval_required=approval_required, action=action)
 
     class _FnTool:
         def spec(self) -> ToolSpec:
@@ -380,3 +577,4 @@ def function_tool(name: str, fn: Callable[[dict], ToolResult], description: str 
             return fn(args)
 
     return _FnTool()
+

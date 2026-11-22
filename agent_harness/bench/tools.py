@@ -101,7 +101,8 @@ def bench_registry(workspace: Path, sandbox, blocked_log: Optional[List[str]] = 
     # approval allowlist) is the enforcement, and there is no policy plane to ask. That is what
     # local_trusted_authorizer records; pass ``authorizer`` to benchmark against a real one.
     reg = ToolRegistry(ApprovalPolicy("allowlist", allow=["bash", "write_file", "web_download"]),
-                       authorizer=authorizer or local_trusted_authorizer(plane="bench_local"))
+                       authorizer=authorizer or local_trusted_authorizer(plane="bench_local"),
+                       classify_required=True)
     obj = lambda **props: {"type": "object", "properties": props, "required": list(props)}   # noqa: E731
     s = {"type": "string"}
 
@@ -131,11 +132,11 @@ def bench_registry(workspace: Path, sandbox, blocked_log: Optional[List[str]] = 
 
     reg.register(function_tool("bash", bash, "Run a shell command in a sandbox (Python 3 with pandas, openpyxl, python-docx, "
                                "python-pptx, pdfplumber; pandoc; pdftotext). No network. Working dir /work.",
-                               obj(command=s), side_effecting=True))
-    reg.register(function_tool("read_file", read_file, "Read a UTF-8 text file under /work.", obj(path=s)))
+                               obj(command=s), side_effecting=True, action="write"))
+    reg.register(function_tool("read_file", read_file, "Read a UTF-8 text file under /work.", obj(path=s), action="read"))
     reg.register(function_tool("write_file", write_file, "Write a UTF-8 text file under /work.", obj(path=s, content=s),
-                               side_effecting=True))
-    reg.register(function_tool("list_dir", list_dir, "List a directory under /work.", obj(path=s)))
+                               side_effecting=True, action="write"))
+    reg.register(function_tool("list_dir", list_dir, "List a directory under /work.", obj(path=s), action="read"))
     if web:
         def fetch(a):
             t = web_fetch(str(a["url"]), blocked_log=blocked_log, offset=a.get("offset", 0), paged=web_paging)
@@ -144,13 +145,17 @@ def bench_registry(workspace: Path, sandbox, blocked_log: Optional[List[str]] = 
             reg.register(function_tool("web_fetch", fetch, "Fetch a web page as text, 15,000 characters at a time (some hosts are blocked). "
                                        "Use offset to read further into a long page.",
                                        {"type": "object", "properties": {"url": s, "offset": {"type": "integer", "description": "first character to return"}},
-                                        "required": ["url"]}))
+                                        "required": ["url"]}, action="read"))
         else:
-            reg.register(function_tool("web_fetch", fetch, "Fetch a web page as text (some hosts are blocked).", obj(url=s)))
+            reg.register(function_tool("web_fetch", fetch, "Fetch a web page as text (some hosts are blocked).", obj(url=s), action="read"))
         if web_downloads:
             def download(a):
                 t = web_download(str(a["url"]), _confine(ws, _virtual(ws, a["path"])), blocked_log=blocked_log)
                 return ToolResult(ok=not t.startswith("ERROR:"), text=t, error=t if t.startswith("ERROR:") else None)
             reg.register(function_tool("web_download", download, "Download a URL (data file, up to 25 MB) into /work, to be read with bash. "
-                                       "Same blocked hosts as web_fetch.", obj(url=s, path=s), side_effecting=True))
+                                       "Same blocked hosts as web_fetch.", obj(url=s, path=s), side_effecting=True, action="write"))
+    # Boot-time check, not a per-call one: every tool here carries a risk class and an authorizer is
+    # installed, so a mis-built benchmark registry fails when it is built rather than as a denial in
+    # the middle of a run.
+    reg.validate(strict=True)
     return reg

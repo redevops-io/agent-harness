@@ -23,6 +23,31 @@ The 0.2.0 release was checked against [QA_RELEASE_CHECKLIST.md](QA_RELEASE_CHECK
   `None`, or that construct a bare `ToolRegistry()`, start denying: measured against `context-runtime` `c255945`, 17 of
   its 367 tests fail (12 `integrations/*` adapters construct a bare registry) until it wires its own authorizer.**
 
+- **Tool registration carries a risk class, and the registry checks itself at boot (`agent_harness.tools`).** A tool
+  now declares the `authz/v1` action it needs — `read`, `write` or `delete` (`function_tool(..., action=...)`, or
+  `ToolPlugin.action`) — and the registry turns that into the capability the call requires
+  (`ToolRegistry.required_capability(name)` -> `tool:<name>:<action>`), so "what may this run?" is answered by the code
+  under review instead of by the caller. A registration that contradicts itself (`action="read"` on a side-effecting or
+  approval-gated tool — no grant plane hands out `tool:<name>:read` for a call that writes) raises
+  `ToolClassificationError` where the old `permission` string agreed to anything; re-registering a tool cannot lower its
+  class; an undeclared class stays legal at registration and is fatal at boot. `ToolRegistry.validate()` returns a
+  `ValidationReport` — problems: no authorizer, tools with no declared class; warnings: gated tools the configured
+  `ApprovalPolicy` can never run — and `validate(strict=True)` raises instead. `Agent`, `bench_registry` and
+  `parity_registry` run that check at construction: a misconfiguration stops the service there rather than surfacing
+  as a denial in front of a user. New: `ACTIONS`, `TOOL_RESOURCE_KIND`, `ValidationReport`, `ToolClassificationError`,
+  `RegistryConfigurationError`, `ToolRegistry.classification` / `.unclassified` / `.validate`. `Agent`'s built-ins are
+  classified (`read_file` and `finish` -> `read`; `write_file` and `run_bash` -> `write` — a shell is classified by
+  what running a command accomplishes, not by whether this particular command looks harmless) and the evaluation
+  toolsets declare their classes, so everything this repository ships passes its own startup check. Approval bypass
+  is unchanged and still does not stand in for authorization: `ToolRegistry(ApprovalPolicy("bypass"))` with no
+  authorizer denies every call
+  (`tests/test_authz_failclosed.py::test_approval_bypass_does_not_substitute_for_authorization`).
+  **Measured consumer impact: `context-runtime` `c255945` fails the same 17 of its 364 tests — 7 files: the
+  `integrations/*` module and security suites, `test_tools.py`, `test_tool_authorizer.py`, `test_mcp.py`,
+  `test_outreach.py`, `test_transcript_compaction.py` — against the fail-closed commit and against this one, with identical failure
+  sets, because those registries stop at the missing authorizer before classification is ever consulted. The undeclared
+  classes surface the moment its adapters wire an authorizer, which is why the consumer-side fix does both at once.**
+
 - **Process execution (`agent_harness.process_runner`, used by `sandbox.run_shell`, the judge launches and the OpenCode and
   Harness2 launches).** Each child now runs in its own process group (POSIX) or Job Object (Windows), and the whole tree is
   stopped on a timeout, on a cancel, and when the call ends. See [configuration.md](configuration.md#process-execution).

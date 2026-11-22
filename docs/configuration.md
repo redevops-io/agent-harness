@@ -20,8 +20,25 @@ at all (same contract as context-runtime). Pass it to `ToolRegistry(policy)` or 
 - `bypass` – allow everything (use with care)
 - any other value denies every gated call
 
-A `ToolRegistry` also takes an optional `authorizer(principal, spec, args)` (or the process-wide
+A `ToolRegistry` also takes an `authorizer(principal, spec, args)` (or the process-wide
 `set_default_authorizer`) that runs before the approval gate, and keeps an `audit` list of gated decisions.
+The authorizer is **required**: a registry with none denies every call. It returns an `Authorization` — `None`,
+an exception, or any non-decision denies too, each with its own `policy_reason` (see
+[`docs/CHANGELOG.md`](CHANGELOG.md), "Tool authorization is fail-closed").
+
+**Risk class: `action` on the tool.** A tool declares which `authz/v1` action it needs — `read`, `write` or
+`delete` — either as a plain function tool (`function_tool(name, fn, action="write")`) or as a `ToolPlugin` class
+attribute. Omitting it is legal at registration and fatal at boot: an unclassified tool is not a safe tool, it is a
+tool nobody has read. A class that contradicts the flags — `read` on a side-effecting or gated tool, since no grant
+plane hands out `tool:<name>:read` for a call that writes — is rejected at registration, and re-registering a tool
+cannot lower its class. The registry answers a question the caller must not answer for itself:
+`ToolRegistry.required_capability(name)` returns the
+`resource_kind` / `resource_name` / `requested_action` triple), and `ToolRegistry.validate()` reports the
+configuration at boot: problems are a missing authorizer and tools with no declared class; warnings name gated
+tools that can never run under the configured `ApprovalPolicy`. `Agent`, `bench_registry` and `parity_registry`
+run that check at construction — a misconfiguration stops the service there instead of surfacing as a denial in
+front of a user. `validate()` returns a report and never raises; `validate(strict=True)` raises, which is what an
+image build or a CI step should call.
 
 **Command level: `agent_harness.command_policy.CommandPolicy`** vets the content of a shell command or edit
 for the Agent's `run_bash` / `write_file` tools. Pass it as `Agent(policy=...)`. Modes:
