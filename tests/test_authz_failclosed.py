@@ -268,8 +268,13 @@ def test_authorizer_runs_before_the_tool_and_before_the_approval_gate(body):
 
 
 def test_a_subclass_cannot_run_a_tool_without_asking(body):
-    """The gate lives in ``run``; a subclass that calls the plugin directly is on its own, but the documented
-    path stays closed even when a subclass forgets the authorization layer."""
+    """Independent review finding M2 (2026-11-22): this test used to assert the opposite of what it's
+    called — that ``self.get(name).run(args)`` bypassing the gate was an acceptable, merely "visible in
+    code" escape hatch. It was a real authorization/approval bypass, closed by making ``get()`` return a
+    :class:`agent_harness.tools.ToolHandle` with no ``run`` method at all (see ``ToolHandle``'s docstring).
+    A subclass "forgetting" the authorization layer by reaching for the obvious ``get(name).run(...)`` call
+    now fails structurally, the same as any other caller — there is no longer a code path, forgetful or
+    deliberate, that reaches execution through the registry's public surface except ``run()`` itself."""
 
     class Forgetful(ToolRegistry):
         def run_anyway(self, name, args=None):
@@ -278,7 +283,9 @@ def test_a_subclass_cannot_run_a_tool_without_asking(body):
     reg = Forgetful()
     reg.register(body.tool())
     assert not reg.run("probe", {}).ok and not body.ran          # the normal path is closed
-    assert reg.run_anyway("probe", {}).ok and body.ran           # and bypassing it is visible in code, not in a default
+    with pytest.raises(AttributeError):                          # and so is the old "obvious" bypass
+        reg.run_anyway("probe", {})
+    assert not body.ran
 
 
 # -- K-08: the mapping layer never resolves to something that was not registered ---------------------------------
