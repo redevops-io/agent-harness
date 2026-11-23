@@ -25,6 +25,17 @@ CONTRACT_POLICY_REASONS = {
 }
 CONTRACT_COMMIT = "15f02e3"
 
+#: Snapshot of the capability field names at the same commit — the three envelope fields that say *what is
+#: being asked for* (``AuthorizationDecision.resource_kind`` / ``.resource_name`` / ``.requested_action``).
+#: ``ToolRegistry.required_capability`` writes exactly these, because a capability named anything else is a
+#: capability no plane will look up.
+CAPABILITY_FIELDS = ("resource_kind", "resource_name", "requested_action")
+
+#: Snapshot of the action vocabulary of the resource-grant plane (``agentic_os.permissions.ACTIONS``) at the
+#: commit this branch was written against. Same reason as above: the registry states the requirement, the
+#: plane issues the grant, and the two only meet if "write" means the same thing on both sides.
+PLATFORM_ACTIONS = ("read", "write", "delete")
+
 #: Reasons a tool call can genuinely produce. The rest belong to planes this registry does not own: a tool
 #: registry has no tenant binding to break (tenant_isolation), no grant store to seal (sealed_store), no
 #: principal lifetime of its own (principal_expired), and rows are not its unit (own_rows_requires_user).
@@ -108,3 +119,33 @@ def test_snapshot_matches_the_contract_when_it_is_available():
     # and the envelope really accepts what we would emit for a denied tool call
     decision = ah.Authorization.deny("no authorizer", reason=ah.PolicyReason.MISSING_EXPLICIT_GRANT)
     assert contract.PolicyReason(decision.reason) is contract.PolicyReason.MISSING_EXPLICIT_GRANT
+
+
+def test_a_required_capability_is_written_in_the_envelopes_field_names():
+    """The registry's answer to "what does this call need?" must be readable by a plane that has never seen
+    this package: the same three field names the envelope uses, and nothing else invented along the way."""
+    reg = ah.ToolRegistry(authorizer=lambda p, s, a: ah.Authorization.allow(grant_ids=("g",)))
+    reg.register(ah.function_tool("block_ip", lambda a: ah.ToolResult(text="y"), action="write",
+                                  side_effecting=True))
+    triple = reg.required_capability("block_ip")
+    assert set(triple) == set(CAPABILITY_FIELDS)
+    assert triple == {"resource_kind": "tool", "resource_name": "block_ip", "requested_action": "write"}
+
+
+def test_the_capability_field_names_match_the_contract_when_it_is_available():
+    contract, source = _installed_contract()
+    if contract is None or not hasattr(contract, "ENVELOPE_FIELDS"):
+        pytest.skip(f"no authz/v1 envelope to compare against ({source})")
+    assert set(CAPABILITY_FIELDS) <= set(contract.ENVELOPE_FIELDS), (
+        f"the envelope no longer carries {CAPABILITY_FIELDS} as declared ({source}): "
+        f"{sorted(contract.ENVELOPE_FIELDS)}")
+
+
+def test_the_action_vocabulary_matches_the_grant_plane_when_it_is_available():
+    """``agentic_os.permissions.ACTIONS`` is where grants are actually written. A fourth action added there —
+    or one dropped — has to reach this package deliberately, with a release note, not by surprise."""
+    try:
+        from agentic_os import permissions as platform_permissions
+    except ImportError:
+        pytest.skip("agentic_os is not installed here; the snapshot above still pins the vocabulary")
+    assert ah.ACTIONS == platform_permissions.ACTIONS == PLATFORM_ACTIONS

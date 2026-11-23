@@ -93,6 +93,12 @@ _BUILTIN_SPECS = (
      {"type": "object", "properties": {"result": {"type": "string"}}}, False),
 )
 
+#: Which capability each built-in needs, declared here rather than inferred from the tool's name. A shell is
+#: classified by what running a command accomplishes (it can write anything the process can), not by whether
+#: this particular command looks harmless — and ``finish`` returns a string the loop already has, so it asks
+#: for the weakest class there is instead of inventing a fourth one.
+_BUILTIN_ACTIONS = {"read_file": "read", "write_file": "write", "run_bash": "write", "finish": "read"}
+
 
 def _adapt(fn: Callable) -> Callable[[Dict[str, Any]], ToolResult]:
     """Wrap a keyword-argument tool function as ``fn(args) -> ToolResult``."""
@@ -143,10 +149,16 @@ class Agent:
         self.loop_guard = guardrails.LoopGuard()
 
         self.registry = ToolRegistry(approval or ApprovalPolicy("allowlist", allow=["write_file", "run_bash"]),
-                                     authorizer=authorizer or local_trusted_authorizer(plane="agent_local"))
+                                     authorizer=authorizer or local_trusted_authorizer(plane="agent_local"),
+                                     classify_required=True)
         for name, desc, params, effect in _BUILTIN_SPECS:
             self.registry.register(function_tool(
-                name, _adapt(self.tools[name]), description=desc, parameters=params, side_effecting=effect))
+                name, _adapt(self.tools[name]), description=desc, parameters=params, side_effecting=effect,
+                action=_BUILTIN_ACTIONS[name]))
+        # Boot-time check, not a call-time one: a caller who registers a fifth tool without a risk class, or
+        # who passes an authorizer that turns out to be None, learns at construction. Reaching ``Agent()`` at
+        # all means every tool this class knows about is classified and gated.
+        self.registry.validate(strict=True)
 
     def call_tool(self, name: str, args: Optional[Dict[str, Any]] = None) -> Any:
         """Dispatch a model-supplied tool call; unknown tools or arguments are rejected."""
