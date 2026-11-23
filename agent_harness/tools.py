@@ -106,6 +106,35 @@ class ToolPlugin(Protocol):
     def run(self, args: dict) -> ToolResult: ...
 
 
+class ToolHandle:
+    """What :meth:`ToolRegistry.get` returns: a read-only view of a registered tool, offering only
+    :meth:`spec`. It has no ``run`` method at all — on purpose.
+
+    ``ToolRegistry.get(name).run(args)`` used to hand back the raw :class:`ToolPlugin`, which a caller
+    could then call directly, skipping :meth:`ToolRegistry.authorize` and the approval gate entirely. That
+    is an authorization bypass, not a shortcut: the one path that is actually gated is
+    ``ToolRegistry.run(name, args, principal=...)``. ``get()`` exists for introspection (reading a tool's
+    spec to build a capability request, describe it to a model, and so on); it has never needed to expose
+    execution, so this removes a capability nothing legitimate used rather than restricting one that did.
+
+    The underlying plugin is kept on a single-underscore attribute, the same "not public API" convention
+    this module already uses for its own internal methods — reaching for ``handle._tool.run(args)`` is a
+    deliberate act of digging past that convention, not an accident a caller falls into by calling the
+    method a ``ToolHandle`` actually advertises, which is the shape the real bypass took.
+    """
+
+    __slots__ = ("_tool",)
+
+    def __init__(self, tool: ToolPlugin) -> None:
+        self._tool = tool
+
+    def spec(self) -> ToolSpec:
+        return self._tool.spec()
+
+    def __repr__(self) -> str:
+        return f"ToolHandle({self._tool.spec().name!r})"
+
+
 # An approver: given {"tool": name, "args": args}, return True to allow a side-effecting/gated tool.
 Approver = Callable[[dict], bool]
 
@@ -531,7 +560,16 @@ class ToolRegistry:
                 f"{new.name}: re-registered as {new.action!r}, downgrading the previous classification "
                 f"{old.action!r}. A re-registration may raise a tool's risk class, never lower it.")
 
-    def get(self, name: str) -> ToolPlugin:
+    def get(self, name: str) -> ToolHandle:
+        """A read-only view of a registered tool: :meth:`ToolHandle.spec` only, deliberately no way to
+        execute it. To run a tool, call :meth:`run` — the gated path. See :class:`ToolHandle`."""
+        return ToolHandle(self._lookup(name))
+
+    def _lookup(self, name: str) -> ToolPlugin:
+        """The raw plugin, for this registry's own internal use only. The only caller that may do anything
+        with what this returns besides read its ``spec()`` is :meth:`run`, strictly after
+        :meth:`authorize` and ``self.policy.decide`` have both already passed — never expose this return
+        value to outside code, or the authorization/approval gate it just satisfied means nothing."""
         if name not in self._tools:
             raise ToolError(f"unknown tool: {name}")
         return self._tools[name]
@@ -545,7 +583,7 @@ class ToolRegistry:
 
     def run(self, name: str, args: Optional[dict] = None, principal=None) -> ToolResult:
         try:
-            tool = self.get(name)
+            tool = self._lookup(name)
         except ToolError as e:
             return ToolResult(ok=False, error=str(e), text=f"[error] {e}")
         spec = tool.spec()
