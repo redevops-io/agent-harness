@@ -6,6 +6,7 @@ from agent_harness.context import BasicContextManager, ContextAware, ContextMana
 from agent_harness.llm import ChatError
 from agent_harness.loop import ELIDED, elide_old_tool_outputs, run_loop
 from agent_harness.tools import ApprovalPolicy, ToolRegistry, ToolResult, function_tool
+from tests._authz import allow_all
 
 
 class Script:
@@ -28,7 +29,7 @@ def call(name, **args):
 
 
 def reg():
-    r = ToolRegistry(ApprovalPolicy("allowlist", allow=["write"]))
+    r = ToolRegistry(ApprovalPolicy("allowlist", allow=["write"]), authorizer=allow_all)
     r.register(function_tool("echo", lambda a: ToolResult(text=a["x"] * 2), parameters={"type": "object", "properties": {}}))
     r.register(function_tool("write", lambda a: ToolResult(text="written"), side_effecting=True))
     r.register(function_tool("nuke", lambda a: ToolResult(text="boom"), side_effecting=True))
@@ -113,7 +114,7 @@ from agent_harness.loop import missing_args, shrink_tool_call_args
 
 
 def reg_req():
-    r = ToolRegistry(ApprovalPolicy("allowlist", allow=["write"]))
+    r = ToolRegistry(ApprovalPolicy("allowlist", allow=["write"]), authorizer=allow_all)
     r.register(function_tool("write", lambda a: ToolResult(text="ok"), side_effecting=True,
                              parameters={"type": "object", "properties": {"path": {"type": "string"}, "content": {"type": "string"}},
                                          "required": ["path", "content"]}))

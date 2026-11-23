@@ -16,6 +16,7 @@ from agent_harness.integrity import check_message_integrity
 from agent_harness.loop import Supervision, run_loop
 from agent_harness.supervisor import Supervisor, SupervisorConfig
 from agent_harness.tools import ApprovalPolicy, ToolRegistry, ToolResult, function_tool
+from tests._authz import allow_all
 
 
 # ---- helpers ------------------------------------------------------------------------------------------------------------------
@@ -44,7 +45,7 @@ def _as_result(v):
 
 
 def registry(**fns):
-    reg = ToolRegistry(ApprovalPolicy("allowlist", allow=list(fns)))
+    reg = ToolRegistry(ApprovalPolicy("allowlist", allow=list(fns)), authorizer=allow_all)
     for name, fn in fns.items():
         reg.register(function_tool(name, lambda a, fn=fn: _as_result(fn(a)), name,
                                    {"type": "object", "properties": {"q": {"type": "string"}, "n": {"type": "integer"}}}, side_effecting=True))

@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Callable, List, Optional
 
 from ..egress_proxy import DEFAULT_ALLOW, DEFAULT_DENY, host_denied
-from ..tools import ApprovalPolicy, ToolRegistry, ToolResult, function_tool
+from ..tools import ApprovalPolicy, ToolRegistry, ToolResult, function_tool, local_trusted_authorizer
 
 _SCRIPT = re.compile(r"(?is)<(script|style|noscript)\b.*?</\1>")
 _TAG = re.compile(r"(?s)<[^>]+>")
@@ -94,9 +94,14 @@ def _fetch(url: str, deny, allow, blocked_log, timeout: int, *, as_text: bool, l
 
 
 def bench_registry(workspace: Path, sandbox, blocked_log: Optional[List[str]] = None,
-                   web: bool = True, bash_timeout: int = 180, web_paging: bool = False, web_downloads: bool = False) -> ToolRegistry:
+                   web: bool = True, bash_timeout: int = 180, web_paging: bool = False, web_downloads: bool = False,
+                   authorizer: Optional[Callable] = None) -> ToolRegistry:
     ws = Path(workspace).resolve()
-    reg = ToolRegistry(ApprovalPolicy("allowlist", allow=["bash", "write_file", "web_download"]))
+    # The bench runs a model against a sandbox it owns: the confinement (workspace + egress policy + the
+    # approval allowlist) is the enforcement, and there is no policy plane to ask. That is what
+    # local_trusted_authorizer records; pass ``authorizer`` to benchmark against a real one.
+    reg = ToolRegistry(ApprovalPolicy("allowlist", allow=["bash", "write_file", "web_download"]),
+                       authorizer=authorizer or local_trusted_authorizer(plane="bench_local"))
     obj = lambda **props: {"type": "object", "properties": props, "required": list(props)}   # noqa: E731
     s = {"type": "string"}
 

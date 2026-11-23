@@ -9,12 +9,13 @@ from agent_harness.llm import ChatError
 from agent_harness.loop import REFUSED_ARGS_NOTE, Supervision, run_loop, shrink_refused_calls
 from agent_harness.supervisor import SupervisorConfig
 from agent_harness.tools import ApprovalPolicy, ToolRegistry, ToolResult, function_tool
+from tests._authz import allow_all
 
 BIG = "python3 - <<'EOF'\n" + "\n".join(f"x{i} = load('file{i}.csv')  # check the join and print the keys" for i in range(14)) + "\nEOF"
 
 
 def reg():
-    r = ToolRegistry(ApprovalPolicy("allowlist", allow=["bash"]))
+    r = ToolRegistry(ApprovalPolicy("allowlist", allow=["bash"]), authorizer=allow_all)
     r.register(function_tool("bash", lambda a: ToolResult(text="True False"), "bash", {"type": "object", "properties": {"command": {"type": "string"}}, "required": ["command"]}, side_effecting=True))
     return r
 

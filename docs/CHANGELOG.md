@@ -7,6 +7,22 @@ The 0.2.0 release was checked against [QA_RELEASE_CHECKLIST.md](QA_RELEASE_CHECK
 
 ### Changed (behaviour changes)
 
+- **Tool authorization is fail-closed (`agent_harness.tools`).** The authorizer seam used to read `None` as *allow*,
+  so an authorizer that returned early, missed a branch, or was never installed let the tool run — the
+  deny-by-default registry was fail-open for every tool, read-only tools included. Now: a registry with no authorizer
+  denies every call (`missing_explicit_grant`), an authorizer that raises or returns a non-decision denies
+  (`no_resource_plane` / `malformed_request`), and clearing the process-wide default closes the registries instead of
+  opening them. `None` is no longer an allow; `True` and a non-empty `str` still work and are audited as legacy
+  decisions. Two named opt-outs replace the old silence: `local_trusted_authorizer()` for local/direct execution
+  (attributed to a plane and warned once) and `ToolRegistry(authorizer_required=False)` (warns at construction, audits
+  every call as a wildcard grant). `Agent`, `bench_registry` and `parity_registry` now pass local trust explicitly and
+  accept `authorizer=` to run behind a real policy plane; `Agent(model=None)` remains ungated by design. New:
+  `Authorization` / `Decision` / `PolicyReason` (the `authz/v1` subset — spelled locally, pinned against the contract
+  by `tests/test_authz_contract_align.py`, still zero dependencies), `ToolRegistry.authorize`,
+  `ToolRegistry.unattributed_allows` and `default_authorizer_installed`. **Consumers that pass an authorizer returning
+  `None`, or that construct a bare `ToolRegistry()`, start denying: measured against `context-runtime` `c255945`, 17 of
+  its 367 tests fail (12 `integrations/*` adapters construct a bare registry) until it wires its own authorizer.**
+
 - **Process execution (`agent_harness.process_runner`, used by `sandbox.run_shell`, the judge launches and the OpenCode and
   Harness2 launches).** Each child now runs in its own process group (POSIX) or Job Object (Windows), and the whole tree is
   stopped on a timeout, on a cancel, and when the call ends. See [configuration.md](configuration.md#process-execution).

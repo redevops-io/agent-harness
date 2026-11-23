@@ -8,6 +8,7 @@ from agent_harness.context import BasicContextManager
 from agent_harness.loop import Supervision, run_loop
 from agent_harness.supervisor import Supervisor, SupervisorConfig
 from agent_harness.tools import ApprovalPolicy, ToolRegistry, ToolResult, function_tool
+from tests._authz import allow_all
 
 INPUTS = ["pending_applications.csv", "rules.csv", "TASK_INSTRUCTIONS.txt"]
 
@@ -148,7 +149,7 @@ class HidingCM(BasicContextManager):
 
 
 def test_through_the_loop_the_model_is_asked_to_re_read_then_writes():
-    reg = ToolRegistry(ApprovalPolicy("allowlist", allow=["read_file", "write_file", "bash"]))
+    reg = ToolRegistry(ApprovalPolicy("allowlist", allow=["read_file", "write_file", "bash"]), authorizer=allow_all)
     for n in ("read_file", "write_file", "bash"):
         reg.register(function_tool(n, lambda a: ToolResult(text="ok"), n, {"type": "object", "properties": {"path": {"type": "string"}, "content": {"type": "string"}, "command": {"type": "string"}}}, side_effecting=True))
     script = [("read_file", {"path": "/work/task_folder/rules.csv"})] + [("bash", {"command": f"echo {i}"}) for i in range(4)] + [WRITE, ("read_file", {"path": "/work/task_folder/rules.csv"}), WRITE, "finished"]
