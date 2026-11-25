@@ -195,7 +195,8 @@ class HarnessOptimizer:
                  harness: HarnessSpec, memory: SelfImprovementMemory, condition: MemoryCondition,
                  evolve_tasks: Sequence[str], provenance: Provenance, heldout_tasks: Sequence[str] = (),
                  candidates_per_round: int = 2, protected: Sequence[str] = DEFAULT_PROTECTED,
-                 allow_score_drop: bool = False, record_rejected: bool = False) -> None:
+                 allow_score_drop: bool = False, record_rejected: bool = False,
+                 memory_text: Optional[Any] = None) -> None:
         self.evolve = tuple(dict.fromkeys(evolve_tasks))
         if not self.evolve:
             raise LoopRefused("there is no evolve task to optimize on")
@@ -216,6 +217,10 @@ class HarnessOptimizer:
         #: candidate that was evaluated and NOT adopted, as an attempt with accepted=False, so the memory shows what was
         #: tried and did not work. An experimental configuration; a run states which one it used.
         self.record_rejected = bool(record_rejected)
+        #: Optional ``(memory, feedback) -> text`` or ``-> (text, report)``: what the proposer AND the selector are shown instead of
+        #: ``memory.render(condition)``, for example a selection made under a token budget. It changes the view only: the record
+        #: that is stored and updated is always the complete one. A report it returns is written into the round's manifest.
+        self.memory_text = memory_text
         self.history: List[Dict[str, Any]] = []
         self.round = 0
         self.harness = harness
@@ -245,7 +250,12 @@ class HarnessOptimizer:
         if self._current is None:
             self._current = self._evaluate(self.harness)
         current = self._current
-        shown = self.memory.render(self.condition)
+        shown, view_report = self.memory.render(self.condition), None
+        if self.memory_text is not None and self.condition is not MemoryCondition.NONE:
+            got = self.memory_text(self.memory, current)
+            shown, view_report = (got if isinstance(got, tuple) else (got, None))
+            if not isinstance(shown, str):
+                raise LoopRefused("memory_text must return text, or (text, report)")
         rec = RoundRecord(round=self.round, current=current.to_json())
         proposals = list(self.proposer.propose(harness=self.harness, feedback=current, history=tuple(self.history),
                                                memory=shown, candidates=self.candidates_per_round))[: self.candidates_per_round]
@@ -267,6 +277,7 @@ class HarnessOptimizer:
         # the change manifest: every proposal, its cited root cause and its prediction, on disk before any candidate runs
         manifest = self.workdir / "rounds" / f"round-{self.round:03d}.manifest.json"
         manifest.write_text(json.dumps({"round": self.round, "harness": self.harness_id, "memory_condition": self.condition.value,
+                                        "memory_view": {"custom": self.memory_text is not None, "chars": len(shown), "report": view_report},
                                         "candidates": rec.candidates}, indent=1, sort_keys=True) + "\n", encoding="utf-8")
         evaluated: List[Tuple[int, Proposal, HarnessSpec, Feedback]] = []
         for i, p, spec in built:
