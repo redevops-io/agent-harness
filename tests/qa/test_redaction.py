@@ -52,6 +52,8 @@ ENT = strong_token("entropy")
 AT = H.AT
 
 #: (rule id, text containing one secret, the secret that must not survive); every credential-shaped value is generated
+DASH_U = "-" + "u"                # assembled, as AT is: the secret scanner reads a literal user option with a value as a finding
+SHORT = "Zq7hunter2Xy9"          # thirteen characters, no shape and too little entropy for the token rules
 RULE_CASES = [
     ("private_key", f"before\n{H.PRIVATE_KEY}\nafter", H.PEM_FIRST_LINE),
     ("private_key", "x " + H.pem("", [SHORT_PEM], end=False) + "\n(truncated, no end line)", SHORT_PEM),
@@ -91,6 +93,18 @@ RULE_CASES = [
     ("kv_secret", f"AWS_SECRET_ACCESS_KEY={AWS_SECRET}", AWS_SECRET),
     ("kv_secret", f"sent authorization: Bearer {H.BEARER_DOTTED}", H.BEARER_DOTTED),
     ("bearer", f"curl -H 'x: y' with bearer {H.BEARER_C} inside", H.BEARER_C),
+    # short, low-entropy secrets: only the place they stand in gives them away
+    ("kv_short_name", f"db:\n  pass: {SHORT}\n", SHORT),
+    ("kv_short_name", f'{{"pw": "{SHORT}", "user": "a"}}', SHORT),
+    ("kv_short_name", f"pin={SHORT}", SHORT),
+    ("cli_secret_flag", f"tool --password {SHORT} --verbose", SHORT),
+    ("cli_secret_flag", f"tool --token '{SHORT}' run", SHORT),
+    ("cli_secret_flag", f"deploy --api-key {SHORT}", SHORT),
+    ("cli_user_pass", f"curl {DASH_U} admin:{SHORT} https://x.example.test/", SHORT),
+    ("cli_user_pass", f"wget --http-user 'bob:{SHORT}' https://x.example.test/", SHORT),
+    ("cli_tool_password", f"sshpass -p {SHORT} ssh host", SHORT),
+    ("cli_tool_password", f"docker login -u me -p {SHORT} registry.example.test", SHORT),
+    ("netrc_password", f"machine x.example.test login me password {SHORT}", SHORT),
     ("pii_email", f"mail {H.EMAIL} now", H.EMAIL),
     ("pii_phone", f"call {H.PHONE} today", "555 0132"),
     ("pii_phone", "call (415) 555-0132 or 415-555-0132", "555-0132"),
@@ -541,3 +555,16 @@ def test_a_malformed_configuration_is_refused_not_half_applied():
     with pytest.raises(Exception):
         RD.PatternRedactor("config")
     assert RD.RedactionConfig(acknowledged_unredacted_media=(" Image/PNG ",)).acknowledged_unredacted_media == ("image/png",)
+
+
+@pytest.mark.parametrize("text", ["a bypass: yes", "compass = north", "git log -p --stat", "ls -u file:name", "grep -u x:y z", "passenger: ann",
+                                  "the --user-agent header", "see the password reset page"])
+def test_the_short_name_and_command_line_rules_leave_ordinary_text_alone(text):
+    out, counts = red(text)
+    assert out == text and counts == {}
+
+
+def test_a_structure_key_named_pass_or_pw_is_replaced_whole_and_similar_names_are_not():
+    out, _ = RD.PatternRedactor().redact_structure({"pass": SHORT, "pw": SHORT, "passenger": "ann", "compass": "north"})
+    assert out["pass"] == RD.token_for(RD.KEY_RULE) and out["pw"] == RD.token_for(RD.KEY_RULE)
+    assert out["passenger"] == "ann" and out["compass"] == "north"

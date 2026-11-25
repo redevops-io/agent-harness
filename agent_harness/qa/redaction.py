@@ -111,6 +111,14 @@ TEXT_RULES: Tuple[Tuple[str, str, int, str], ...] = (
     ("url_query", r"([?&;](?:" + _QUERY_NAMES + r")=)" + _SKIP + r"[^&#\s\"'<>]*", re.I, "keep1"),
     ("kv_secret", r"((?:" + _SECRET_NAME + r")[A-Za-z0-9_.-]{0,40}[\"']?[ \t]*+[:=][ \t]*+)" + _SKIP + _VALUE, re.I, "kv"),
     ("bearer", r"\b(bearer[ \t]+)" + _SKIP + r"[A-Za-z0-9._~+/=-]{8,}", re.I, "keep1"),
+    # Short names and command-line forms. A secret that is short or low in entropy is recognised only by where it stands,
+    # and these are the places it most often stands in a command, a log line or a configuration file.
+    ("kv_short_name", r"(?<![A-Za-z0-9_.-])((?:pass|pw|pin|otp)[\"']?[ \t]*+[:=][ \t]*+)" + _SKIP + _VALUE, re.I, "kv"),
+    ("cli_secret_flag", r"((?<![A-Za-z0-9_-])--(?:password|passwd|pass|passphrase|token|secret|api-?key|access-?token|"
+                        r"auth-?token|client-?secret)[ \t]+)" + _SKIP + _VALUE, re.I, "kv"),
+    ("cli_user_pass", r"(\b(?:curl|wget|httpie?|https?|ab)\b[^\r\n|;&]*?[ \t](?:-u|--user|--proxy-user|--http-user)[ \t]+[\"']?[^\s:\"']+:)" + _SKIP + r"[^\s\"']+", 0, "keep1"),
+    ("cli_tool_password", r"(\b(?:sshpass[ \t]+-p|docker[ \t]+login\b[^\r\n|;&]*?[ \t]-p)[ \t]+)" + _SKIP + _VALUE, re.I, "kv"),
+    ("netrc_password", r"(\blogin[ \t]+\S+[ \t]+password[ \t]+)" + _SKIP + r"[^\s]+", re.I, "keep1"),
 )
 
 #: the optional PII rules (a rule is on unless its flag is turned off)
@@ -127,7 +135,7 @@ SENSITIVE_KEY_FRAGMENTS: Tuple[str, ...] = (
     "password", "passwd", "passphrase", "secret", "apikey", "accesskey", "privatekey", "credential", "authorization",
     "cookie", "bearer", "signature", "sessionid", "sessiontoken", "refreshtoken", "accesstoken", "idtoken", "authtoken",
     "csrf", "xsrf", "jwt", "token")
-SENSITIVE_KEY_EXACT: Tuple[str, ...] = ("pwd", "auth", "sid", "session", "otp", "pin")
+SENSITIVE_KEY_EXACT: Tuple[str, ...] = ("pwd", "auth", "sid", "session", "otp", "pin", "pass", "pw")
 
 
 def normalise_key(key: str) -> str:
