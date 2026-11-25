@@ -1,0 +1,40 @@
+{
+ "candidates": [
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "egress-vetting-e005",
+    "egress-vetting-e008"
+   ],
+   "rationale": "The current policy only explicitly denies private IPs and loopback. It lacks guidance on internal TLDs that might resolve to public IPs (as in e005) and on DNS failures (as in e008). Explicitly defining these as DENY cases will correct the model's permissive bias in these edge cases.",
+   "refused": "",
+   "root_cause": "P1: Model fails to recognize internal/cluster-specific domains (like .localdomain) as non-public, and incorrectly allows connections to domains that do not resolve (NXDOMAIN).",
+   "screened_in": true,
+   "what": "Add explicit rules to DENY connections to internal/cluster domains (e.g., ending in .local, .localdomain, .internal) and to DENY connections where the DNS resolution fails or returns no IP address."
+  },
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "egress-vetting-e011",
+    "egress-vetting-e025"
+   ],
+   "rationale": "The model currently allows any domain that looks public and resolves to a public IP. By requiring the domain to be a 'trusted public service', we can filter out obscure or potentially malicious lookalikes like api.github.com (if not trusted) or github.com.example.org (if not trusted), aligning with a stricter security posture.",
+   "refused": "",
+   "root_cause": "P2: Model is overly permissive with 'valid public domains' and does not sufficiently verify if the domain is actually a known, trusted public service, leading to false positives on lookalikes or obscure domains (e011, e025).",
+   "screened_in": false,
+   "what": "Tighten the definition of 'valid public domain' to require that the domain is a well-known, trusted public service or explicitly listed in a trusted list, and add a rule to DENY connections to domains that are not recognized as trusted public services even if they resolve to public IPs."
+  }
+ ],
+ "harness": "78405ac88992a254eae7c4a891b619e92c0a8207273fa35be9c6de0753ca169f",
+ "memory_condition": "none",
+ "memory_view": {
+  "chars": 0,
+  "custom": false,
+  "report": null
+ },
+ "round": 2
+}

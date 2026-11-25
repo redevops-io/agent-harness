@@ -1,0 +1,43 @@
+{
+ "candidates": [
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "egress-vetting-e003",
+    "egress-vetting-e007",
+    "egress-vetting-e009",
+    "egress-vetting-e017",
+    "egress-vetting-e022",
+    "egress-vetting-e026"
+   ],
+   "rationale": "The model is currently failing by applying external knowledge (e.g., '93.184.216.34 is example.com', 'github.com.example.org is a lookalike') to deny connections that the policy likely allows based on the host string alone. This leads to incorrect DENY verdicts for tasks like e003, e007, e009, e017, e022, e026.",
+   "refused": "",
+   "root_cause": "P1",
+   "screened_in": true,
+   "what": "Add a strict instruction to ignore external security context (like DNS validity or IP reputation) and focus solely on the provided host and port against a standard allowlist."
+  },
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "egress-vetting-e024"
+   ],
+   "rationale": "Task e024 failed because the model allowed 'localhost'. Egress policies typically block loopback to prevent internal scanning or data exfiltration to local services. The model needs a specific rule for this edge case to avoid the default 'permissive' logic from the first edit or its own 'local resolution' logic.",
+   "refused": "",
+   "root_cause": "P1",
+   "screened_in": true,
+   "what": "Explicitly define the decision logic for 'localhost' and non-resolving names to prevent the model from allowing loopback traffic which is typically denied in egress policies."
+  }
+ ],
+ "harness": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+ "memory_condition": "problem_only",
+ "memory_view": {
+  "chars": 600,
+  "custom": false,
+  "report": null
+ },
+ "round": 1
+}

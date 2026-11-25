@@ -1,0 +1,45 @@
+{
+ "candidates": [
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "egress-vetting-e007",
+    "egress-vetting-e009",
+    "egress-vetting-e017",
+    "egress-vetting-e022",
+    "egress-vetting-e023",
+    "egress-vetting-e000"
+   ],
+   "rationale": "The model is currently failing by hallucinating that IPs like 93.184.216.34 (example.com) or 151.101.1.69 (Fastly) are 'mismatches' or 'spoofing' attempts. The tasks are likely testing if the model can follow a policy based on the *provided* data (Host/Port/DNS) rather than its own training data. By forcing it to trust the DNS answer, we stop it from denying valid connections based on incorrect assumptions about what IP a domain 'should' have.",
+   "refused": "",
+   "root_cause": "P1",
+   "screened_in": true,
+   "what": "Explicitly instruct the model to treat the provided DNS answers as ground truth for the connection target and to ignore any external knowledge about IP reputation, domain legitimacy, or 'expected' infrastructure."
+  },
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "egress-vetting-e023",
+    "egress-vetting-e000",
+    "egress-vetting-e001"
+   ],
+   "rationale": "Several tasks (e023, e000) failed because the model rambled or ran out of tokens before giving a verdict. The model is overthinking the 'security context'. By forcing a concise format, we ensure the verdict is always present and reduce the chance of the model getting lost in circular reasoning about 'best practices'.",
+   "refused": "",
+   "root_cause": "P2",
+   "screened_in": true,
+   "what": "Add a strict constraint to output the verdict immediately after a brief justification to prevent token exhaustion and ensure a clear final answer."
+  }
+ ],
+ "harness": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+ "memory_condition": "problem_only",
+ "memory_view": {
+  "chars": 600,
+  "custom": false,
+  "report": null
+ },
+ "round": 2
+}

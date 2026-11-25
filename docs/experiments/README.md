@@ -13,3 +13,4 @@ configuration recorded in its `results.json`; the model endpoint is not part of 
 Every run directory carries `RUN_NOTES.json` (`agent-harness.sim-run-notes/1`): `comparable` (false means no tool may put this
 run's arms side by side), `caveat` (the exact sentence to show with the run), `reasons`, and the `configuration` used. It is
 written by the person who read the run, after the run, and the experiment code never reads it.
+- `sim-run2`: configuration `feedback=v2`, `record_rejected=true`, 6 rounds. The source run again accepted nothing, so it is a comparison of the memory shown, not of transfer. The two arms shown the failed source run's memory accepted no edit; the two arms without memory improved. See its `ANALYSIS.md` for what that does and does not show.

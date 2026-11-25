@@ -1,0 +1,43 @@
+{
+ "candidates": [
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "egress-vetting-e002",
+    "egress-vetting-e004",
+    "egress-vetting-e006",
+    "egress-vetting-e008",
+    "egress-vetting-e010",
+    "egress-vetting-e012"
+   ],
+   "rationale": "The failing tasks e002, e004, e012 involve IPs that are not strictly 'private' in the RFC1918 sense but are security risks (CGNAT, Link-Local) or indicate misconfiguration. e006, e008, e010 involve unresolvable names which should be denied as they cannot be verified. The current prompt's Rule 3 is too broad in its 'ignore' instruction.",
+   "refused": "",
+   "root_cause": "P1: The model fails to recognize that 'unresolvable' DNS answers and specific suspicious IP patterns (like 100.64.0.1 and 169.254.169.254) should trigger a DENY, treating them as 'ignore' cases under Rule 3.",
+   "screened_in": true,
+   "what": "Add explicit DENY rules for unresolvable hosts, link-local (169.254.x.x), and carrier-grade NAT (100.64.0.0/10) ranges, and clarify that Rule 3's 'ignore' does not apply to these specific security-critical failures or ranges."
+  },
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "egress-vetting-e025"
+   ],
+   "rationale": "Task e025 involves 'github.com.example.org'. This is a classic subdomain spoofing attack where an attacker registers a domain that looks like a trusted service. The current prompt allows it because it ends in .org. We need to explicitly deny such patterns.",
+   "refused": "",
+   "root_cause": "P2: The model allows connections to domains that appear to be spoofed or suspicious subdomains (e.g., github.com.example.org) because it only checks if the domain ends in a public TLD.",
+   "screened_in": true,
+   "what": "Add a rule to DENY connections to domains that contain public domain names as subdomains (e.g., *.github.com.example.org) or that do not match the expected canonical form of the service, indicating potential spoofing."
+  }
+ ],
+ "harness": "36de15a42835122b32ff19c8a816dd0fd17b5e2ddd64109093e675c75083055d",
+ "memory_condition": "none",
+ "memory_view": {
+  "chars": 0,
+  "custom": false,
+  "report": null
+ },
+ "round": 3
+}

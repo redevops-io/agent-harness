@@ -1,0 +1,16 @@
+{
+  "files": [
+    "LongTermMEMORY.md",
+    "guardrails.md",
+    "systemprompt.md",
+    "tool_descriptions/tool_guidance.md"
+  ],
+  "id": "5bd5e63e9d8a4ab985a073b9c420de8a1bdcbaef21dae3de64883f6ff6a031d8",
+  "meta": {
+    "round": 3,
+    "run": "cold_start",
+    "what": "Add explicit DENY rules for unresolvable hosts, link-local (169.254.x.x), and carrier-grade NAT (100.64.0.0/10) ranges, and clarify that Rule 3's 'ignore' does not apply to these specific security-critical failures or ranges."
+  },
+  "parent": "36de15a42835122b32ff19c8a816dd0fd17b5e2ddd64109093e675c75083055d",
+  "surface": "opencode"
+}

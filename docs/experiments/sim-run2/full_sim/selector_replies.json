@@ -1,0 +1,9 @@
+[
+ "[true, false]",
+ "{\"choice\": null, \"reason\": \"The candidate only fixes 2 tasks while regressing 1, resulting in a net gain of only 1 task, which is a marginal improvement with regression risk.\"}",
+ "[\n  true,\n  true\n]",
+ "{\"choice\": null, \"reason\": \"Candidate 0 has a lower score (0.567 vs 0.667) and introduces 7 regressions, while Candidate 1 maintains the current score but introduces 2 regressions, making neither a net improvement over the baseline.\"}",
+ "[\n  true,\n  true\n]",
+ "{\"choice\": null, \"reason\": \"Both candidates result in a net performance regression (score drops from 0.667 to 0.567) by introducing 7 new failures while only fixing 4, indicating that the proposed edits to the egress policy prompt are harmful rather than helpful.\"}",
+ "[\n  false,\n  false\n]"
+]

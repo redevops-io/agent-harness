@@ -1,0 +1,14 @@
+[
+ "[true, true]",
+ "{\"choice\": 0, \"reason\": \"Candidate 0 achieves a higher score (0.733 vs 0.667) and fixes more critical root causes related to hallucinated security policies, despite some regressions, whereas Candidate 1 shows no net improvement in score.\"}",
+ "[true, false]",
+ "{\"choice\": null, \"reason\": \"The candidate introduces significant regression risk by causing 6 previously passing tests to fail, which outweighs the benefit of fixing 7 new ones.\"}",
+ "[true, true]",
+ "{\"choice\": 0, \"reason\": \"Candidate 0 significantly improves the score (0.933 vs 0.833) by fixing six specific security-critical cases without introducing any new failures, whereas Candidate 1 causes four previously passing tests to fail.\"}",
+ "[true, true]",
+ "{\"choice\": null, \"reason\": \"Both candidates result in a significant drop in the overall score (0.867 and 0.767 vs current 0.933) and introduce multiple new failures, indicating that the proposed edits cause regressions that outweigh the specific fixes.\"}",
+ "[true, false]",
+ "{\"choice\": null, \"reason\": \"The candidate causes a net regression in performance (0.867 vs 0.933) by breaking three previously passing tests to fix only one.\"}",
+ "[true, false]",
+ "{\"choice\": null, \"reason\": \"The candidate causes 4 regressions to fix 1 case, resulting in a net performance decrease.\"}"
+]

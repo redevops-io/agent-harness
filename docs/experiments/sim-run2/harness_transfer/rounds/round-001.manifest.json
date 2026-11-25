@@ -1,0 +1,45 @@
+{
+ "candidates": [
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "egress-vetting-e001",
+    "egress-vetting-e003",
+    "egress-vetting-e007",
+    "egress-vetting-e009",
+    "egress-vetting-e017",
+    "egress-vetting-e022",
+    "egress-vetting-e026"
+   ],
+   "rationale": "The failing tasks show the model denying valid public domains (like api.stripe.com, gist.githubusercontent.com) because their DNS IPs don't match the model's internal 'expected' IPs, or denying lookalike domains (github.com.example.org) which are technically valid public domains. The model is over-securing. It needs to be instructed to ALLOW connections to valid public domains unless there is a specific, explicit policy violation (like connecting to a private IP range for a public domain, or a known malicious domain), rather than denying based on 'strictness' or IP mismatch.",
+   "refused": "",
+   "root_cause": "The model is hallucinating a strict security policy that denies connections based on IP mismatches, non-standard ports, or lookalike domains, rather than following a standard allow-list or general egress policy where valid public domains are allowed.",
+   "screened_in": true,
+   "what": "unspecified edit"
+  },
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "egress-vetting-e023",
+    "egress-vetting-e024"
+   ],
+   "rationale": "Task e023 failed because the model rambled and didn't output a verdict. Task e024 failed because the model allowed localhost, which is generally a security risk for egress (data exfiltration to local files/services). The prompt needs to enforce a concise output and explicitly deny localhost/loopback.",
+   "refused": "",
+   "root_cause": "The model is failing to provide a final verdict in some cases (e.g., e023) due to over-explaining and running out of output budget, and is incorrectly allowing localhost (e024) which is typically denied in egress policies.",
+   "screened_in": true,
+   "what": "unspecified edit"
+  }
+ ],
+ "harness": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+ "memory_condition": "none",
+ "memory_view": {
+  "chars": 0,
+  "custom": false,
+  "report": null
+ },
+ "round": 1
+}

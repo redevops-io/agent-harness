@@ -1,0 +1,45 @@
+{
+ "candidates": [
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "egress-vetting-e001",
+    "egress-vetting-e003",
+    "egress-vetting-e007",
+    "egress-vetting-e009",
+    "egress-vetting-e017",
+    "egress-vetting-e022",
+    "egress-vetting-e026"
+   ],
+   "rationale": "The failing tasks show the model denying valid public domains (like api.stripe.com, github.com.example.org) because the provided DNS IP doesn't match its internal knowledge of that domain's real IP, or because the port is non-standard. The correct behavior for these 'egress-vetting' tasks appears to be allowing connections to public domains on any port, while denying private IPs or internal hosts. The model needs to stop over-analyzing the DNS IP match and focus on the domain's public nature.",
+   "refused": "",
+   "root_cause": "The model is hallucinating a 'strict security policy' that denies connections based on IP mismatches, non-standard ports, or lookalike domains, rather than applying a standard allowlist/denylist logic where valid public domains are allowed unless explicitly blocked.",
+   "screened_in": true,
+   "what": "Explicitly define the policy as an allowlist of known public domains and standard ports, and instruct the model to ignore IP address mismatches as a reason for denial unless the IP is private/internal."
+  },
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "egress-vetting-e024",
+    "egress-vetting-e023"
+   ],
+   "rationale": "Task e024 failed because the model allowed localhost, which should be denied as it's a loopback address. Task e023 failed because the model rambled and didn't finish. Explicitly stating localhost is denied and limiting the justification length will fix these.",
+   "refused": "",
+   "root_cause": "The model is failing to handle 'localhost' correctly (e024) and is getting cut off before giving a verdict (e023).",
+   "screened_in": true,
+   "what": "Add specific handling for localhost and enforce a strict output length limit to prevent truncation."
+  }
+ ],
+ "harness": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+ "memory_condition": "none",
+ "memory_view": {
+  "chars": 0,
+  "custom": false,
+  "report": null
+ },
+ "round": 1
+}

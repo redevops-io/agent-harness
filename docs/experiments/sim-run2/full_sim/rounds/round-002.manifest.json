@@ -1,0 +1,56 @@
+{
+ "candidates": [
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "egress-vetting-e001",
+    "egress-vetting-e003",
+    "egress-vetting-e004",
+    "egress-vetting-e007",
+    "egress-vetting-e009",
+    "egress-vetting-e017",
+    "egress-vetting-e021",
+    "egress-vetting-e022",
+    "egress-vetting-e023",
+    "egress-vetting-e026"
+   ],
+   "rationale": "The model is incorrectly applying 'sandbox' or 'security' logic to egress vetting, specifically denying connections because the DNS IP does not match the domain (e001, e003, e007, e009, e017, e022, e026) or because the IP is private (e004, e021). It also rambles until token exhaustion (e021, e023). By clarifying that the policy is a simple allowlist check on host and port, and explicitly stating that DNS answers are irrelevant to the policy decision, we address the logical confusion and the format failure.",
+   "refused": "",
+   "root_cause": "P3",
+   "screened_in": true,
+   "what": "Rewrite the system prompt to explicitly define the egress policy as checking ONLY the host against a domain allowlist and the port against a port allowlist, explicitly ignoring DNS resolution results, and mandate a strict single-word output format."
+  },
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "egress-vetting-e001",
+    "egress-vetting-e003",
+    "egress-vetting-e004",
+    "egress-vetting-e007",
+    "egress-vetting-e009",
+    "egress-vetting-e017",
+    "egress-vetting-e021",
+    "egress-vetting-e022",
+    "egress-vetting-e023",
+    "egress-vetting-e026"
+   ],
+   "rationale": "The model is specifically confused by the 'DNS answer' field, leading it to deny allowed hosts due to IP mismatch (e001, e003, e007, e009, e017, e022, e026) or private IPs (e004, e021). Providing a concrete example where a host with a mismatched or private IP is ALLOWED because the host and port are in the allowlist directly counters this misconception. The strict output constraint prevents token exhaustion (e021, e023).",
+   "refused": "",
+   "root_cause": "P3",
+   "screened_in": true,
+   "what": "Add a few-shot example demonstrating that DNS mismatches and private IPs do not affect the allowlist decision, and strictly limit the output to a single verdict word."
+  }
+ ],
+ "harness": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+ "memory_condition": "full",
+ "memory_view": {
+  "chars": 17471,
+  "custom": false,
+  "report": null
+ },
+ "round": 2
+}

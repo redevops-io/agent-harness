@@ -1,0 +1,12 @@
+[
+ "[true, true]",
+ "{\"choice\": null, \"reason\": \"Both candidates result in a net performance regression (scores 0.400 and 0.433 vs current 0.667) by introducing 16 new failures while only fixing 8-9 existing ones.\"}",
+ "[\n  true,\n  true\n]",
+ "{\"choice\": null, \"reason\": \"Candidate 0 significantly degrades performance (0.533 vs 0.667) by introducing 9 new failures, and Candidate 1 offers no net improvement (0.667 vs 0.667) with a similar number of new failures, so neither is a real improvement.\"}",
+ "[true, true]",
+ "{\"choice\": null, \"reason\": \"Both candidates cause a net regression in performance (dropping from 0.667 to 0.400 and 0.500 respectively) by introducing new failures that outweigh the few newly passing cases.\"}",
+ "[\ntrue,\nfalse\n]",
+ "{\"choice\": null, \"reason\": \"The candidate edit significantly decreases the overall score (0.567 vs 0.667) and introduces 8 new failures, indicating it is a regression rather than an improvement.\"}",
+ "[\ntrue,\ntrue\n]",
+ "{\"choice\": null, \"reason\": \"Both candidates result in a significant performance regression (score drops from 0.667 to 0.467) by introducing 11 new failures while only fixing 5, indicating that the proposed edits are harmful rather than improvements.\"}"
+]

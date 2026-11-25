@@ -1,0 +1,16 @@
+{
+  "files": [
+    "LongTermMEMORY.md",
+    "guardrails.md",
+    "systemprompt.md",
+    "tool_descriptions/tool_guidance.md"
+  ],
+  "id": "78405ac88992a254eae7c4a891b619e92c0a8207273fa35be9c6de0753ca169f",
+  "meta": {
+    "round": 1,
+    "run": "harness_transfer",
+    "what": "unspecified edit"
+  },
+  "parent": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+  "surface": "opencode"
+}
