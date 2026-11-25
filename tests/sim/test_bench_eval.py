@@ -40,7 +40,8 @@ def test_a_rollout_gets_the_harness_text_and_skills_only_and_a_task_passes_at_th
     assert kw["extra_system"] == "Check every deliverable before finishing." and list(kw["extra_files"]) == ["skills/verify/SKILL.md"]
     assert kw["network"] == "none" and kw["attempts"] == 2
     assert "no deliverable" in fb.results[2].detail and "rubric" not in " ".join(r.detail for r in fb.results).lower()
-    assert all("/eval-0001/" in d and "/judge/" in j for _, d, j in judged)                # each evaluation has its own folder
+    from pathlib import Path
+    assert all("eval-0001" in Path(d).parts and "judge" in Path(j).parts for _, d, j in judged)      # each evaluation has its own folder (any separator)
 
 
 def test_an_ungraded_task_makes_the_evaluation_incomplete_instead_of_a_pass_or_a_fail(tmp_path):
