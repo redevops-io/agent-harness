@@ -176,3 +176,17 @@ def test_the_proposer_and_the_selector_both_receive_the_memory_under_the_runs_co
     assert shown[TransferCondition.COLD_START] == "" and shown[TransferCondition.HARNESS_TRANSFER] == ""
     assert "rationale" not in shown[TransferCondition.PROBLEM_ONLY] and "missing task markers" in shown[TransferCondition.PROBLEM_ONLY]
     assert "because missing task markers" in shown[TransferCondition.FULL_SIM] and '"carried_from"' in shown[TransferCondition.FULL_SIM]
+
+
+def test_recording_rejected_candidates_is_an_explicit_configuration_and_keeps_what_did_not_work(tmp_path):
+    script = [[edit("no markers at all", "wording", ["e1"]), edit("x [e1]", "missing task markers", ["e1"])]]
+    paper = opt(tmp_path / "a", Proposer([list(script[0])]))
+    paper.step()
+    assert [(p.name, [a.accepted for a in p.attempts]) for p in paper.memory.problems] == [("missing task markers", [True])]
+    both = opt(tmp_path / "b", Proposer([list(script[0])]), record_rejected=True)
+    both.step()
+    recorded = {p.name: p.attempts for p in both.memory.problems}
+    assert recorded["missing task markers"][0].accepted is True
+    rejected = recorded["wording"][0]
+    assert rejected.accepted is False and rejected.evaluated and rejected.missed == ("e1",) and rejected.passed == 1 and rejected.total == 4
+    assert json.loads((tmp_path / "b" / "run" / "state.json").read_text())["record_rejected"] is True

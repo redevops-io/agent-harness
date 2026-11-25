@@ -51,6 +51,8 @@ class TaskResult:
     passed: bool
     score: float = 0.0
     detail: str = ""               # a short trace or error; shown to the proposer
+    observed: str = ""             # what the policy answered, as extracted by the evaluator ("" when it gave no answer)
+    truncated: bool = False        # the reply ended because the output budget ran out
 
 
 @dataclass(frozen=True)
@@ -75,7 +77,9 @@ class Feedback:
     def to_json(self) -> Dict[str, Any]:
         return {"harness_id": self.harness_id, "score": round(self.score, 6), "passed": sorted(self.passed),
                 "failed": sorted(self.failed), "cost_usd": self.cost_usd, "seconds": self.seconds,
-                "details": {r.task_id: r.detail for r in self.results if r.detail}}
+                "details": {r.task_id: r.detail for r in self.results if r.detail},
+                "observed": {r.task_id: r.observed for r in self.results if not r.passed},
+                "truncated": sorted(r.task_id for r in self.results if r.truncated)}
 
 
 @dataclass(frozen=True)
@@ -191,7 +195,7 @@ class HarnessOptimizer:
                  harness: HarnessSpec, memory: SelfImprovementMemory, condition: MemoryCondition,
                  evolve_tasks: Sequence[str], provenance: Provenance, heldout_tasks: Sequence[str] = (),
                  candidates_per_round: int = 2, protected: Sequence[str] = DEFAULT_PROTECTED,
-                 allow_score_drop: bool = False) -> None:
+                 allow_score_drop: bool = False, record_rejected: bool = False) -> None:
         self.evolve = tuple(dict.fromkeys(evolve_tasks))
         if not self.evolve:
             raise LoopRefused("there is no evolve task to optimize on")
@@ -208,6 +212,10 @@ class HarnessOptimizer:
         self.candidates_per_round = max(1, int(candidates_per_round))
         self.protected = tuple(protected)
         self.allow_score_drop = bool(allow_score_drop)
+        #: False is the paper's rule (section 3.2: only the chosen candidate enters the memory). True also records every
+        #: candidate that was evaluated and NOT adopted, as an attempt with accepted=False, so the memory shows what was
+        #: tried and did not work. An experimental configuration; a run states which one it used.
+        self.record_rejected = bool(record_rejected)
         self.history: List[Dict[str, Any]] = []
         self.round = 0
         self.harness = harness
@@ -228,7 +236,7 @@ class HarnessOptimizer:
         self.memory.save(self.workdir / "sim.json")
         (self.workdir / "state.json").write_text(json.dumps(
             {"schema": "agent-harness.sim-run/1", "run": self.memory.run, "condition": self.condition.value,
-             "current": self.harness_id, "round": self.round, "promotions": self.promotions,
+             "current": self.harness_id, "round": self.round, "promotions": self.promotions, "record_rejected": self.record_rejected,
              "provenance": self.provenance.to_json()}, indent=1, sort_keys=True) + "\n", encoding="utf-8")
 
     # ── one round ────────────────────────────────────────────────────────────────────────────────────────
@@ -290,7 +298,16 @@ class HarnessOptimizer:
             self.promotions.append({"round": self.round, "harness": new_id, "parent": parent, "kind": "promotion", "problem": problem.id})
             rec.chosen, rec.promoted = i, new_id
         elif not rec.note:
-            rec.note = "no candidate was accepted: the harness and the memory are unchanged"
+            rec.note = "no candidate was accepted: the harness" + (" is unchanged" if self.record_rejected else " and the memory are unchanged")
+        if self.record_rejected:
+            for i, p, spec, fb in evaluated:
+                if rec.chosen == i:
+                    continue
+                problem = self.memory.problem(p.root_cause) if self._is_known(p.root_cause) else self.memory.open_problem(p.root_cause, self.round)
+                handle = self.memory.open_attempt(problem.id, round=self.round, sample=i, what=p.what, files=sorted(p.edits), rationale=p.rationale,
+                                                  predicted=p.predicted, candidate_harness=tree_hash(spec),
+                                                  provenance=Provenance(**{**self.provenance.to_json(), "harness_version": rec.current.get("harness_id") or self.promotions[-1]["harness"]}))
+                self.memory.close_attempt(handle, accepted=False, passed_tasks=fb.passed, failed_tasks=fb.failed, previously_passed=current.passed)
         self.history.append(rec.to_json())
         (self.workdir / "rounds" / f"round-{self.round:03d}.outcome.json").write_text(json.dumps(rec.to_json(), indent=1, sort_keys=True) + "\n", encoding="utf-8")
         self._save_state()
