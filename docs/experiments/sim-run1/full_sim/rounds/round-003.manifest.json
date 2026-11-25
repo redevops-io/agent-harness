@@ -1,0 +1,36 @@
+{
+ "candidates": [
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "egress-vetting-e001",
+    "egress-vetting-e003",
+    "egress-vetting-e026"
+   ],
+   "rationale": "The model is currently outputting verbose reasoning and sometimes truncating the final decision (e.g., e001, e003, e026 show partial text). This suggests the model is treating the task as a chat interaction rather than a strict classification task. Enforcing a strict output format will ensure the evaluator receives a clean, parseable token.",
+   "refused": "",
+   "root_cause": "P1",
+   "screened_in": true,
+   "what": "Add a strict output format constraint requiring the model to output ONLY the single word 'ALLOW' or 'DENY' with no other text, reasoning, or markdown."
+  },
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "egress-vetting-e011",
+    "egress-vetting-e022"
+   ],
+   "rationale": "The model is still struggling with the interpretation of DNS answers. By explicitly stating that public IPs are valid and that the DNS answer is irrelevant for non-allowlisted hosts, we reduce the cognitive load and prevent the model from trying to 'validate' the IP against the domain, which is not part of the policy.",
+   "refused": "",
+   "root_cause": "P1",
+   "screened_in": false,
+   "what": "Refine the DNS Mismatch rule to explicitly state that public IP addresses (including IPv6) are always valid for allowlisted hosts, and that the DNS answer is irrelevant for hosts not in the allowlist."
+  }
+ ],
+ "harness": "5d32459f08798d07f8ba4c26bf4f2ff23e058ccd14d26f9748e1183f9014488e",
+ "memory_condition": "full",
+ "round": 3
+}

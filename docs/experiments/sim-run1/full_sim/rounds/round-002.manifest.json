@@ -1,0 +1,34 @@
+{
+ "candidates": [
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "egress-vetting-e006",
+    "egress-vetting-e008"
+   ],
+   "rationale": "The model is incorrectly denying connections where the DNS answer is '(the name does not resolve)' (e006, e008). It seems to be interpreting the lack of a valid public IP as a failure or a mismatch. By explicitly stating that Rule 3 only applies when an IP is actually resolved and falls into a denied range, we prevent these false positives.",
+   "refused": "",
+   "root_cause": "P1",
+   "screened_in": true,
+   "what": "Clarify that a missing DNS answer (NXDOMAIN) is not a violation of the IP restriction rule, as the rule only triggers on positive resolution to private/internal ranges."
+  },
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "egress-vetting-e014"
+   ],
+   "rationale": "In cases like e014, the model gets distracted by the DNS answer (172.16.3.4) even though the host `raw.githubusercontent.com` is not in the allowlist. By clarifying that the allowlist check is the first and most critical step, and that DNS checks are secondary, we ensure the model doesn't miss the primary violation or get confused by secondary details in obvious deny cases.",
+   "refused": "",
+   "root_cause": "P1",
+   "screened_in": false,
+   "what": "Add a specific instruction to ignore the DNS answer for hosts that are not in the allowlist, as the allowlist check is the primary gate."
+  }
+ ],
+ "harness": "d4cecb0ae932d0ec39dca9a71ab83c1c9819c6e0c5c684a4d0c1ec832ecc9fa5",
+ "memory_condition": "full",
+ "round": 2
+}

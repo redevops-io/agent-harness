@@ -176,3 +176,41 @@ def test_the_proposer_and_the_selector_both_receive_the_memory_under_the_runs_co
     assert shown[TransferCondition.COLD_START] == "" and shown[TransferCondition.HARNESS_TRANSFER] == ""
     assert "rationale" not in shown[TransferCondition.PROBLEM_ONLY] and "missing task markers" in shown[TransferCondition.PROBLEM_ONLY]
     assert "because missing task markers" in shown[TransferCondition.FULL_SIM] and '"carried_from"' in shown[TransferCondition.FULL_SIM]
+
+
+def test_recording_rejected_candidates_is_an_explicit_configuration_and_keeps_what_did_not_work(tmp_path):
+    script = [[edit("no markers at all", "wording", ["e1"]), edit("x [e1]", "missing task markers", ["e1"])]]
+    paper = opt(tmp_path / "a", Proposer([list(script[0])]))
+    paper.step()
+    assert [(p.name, [a.accepted for a in p.attempts]) for p in paper.memory.problems] == [("missing task markers", [True])]
+    both = opt(tmp_path / "b", Proposer([list(script[0])]), record_rejected=True)
+    both.step()
+    recorded = {p.name: p.attempts for p in both.memory.problems}
+    assert recorded["missing task markers"][0].accepted is True
+    rejected = recorded["wording"][0]
+    assert rejected.accepted is False and rejected.evaluated and rejected.missed == ("e1",) and rejected.passed == 1 and rejected.total == 4
+    assert json.loads((tmp_path / "b" / "run" / "state.json").read_text())["record_rejected"] is True
+
+
+def test_a_memory_view_hook_changes_what_both_engineers_see_never_the_stored_record_and_its_report_is_in_the_manifest(tmp_path):
+    src = opt(tmp_path / "s", Proposer([[edit("x [e1]", "missing task markers", ["e1"])]]))
+    src.step()
+    mem = src.memory.carry_into("tgt")
+    seen = []
+
+    def view(memory, feedback):
+        seen.append((len(memory.problems), sorted(feedback.failed)))
+        return "SELECTED VIEW", {"complete": False, "omitted": 1}
+    p, s = Proposer([[edit("y [e1][e2]", "missing task markers", ["e2"])]]), Selector()
+    o = HarnessOptimizer(evaluator=Evaluator(), proposer=p, selector=s, workdir=tmp_path / "t", harness=src.harness, memory=mem, condition=MemoryCondition.FULL,
+                         evolve_tasks=EVOLVE, provenance=PROV, memory_text=view)
+    o.step()
+    assert p.seen[0]["memory"] == "SELECTED VIEW" == s.seen[0] and seen and seen[0][0] == 1
+    doc = json.loads((tmp_path / "t" / "rounds" / "round-001.manifest.json").read_text())
+    assert doc["memory_view"] == {"custom": True, "chars": 13, "report": {"complete": False, "omitted": 1}}
+    stored = json.loads((tmp_path / "t" / "sim.json").read_text())
+    assert "SELECTED VIEW" not in json.dumps(stored) and len(stored["problems"][0]["attempts"]) == 2          # the complete record, updated as usual
+    none = HarnessOptimizer(evaluator=Evaluator(), proposer=Proposer([[]]), selector=Selector(), workdir=tmp_path / "n", harness=seed(), memory=SelfImprovementMemory(run="n"),
+                            condition=MemoryCondition.NONE, evolve_tasks=EVOLVE, provenance=PROV, memory_text=view)
+    none.step()
+    assert none.proposer.seen[0]["memory"] == ""                                                            # a no-memory arm stays without memory

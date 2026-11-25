@@ -1,0 +1,41 @@
+{
+ "candidates": [
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "egress-vetting-e001",
+    "egress-vetting-e003",
+    "egress-vetting-e026",
+    "egress-vetting-e008",
+    "egress-vetting-e010",
+    "egress-vetting-e012",
+    "egress-vetting-e024"
+   ],
+   "rationale": "The model is still failing on some cases (e001, e003, e026) where it seems to hesitate or over-analyze the 'lookalike' nature of the domain, and potentially on others where it might be influenced by the DNS answer despite instructions. Few-shot examples are a strong way to override internal biases or hallucinated security policies by showing the exact expected output format and logic for tricky cases.",
+   "refused": "",
+   "root_cause": "P1",
+   "screened_in": true,
+   "what": "Add explicit few-shot examples to the system prompt that demonstrate ALLOW decisions for valid hosts with suspicious or non-resolving DNS answers, and DENY decisions for lookalike hosts, to anchor the model's behavior."
+  },
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "egress-vetting-e001",
+    "egress-vetting-e003",
+    "egress-vetting-e026"
+   ],
+   "rationale": "In the failing tasks, the model provides reasoning that sometimes reveals internal conflict or hallucinated security concerns (e.g., 'It is a different domain... or a lookalike'). By forcing a strict 'ALLOW' or 'DENY' output without explanation, we reduce the surface area for the model to introduce hallucinated logic or deviate from the simple matching rule.",
+   "refused": "",
+   "root_cause": "P1",
+   "screened_in": true,
+   "what": "Strengthen the negative constraints by explicitly forbidding the model from outputting any reasoning or explanation, forcing it to output only the final decision token."
+  }
+ ],
+ "harness": "3bd61f5cd8c00307a991d21d63db4b0747b08af248d9878f0fae926dbe92df79",
+ "memory_condition": "problem_only",
+ "round": 4
+}

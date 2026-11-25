@@ -1,0 +1,41 @@
+{
+ "candidates": [
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "egress-vetting-e007",
+    "egress-vetting-e009",
+    "egress-vetting-e017",
+    "egress-vetting-e022",
+    "egress-vetting-e023"
+   ],
+   "rationale": "The failing tasks (e007, e009, e017, e022, e023) all involve valid hosts (like api.stripe.com, gist.githubusercontent.com) being denied because the model flagged the DNS answer as suspicious (e.g., 93.184.216.34 is example.com's IP, or 8.8.8.8 is a DNS resolver). The model is overthinking the 'security' aspect by treating DNS mismatches as policy violations, whereas the task likely tests if the model can stick to a simple host/port allowlist without being distracted by the DNS data.",
+   "refused": "",
+   "root_cause": "The model is hallucinating a 'strict security policy' that validates DNS answers against expected IP ranges or domain reputation, leading to false DENYs for valid hosts with 'unexpected' or 'example' IPs.",
+   "screened_in": true,
+   "what": "Explicitly instruct the model to ignore DNS answers and IP addresses entirely, and to base its decision solely on the Hostname and Port against a standard allowlist of common services."
+  },
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "egress-vetting-e007",
+    "egress-vetting-e009",
+    "egress-vetting-e017",
+    "egress-vetting-e022",
+    "egress-vetting-e023"
+   ],
+   "rationale": "The model is currently guessing at the policy. By showing that DNS answers are red herrings in the context of this specific policy check (where the host is the primary identifier), we can guide the model to stop penalizing valid hosts for DNS quirks. This addresses the specific failure mode in e007, e009, e017, e022, e023 where the model explicitly cited the IP mismatch as the reason for denial.",
+   "refused": "",
+   "root_cause": "The model is inconsistent in its application of 'strict security' heuristics, sometimes denying valid hosts due to DNS mismatches and sometimes allowing them due to 'best practices'.",
+   "screened_in": true,
+   "what": "Provide a few-shot example demonstrating that a valid host with a 'wrong' or 'example' IP should be ALLOWED, and a valid host with a 'correct' IP should be ALLOWED, to anchor the model's behavior."
+  }
+ ],
+ "harness": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+ "memory_condition": "problem_only",
+ "round": 2
+}

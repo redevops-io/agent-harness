@@ -1,0 +1,41 @@
+{
+ "candidates": [
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "egress-vetting-e000",
+    "egress-vetting-e007",
+    "egress-vetting-e009",
+    "egress-vetting-e017",
+    "egress-vetting-e023"
+   ],
+   "rationale": "Previous attempts to 'ignore' the DNS info failed because the model still used its internal security heuristics. By defining the policy as a strict allow-list and explicitly marking DNS as 'noise' or 'irrelevant', we force the model to discard the IP data and focus only on the Host and Port.",
+   "refused": "",
+   "root_cause": "The model is hallucinating a 'security policy' that requires DNS validation and IP reputation checks, leading it to deny valid hosts because their provided DNS answers are 'wrong' or 'suspicious'.",
+   "screened_in": true,
+   "what": "Explicitly define the policy as a static allow-list of specific hostnames and ports, and explicitly state that DNS answers and IP addresses are irrelevant to the decision."
+  },
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "egress-vetting-e000",
+    "egress-vetting-e007",
+    "egress-vetting-e009",
+    "egress-vetting-e017",
+    "egress-vetting-e023"
+   ],
+   "rationale": "Few-shot examples are often more effective than instructions for overriding strong prior beliefs (like 'wrong IP = bad'). By showing that a valid host with a 'bad' IP is ALLOWED, we directly counter the model's tendency to deny based on IP mismatch.",
+   "refused": "",
+   "root_cause": "The model is treating the task as a general security review rather than a specific policy check, causing it to deny connections to valid hosts (like huggingface.co or docs.python.org) because the provided IPs are 'wrong' or 'suspicious'.",
+   "screened_in": true,
+   "what": "Provide few-shot examples that explicitly show valid hosts with 'wrong' or 'suspicious' IPs being ALLOWED, and invalid hosts being DENIED, to anchor the model's behavior to the allow-list logic."
+  }
+ ],
+ "harness": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+ "memory_condition": "problem_only",
+ "round": 3
+}

@@ -1,0 +1,37 @@
+{
+ "condition": "none",
+ "current": "8832ddb9f8a927b9269a49300240eb400f0ac1ba42b5f06bbda283e113ad942a",
+ "promotions": [
+  {
+   "harness": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+   "kind": "start",
+   "round": 0
+  },
+  {
+   "harness": "bef908b57d8f586bb887c90badf42a2ca22839a33d7698faf966476d95017822",
+   "kind": "promotion",
+   "parent": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+   "problem": "P1",
+   "round": 1
+  },
+  {
+   "harness": "8832ddb9f8a927b9269a49300240eb400f0ac1ba42b5f06bbda283e113ad942a",
+   "kind": "promotion",
+   "parent": "bef908b57d8f586bb887c90badf42a2ca22839a33d7698faf966476d95017822",
+   "problem": "P2",
+   "round": 2
+  }
+ ],
+ "provenance": {
+  "benchmark": "egress-vetting",
+  "domain": "policy-vetting",
+  "evaluator": "oracle:egress-vetting",
+  "harness_version": "",
+  "optimizer": "qwen3.8-27b",
+  "policy": "qwen3.8-27b",
+  "run": "harness_transfer"
+ },
+ "round": 4,
+ "run": "harness_transfer",
+ "schema": "agent-harness.sim-run/1"
+}

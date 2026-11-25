@@ -1,0 +1,185 @@
+{
+ "arms": {
+  "cold_start": {
+   "final_harness_chars": 822,
+   "source_heldout_final": 0.5666666666666667,
+   "target_heldout_final": 0.7333333333333333,
+   "target_heldout_start": 0.6666666666666666,
+   "target_improvement": 0.0667
+  },
+  "existing_learning": {
+   "source_heldout_final": 0.5333333333333333,
+   "target_heldout_final": 0.7333333333333333,
+   "target_heldout_start": 0.6666666666666666,
+   "target_improvement": 0.0667
+  },
+  "full_sim": {
+   "final_harness_chars": 1044,
+   "source_heldout_final": 0.4666666666666667,
+   "target_heldout_final": 0.6,
+   "target_heldout_start": 0.6666666666666666,
+   "target_improvement": -0.0667
+  },
+  "harness_transfer": {
+   "final_harness_chars": 1735,
+   "source_heldout_final": 0.6,
+   "target_heldout_final": 0.6,
+   "target_heldout_start": 0.6666666666666666,
+   "target_improvement": -0.0667
+  },
+  "problem_only": {
+   "final_harness_chars": 1389,
+   "source_heldout_final": 0.43333333333333335,
+   "target_heldout_final": 0.5666666666666667,
+   "target_heldout_start": 0.6666666666666666,
+   "target_improvement": -0.1
+  }
+ },
+ "candidates_per_round": 2,
+ "caveats": [
+  "one run per arm: single observations, no variance estimate",
+  "30 held-out tasks per set: one task is 3.3 points",
+  "the proposer, selector and task policy are the same model",
+  "task sets are generated from this package's own policy code; they are not the benchmarks of the paper"
+ ],
+ "heldout_reference": {
+  "source_heldout": {
+   "seed": 0.5,
+   "source_evolved": 0.5
+  },
+  "target_heldout": {
+   "seed": 0.6666666666666666,
+   "source_evolved": 0.6666666666666666
+  }
+ },
+ "model": "qwen3.8-27b",
+ "rounds": 4,
+ "runs": {
+  "cold_start": {
+   "candidates_per_round": 2,
+   "evolve_scores": [
+    0.666667,
+    0.766667,
+    0.766667,
+    0.833333,
+    0.8333333333333334
+   ],
+   "memory_condition": "none",
+   "missed_predictions": 5,
+   "policy_calls": 180,
+   "predictions": 10,
+   "promotions": 2,
+   "proposed": 6,
+   "refused": 0,
+   "regressed_tasks_in_promotions": 6,
+   "rounds": 4,
+   "seconds": 412.6
+  },
+  "existing_learning": {
+   "chosen": "stepwise",
+   "evolve_scores": [
+    0.6667,
+    0.6667,
+    0.7333,
+    0.7,
+    0.6,
+    0.7,
+    0.5667,
+    0.7
+   ],
+   "note": "selects among prewritten variants; proposes no edit",
+   "policy_calls": 240,
+   "pulls": 8,
+   "seconds": 528.1
+  },
+  "full_sim": {
+   "candidates_per_round": 2,
+   "evolve_scores": [
+    0.633333,
+    0.7,
+    0.733333,
+    0.733333,
+    0.7333333333333333
+   ],
+   "memory_condition": "full",
+   "missed_predictions": 3,
+   "policy_calls": 180,
+   "predictions": 6,
+   "promotions": 2,
+   "proposed": 8,
+   "refused": 0,
+   "regressed_tasks_in_promotions": 4,
+   "rounds": 4,
+   "seconds": 292.6
+  },
+  "harness_transfer": {
+   "candidates_per_round": 2,
+   "evolve_scores": [
+    0.633333,
+    0.7,
+    0.7,
+    0.7,
+    0.7
+   ],
+   "memory_condition": "none",
+   "missed_predictions": 10,
+   "policy_calls": 150,
+   "predictions": 14,
+   "promotions": 2,
+   "proposed": 4,
+   "refused": 0,
+   "regressed_tasks_in_promotions": 2,
+   "rounds": 4,
+   "seconds": 408.2
+  },
+  "problem_only": {
+   "candidates_per_round": 2,
+   "evolve_scores": [
+    0.666667,
+    0.666667,
+    0.666667,
+    0.7,
+    0.7
+   ],
+   "memory_condition": "problem_only",
+   "missed_predictions": 8,
+   "policy_calls": 240,
+   "predictions": 12,
+   "promotions": 2,
+   "proposed": 8,
+   "refused": 0,
+   "regressed_tasks_in_promotions": 3,
+   "rounds": 4,
+   "seconds": 324.4
+  },
+  "source": {
+   "candidates_per_round": 2,
+   "evolve_scores": [
+    0.8,
+    0.8,
+    0.8,
+    0.8,
+    0.8
+   ],
+   "memory_condition": "full",
+   "missed_predictions": 0,
+   "policy_calls": 270,
+   "predictions": 0,
+   "promotions": 0,
+   "proposed": 8,
+   "refused": 0,
+   "regressed_tasks_in_promotions": 0,
+   "rounds": 4,
+   "seconds": 360.7
+  }
+ },
+ "schema": "agent-harness.sim-experiment/1",
+ "source": "command-vetting",
+ "target": "egress-vetting",
+ "tasks": {
+  "source_evolve": 30,
+  "source_heldout": 30,
+  "target_evolve": 30,
+  "target_heldout": 30
+ }
+}

@@ -1,0 +1,16 @@
+{
+  "files": [
+    "LongTermMEMORY.md",
+    "guardrails.md",
+    "systemprompt.md",
+    "tool_descriptions/tool_guidance.md"
+  ],
+  "id": "3bd61f5cd8c00307a991d21d63db4b0747b08af248d9878f0fae926dbe92df79",
+  "meta": {
+    "round": 3,
+    "run": "problem_only",
+    "what": "Explicitly define the policy as a static allow-list of specific hostnames and ports, and explicitly state that DNS answers and IP addresses are irrelevant to the decision."
+  },
+  "parent": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+  "surface": "opencode"
+}

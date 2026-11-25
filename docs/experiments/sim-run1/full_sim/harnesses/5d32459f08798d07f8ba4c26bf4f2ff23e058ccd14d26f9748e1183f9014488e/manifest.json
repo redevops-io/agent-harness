@@ -1,0 +1,16 @@
+{
+  "files": [
+    "LongTermMEMORY.md",
+    "guardrails.md",
+    "systemprompt.md",
+    "tool_descriptions/tool_guidance.md"
+  ],
+  "id": "5d32459f08798d07f8ba4c26bf4f2ff23e058ccd14d26f9748e1183f9014488e",
+  "meta": {
+    "round": 2,
+    "run": "full_sim",
+    "what": "Clarify that a missing DNS answer (NXDOMAIN) is not a violation of the IP restriction rule, as the rule only triggers on positive resolution to private/internal ranges."
+  },
+  "parent": "d4cecb0ae932d0ec39dca9a71ab83c1c9819c6e0c5c684a4d0c1ec832ecc9fa5",
+  "surface": "opencode"
+}

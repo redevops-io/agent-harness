@@ -1,0 +1,8 @@
+[
+ "[true, true]",
+ "{\"choice\": 1, \"reason\": \"Candidate 1 achieves a higher score (0.767 vs 0.733) and has fewer regressions (6 newly failing vs 7), making it the safer and more effective improvement.\"}",
+ "[true, false]",
+ "{\"choice\": null, \"reason\": \"The candidate edit results in a lower score (0.733 vs 0.767) and introduces two new failures, indicating it is a regression rather than an improvement.\"}",
+ "[true, true]",
+ "{\"choice\": 1, \"reason\": \"Candidate 1 achieves a higher score (0.833 vs 0.700), fixes more predicted failures, and introduces no new regressions, whereas Candidate 1 causes three new failures.\"}"
+]

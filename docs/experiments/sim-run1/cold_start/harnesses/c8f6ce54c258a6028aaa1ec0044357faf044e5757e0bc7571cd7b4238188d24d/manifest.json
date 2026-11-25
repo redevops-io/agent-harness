@@ -1,0 +1,16 @@
+{
+  "files": [
+    "LongTermMEMORY.md",
+    "guardrails.md",
+    "systemprompt.md",
+    "tool_descriptions/tool_guidance.md"
+  ],
+  "id": "c8f6ce54c258a6028aaa1ec0044357faf044e5757e0bc7571cd7b4238188d24d",
+  "meta": {
+    "round": 1,
+    "run": "cold_start",
+    "what": "Clarify that domains ending in .example.org, .test, or .invalid are treated as valid public domains for the purpose of this policy check, unless they resolve to private IPs."
+  },
+  "parent": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+  "surface": "opencode"
+}

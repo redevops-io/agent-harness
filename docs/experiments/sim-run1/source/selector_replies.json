@@ -1,0 +1,10 @@
+[
+ "[true, true]",
+ "{\"choice\": null, \"reason\": \"Both candidates result in a net performance regression (score drops from 0.800 to 0.733) by introducing three new failures for only one new pass, indicating the proposed edits are harmful or overly specific.\"}",
+ "[true, true]",
+ "{\"choice\": null, \"reason\": \"Both candidates degrade the overall score from 0.800 to 0.733 by introducing three new failures for every single new pass, indicating that the added instructions cause regressions that outweigh the specific fixes.\"}",
+ "[\n  true,\n  true\n]",
+ "{\"choice\": null, \"reason\": \"Both candidates show a net performance regression (score 0.733 vs current 0.800) by introducing three new failures for every one new pass, indicating that the proposed edits are too specific or disruptive to the model's general reasoning.\"}",
+ "[true, true]",
+ "{\"choice\": null, \"reason\": \"Both candidates result in a net performance regression (0.733 vs current 0.800) by introducing three new failures while only fixing one, indicating that the proposed edits are too specific or conflicting with other test cases.\"}"
+]

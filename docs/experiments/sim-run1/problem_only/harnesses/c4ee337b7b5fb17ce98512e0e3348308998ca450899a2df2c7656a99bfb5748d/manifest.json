@@ -1,0 +1,16 @@
+{
+  "files": [
+    "LongTermMEMORY.md",
+    "guardrails.md",
+    "systemprompt.md",
+    "tool_descriptions/tool_guidance.md"
+  ],
+  "id": "c4ee337b7b5fb17ce98512e0e3348308998ca450899a2df2c7656a99bfb5748d",
+  "meta": {
+    "round": 4,
+    "run": "problem_only",
+    "what": "Add explicit few-shot examples to the system prompt that demonstrate ALLOW decisions for valid hosts with suspicious or non-resolving DNS answers, and DENY decisions for lookalike hosts, to anchor the model's behavior."
+  },
+  "parent": "3bd61f5cd8c00307a991d21d63db4b0747b08af248d9878f0fae926dbe92df79",
+  "surface": "opencode"
+}

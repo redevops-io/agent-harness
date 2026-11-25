@@ -1,0 +1,16 @@
+{
+  "files": [
+    "LongTermMEMORY.md",
+    "guardrails.md",
+    "systemprompt.md",
+    "tool_descriptions/tool_guidance.md"
+  ],
+  "id": "bef908b57d8f586bb887c90badf42a2ca22839a33d7698faf966476d95017822",
+  "meta": {
+    "round": 1,
+    "run": "harness_transfer",
+    "what": "Define a specific security policy (allowlist of domains, allowed ports, IP validation rules) and strict decision logic in the system prompt."
+  },
+  "parent": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+  "surface": "opencode"
+}

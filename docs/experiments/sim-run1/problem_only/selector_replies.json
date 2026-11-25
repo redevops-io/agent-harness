@@ -1,0 +1,10 @@
+[
+ "[true, false]",
+ "{\"choice\": null, \"reason\": \"The candidate edit causes a net performance regression (0.533 vs 0.667) by introducing 8 new failures while only fixing 4, indicating the proposed strict allow-list instruction is too rigid and breaks other valid cases.\"}",
+ "[true, true]",
+ "{\"choice\": null, \"reason\": \"Both candidates result in a lower score (0.533 and 0.500) compared to the current baseline (0.667) and introduce significant regressions, so no edit should be adopted.\"}",
+ "[true, true]",
+ "{\"choice\": 0, \"reason\": \"Candidate 0 is preferred because it explicitly defines the policy as a static allow-list and states that DNS/IP data is irrelevant, which directly addresses the root cause of the model hallucinating security checks, and it is more concise (940 chars) than Candidate 1.\"}",
+ "[true, true]",
+ "{\"choice\": 0, \"reason\": \"Candidate 0 directly addresses the hallucinated security policy (P1) by providing few-shot examples that anchor the model to allow valid hosts despite suspicious DNS, whereas Candidate 1 only suppresses output format without correcting the underlying decision logic.\"}"
+]

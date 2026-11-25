@@ -1,0 +1,8 @@
+{
+ "aliases": {},
+ "carried_from": null,
+ "next_id": 1,
+ "problems": [],
+ "run": "source",
+ "schema": "agent-harness.sim/1"
+}

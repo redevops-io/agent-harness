@@ -1,0 +1,37 @@
+{
+ "candidates": [
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "egress-vetting-e007",
+    "egress-vetting-e009",
+    "egress-vetting-e017",
+    "egress-vetting-e023"
+   ],
+   "rationale": "The failing tasks show the model is over-relying on the DNS answer to detect 'mismatches' or 'spoofing' which are not part of the standard egress policy being tested. By clarifying that the DNS answer is only relevant for IP-range checks (private/internal), we prevent the model from denying valid public connections just because the IP doesn't match its internal knowledge of the domain's infrastructure.",
+   "refused": "",
+   "root_cause": "The model is hallucinating a strict 'IP-to-Domain' validation policy that does not exist in the prompt, leading to incorrect DENYs for valid domains resolving to 'wrong' IPs (e.g., e007, e009, e017, e023).",
+   "screened_in": true,
+   "what": "Explicitly instruct the model to evaluate the Hostname and Port against the policy, and to ignore the DNS answer unless the policy explicitly defines rules for IP ranges (like private/CGNAT)."
+  },
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "egress-vetting-e024",
+    "egress-vetting-e028"
+   ],
+   "rationale": "The model allowed `localhost` in e024, which is likely incorrect for a strict egress policy that only allows specific public domains. Clarifying that `localhost` and internal hosts are denied helps align the model's behavior with a standard default-deny egress policy.",
+   "refused": "",
+   "root_cause": "The model is uncertain about the policy for `localhost` and internal hosts, leading to inconsistent reasoning (e.g., e024, e028).",
+   "screened_in": true,
+   "what": "Add explicit rules for `localhost` and internal/private hostnames to clarify that they are denied by default unless explicitly allowed, and that `localhost` is not in the allowlist."
+  }
+ ],
+ "harness": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+ "memory_condition": "full",
+ "round": 1
+}

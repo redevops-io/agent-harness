@@ -1,0 +1,6 @@
+[
+ "[true, true]",
+ "{\"choice\": 0, \"reason\": \"Candidate 0 achieves a higher score (0.700 vs 0.667) and causes fewer regressions (2 vs 3) while addressing the root cause of missing explicit policy definitions.\"}",
+ "[true, true]",
+ "{\"choice\": 0, \"reason\": \"Candidate 0 maintains the current score of 0.700 without introducing new failures, whereas Candidate 1 degrades performance to 0.633 by causing regressions on egress-vetting-e008 and egress-vetting-e010.\"}"
+]

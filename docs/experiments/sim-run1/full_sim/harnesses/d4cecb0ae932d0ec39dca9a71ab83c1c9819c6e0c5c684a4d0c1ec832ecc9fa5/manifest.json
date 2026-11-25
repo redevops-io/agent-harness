@@ -1,0 +1,16 @@
+{
+  "files": [
+    "LongTermMEMORY.md",
+    "guardrails.md",
+    "systemprompt.md",
+    "tool_descriptions/tool_guidance.md"
+  ],
+  "id": "d4cecb0ae932d0ec39dca9a71ab83c1c9819c6e0c5c684a4d0c1ec832ecc9fa5",
+  "meta": {
+    "round": 1,
+    "run": "full_sim",
+    "what": "Explicitly instruct the model to evaluate the Hostname and Port against the policy, and to ignore the DNS answer unless the policy explicitly defines rules for IP ranges (like private/CGNAT)."
+  },
+  "parent": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+  "surface": "opencode"
+}

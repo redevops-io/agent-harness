@@ -1,0 +1,38 @@
+{
+ "candidates": [
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "command-vetting-e003",
+    "command-vetting-e005",
+    "command-vetting-e008",
+    "command-vetting-e012",
+    "command-vetting-e016",
+    "command-vetting-e018"
+   ],
+   "rationale": "The model is incorrectly applying path traversal and sandbox logic to what is purely a command allowlist check. The policy only specifies which commands are allowed, not which paths are accessible. The model needs to be told to ignore path traversal, symlinks, and sandbox boundaries when evaluating command allowlist policies.",
+   "refused": "",
+   "root_cause": "P1: Model conflates command allowlist policy with sandbox/path traversal security checks",
+   "screened_in": true,
+   "what": "Add explicit instructions to distinguish command allowlist checks from sandbox/path traversal checks, and clarify that only the command name is checked against the allowlist."
+  },
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "command-vetting-e012"
+   ],
+   "rationale": "The model is uncertain about how to handle commands like 'ls data && wc -l' where multiple commands are chained. It needs clear guidance that ALL commands in a compound command must be in the allowlist for the overall command to be allowed.",
+   "refused": "",
+   "root_cause": "P2: Model does not handle compound commands (&&, |, ;) correctly",
+   "screened_in": true,
+   "what": "Add explicit guidance on how to evaluate compound commands with multiple executables."
+  }
+ ],
+ "harness": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+ "memory_condition": "full",
+ "round": 1
+}

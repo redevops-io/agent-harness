@@ -1,0 +1,10 @@
+[
+ "[true, true]",
+ "{\"choice\": 0, \"reason\": \"Candidate 0 addresses a more fundamental hallucination of a non-existent IP-to-Domain validation policy, which is likely causing the majority of the incorrect DENYs, whereas Candidate 1 only addresses a narrower edge case regarding localhost.\"}",
+ "[\ntrue,\nfalse\n]",
+ "{\"choice\": 0, \"reason\": \"The candidate improves the score from 0.700 to 0.733 by fixing e014 without causing regressions, and it directly addresses the P1 diagnosis by clarifying that NXDOMAIN does not trigger IP restriction rules.\"}",
+ "[\ntrue,\nfalse\n]",
+ "{\"choice\": null, \"reason\": \"The candidate edit is a formatting constraint that does not address the root cause of the policy misinterpretation (P1) and carries regression risk without evidence of fixing the underlying logic errors.\"}",
+ "[\n true,\n false\n]",
+ "{\"choice\": null, \"reason\": \"The candidate is predicted to fix 8 tasks but has a score of 0.733, identical to the current baseline, and shows no actual newly passing tasks, suggesting the prediction is overly optimistic or the edit does not address the core hallucination issue identified in P1.\"}"
+]

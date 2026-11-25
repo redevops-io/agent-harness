@@ -1,0 +1,42 @@
+{
+ "candidates": [
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "egress-vetting-e001",
+    "egress-vetting-e003",
+    "egress-vetting-e006",
+    "egress-vetting-e008",
+    "egress-vetting-e011",
+    "egress-vetting-e017",
+    "egress-vetting-e022",
+    "egress-vetting-e026"
+   ],
+   "rationale": "The model is currently outputting reasoning and markdown (e.g., 'The host `api.github.com` is in the allowlist... ALLOW'). This violates the 'Output only ALLOW or DENY' instruction and likely causes parsing failures or mismatches with the expected strict output format, leading to incorrect scoring even when the decision is logically correct.",
+   "refused": "",
+   "root_cause": "P1",
+   "screened_in": true,
+   "what": "Add a strict output format constraint requiring the model to output ONLY the single word 'ALLOW' or 'DENY' with no other text, reasoning, or markdown."
+  },
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "egress-vetting-e001",
+    "egress-vetting-e022",
+    "egress-vetting-e026"
+   ],
+   "rationale": "The model is still showing confusion about DNS answers in some cases (e.g., e001, e022). By explicitly stating that public IPs are valid and that DNS is irrelevant for non-allowlisted hosts, we reduce the chance of the model hallucinating a mismatch or using DNS as a secondary denial reason for hosts that are already denied by the allowlist.",
+   "refused": "",
+   "root_cause": "P1",
+   "screened_in": false,
+   "what": "Refine the DNS Mismatch rule to explicitly state that public IP addresses (including IPv6) are always valid for allowlisted hosts, and that the DNS answer is irrelevant for hosts not in the allowlist."
+  }
+ ],
+ "harness": "5d32459f08798d07f8ba4c26bf4f2ff23e058ccd14d26f9748e1183f9014488e",
+ "memory_condition": "full",
+ "round": 4
+}
