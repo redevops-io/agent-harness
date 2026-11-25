@@ -159,6 +159,53 @@ _NEEDS_EXPECTED = frozenset({PredicateOp.EQUALS, PredicateOp.NOT_EQUALS, Predica
 MAX_PATTERN_CHARS = 512
 
 
+try:                                        # the regular-expression parser: ``re._parser`` from Python 3.11, ``sre_parse`` before
+    from re import _parser as _re_parser
+except ImportError:                         # pragma: no cover  (Python 3.10)
+    import sre_parse as _re_parser
+
+_REPEATS = frozenset({"MAX_REPEAT", "MIN_REPEAT", "POSSESSIVE_REPEAT"})
+
+
+def _unbounded_repeat_inside(items: Any, *, inside: bool = False) -> bool:
+    """True when an unbounded repetition contains another one (``(a+)+``, ``(.*x)*``, ``(a|b+)*``)."""
+    for op, arg in items:
+        name = str(op)
+        if name in _REPEATS:
+            lo, hi, body = arg
+            unbounded = hi == _re_parser.MAXREPEAT and name != "POSSESSIVE_REPEAT"
+            if unbounded and inside:
+                return True
+            if _unbounded_repeat_inside(body, inside=inside or unbounded):
+                return True
+        elif name == "SUBPATTERN":
+            if _unbounded_repeat_inside(arg[3], inside=inside):
+                return True
+        elif name == "BRANCH":
+            if any(_unbounded_repeat_inside(alt, inside=inside) for alt in arg[1]):
+                return True
+        elif name in ("ASSERT", "ASSERT_NOT"):
+            if _unbounded_repeat_inside(arg[1], inside=inside):
+                return True
+        elif name == "ATOMIC_GROUP":
+            continue                                # an atomic group gives nothing back: no backtracking into it
+        elif name == "GROUPREF_EXISTS":
+            if any(part is not None and _unbounded_repeat_inside(part, inside=inside) for part in arg[1:]):
+                return True
+    return False
+
+
+def pattern_can_backtrack_without_bound(pattern: str) -> bool:
+    """A MATCHES pattern in which an unbounded repetition is nested in another. Such a pattern can take time exponential
+    in the length of the observed text (``(a+)+$`` on thirty ``a`` and a ``b`` takes minutes), the observed text comes
+    from the system under test, and this verifier has no clock to stop it: one page could hold a run forever. The check
+    is structural and conservative: it also refuses some nested repetitions that happen to be harmless."""
+    try:
+        return _unbounded_repeat_inside(_re_parser.parse(pattern))
+    except (re.error, RecursionError, ValueError, TypeError):
+        return True
+
+
 def _number(value: Any) -> Optional[Decimal]:
     if type(value) is int:
         return Decimal(value)
@@ -183,6 +230,9 @@ def validate_assertion(assertion: AssertionSpec) -> None:
             re.compile(pred.expected)
         except re.error as exc:
             raise SpecInvalid(f"assertion {aid}: MATCHES pattern does not compile: {exc}") from None
+        if pattern_can_backtrack_without_bound(pred.expected):
+            raise SpecInvalid(f"assertion {aid}: MATCHES pattern nests an unbounded repetition in another; on observed text "
+                              "it can run without bound. Bound one of them ({1,64}) or rewrite the pattern")
     if pred.op in (PredicateOp.LESS_THAN, PredicateOp.GREATER_THAN) and _number(pred.expected) is None:
         raise SpecInvalid(f"assertion {aid}: {pred.op} needs an integer or a decimal string")
     subject = assertion.subject
