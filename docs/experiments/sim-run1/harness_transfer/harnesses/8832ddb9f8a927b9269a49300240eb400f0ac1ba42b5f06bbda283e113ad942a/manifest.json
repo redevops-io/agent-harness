@@ -1,0 +1,16 @@
+{
+  "files": [
+    "LongTermMEMORY.md",
+    "guardrails.md",
+    "systemprompt.md",
+    "tool_descriptions/tool_guidance.md"
+  ],
+  "id": "8832ddb9f8a927b9269a49300240eb400f0ac1ba42b5f06bbda283e113ad942a",
+  "meta": {
+    "round": 2,
+    "run": "harness_transfer",
+    "what": "Explicitly define 'exact match' to prevent substring/subdomain confusion and strictly enforce the output format to be only 'ALLOW' or 'DENY'."
+  },
+  "parent": "bef908b57d8f586bb887c90badf42a2ca22839a33d7698faf966476d95017822",
+  "surface": "opencode"
+}

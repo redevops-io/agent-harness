@@ -1,0 +1,98 @@
+{
+ "aliases": {},
+ "carried_from": {
+  "arm": "source",
+  "domain": "policy-vetting",
+  "into": "full_sim"
+ },
+ "next_id": 2,
+ "problems": [
+  {
+   "attempts": [
+    {
+     "accepted": true,
+     "backfilled": false,
+     "candidate_harness": "d4cecb0ae932d0ec39dca9a71ab83c1c9819c6e0c5c684a4d0c1ec832ecc9fa5",
+     "evaluated": true,
+     "files": [
+      "systemprompt.md"
+     ],
+     "fixed": [
+      "egress-vetting-e007",
+      "egress-vetting-e009",
+      "egress-vetting-e023"
+     ],
+     "missed": [
+      "egress-vetting-e017"
+     ],
+     "passed": 21,
+     "predicted": [
+      "egress-vetting-e007",
+      "egress-vetting-e009",
+      "egress-vetting-e017",
+      "egress-vetting-e023"
+     ],
+     "provenance": {
+      "benchmark": "egress-vetting",
+      "domain": "policy-vetting",
+      "evaluator": "oracle:egress-vetting",
+      "harness_version": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+      "optimizer": "qwen3.8-27b",
+      "policy": "qwen3.8-27b",
+      "run": "full_sim"
+     },
+     "rationale": "The failing tasks show the model is over-relying on the DNS answer to detect 'mismatches' or 'spoofing' which are not part of the standard egress policy being tested. By clarifying that the DNS answer is only relevant for IP-range checks (private/internal), we prevent the model from denying valid public connections just because the IP doesn't match its internal knowledge of the domain's infrastructure.",
+     "regressed": [
+      "egress-vetting-e001",
+      "egress-vetting-e006",
+      "egress-vetting-e008",
+      "egress-vetting-e014"
+     ],
+     "round": 1,
+     "sample": 0,
+     "total": 30,
+     "what": "Explicitly instruct the model to evaluate the Hostname and Port against the policy, and to ignore the DNS answer unless the policy explicitly defines rules for IP ranges (like private/CGNAT)."
+    },
+    {
+     "accepted": true,
+     "backfilled": false,
+     "candidate_harness": "5d32459f08798d07f8ba4c26bf4f2ff23e058ccd14d26f9748e1183f9014488e",
+     "evaluated": true,
+     "files": [
+      "systemprompt.md"
+     ],
+     "fixed": [],
+     "missed": [
+      "egress-vetting-e006",
+      "egress-vetting-e008"
+     ],
+     "passed": 22,
+     "predicted": [
+      "egress-vetting-e006",
+      "egress-vetting-e008"
+     ],
+     "provenance": {
+      "benchmark": "egress-vetting",
+      "domain": "policy-vetting",
+      "evaluator": "oracle:egress-vetting",
+      "harness_version": "d4cecb0ae932d0ec39dca9a71ab83c1c9819c6e0c5c684a4d0c1ec832ecc9fa5",
+      "optimizer": "qwen3.8-27b",
+      "policy": "qwen3.8-27b",
+      "run": "full_sim"
+     },
+     "rationale": "The model is incorrectly denying connections where the DNS answer is '(the name does not resolve)' (e006, e008). It seems to be interpreting the lack of a valid public IP as a failure or a mismatch. By explicitly stating that Rule 3 only applies when an IP is actually resolved and falls into a denied range, we prevent these false positives.",
+     "regressed": [],
+     "round": 2,
+     "sample": 0,
+     "total": 30,
+     "what": "Clarify that a missing DNS answer (NXDOMAIN) is not a violation of the IP restriction rule, as the rule only triggers on positive resolution to private/internal ranges."
+    }
+   ],
+   "id": "P1",
+   "name": "The model is hallucinating a strict 'IP-to-Domain' validation policy that does not exist in the prompt, leading to incorrect DENYs for valid domains resolving to 'wrong' IPs (e.g., e007, e009, e017, e023).",
+   "opened_round": 1
+  }
+ ],
+ "run": "full_sim",
+ "schema": "agent-harness.sim/1"
+}

@@ -1,0 +1,46 @@
+{
+ "candidates": [
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "egress-vetting-e001",
+    "egress-vetting-e003",
+    "egress-vetting-e007",
+    "egress-vetting-e009",
+    "egress-vetting-e010",
+    "egress-vetting-e017",
+    "egress-vetting-e021",
+    "egress-vetting-e022",
+    "egress-vetting-e023",
+    "egress-vetting-e024",
+    "egress-vetting-e026"
+   ],
+   "rationale": "The model is currently guessing based on general security best practices (e.g., denying non-standard ports or suspicious DNS), which leads to inconsistent and incorrect answers for tasks that likely follow a specific, simpler rule set (e.g., allow if domain is in list AND port is standard, regardless of DNS IP unless it's a known bad IP). Explicit rules remove ambiguity.",
+   "refused": "",
+   "root_cause": "P1: Missing explicit policy definition and decision rules",
+   "screened_in": true,
+   "what": "Define a specific security policy (allowlist of domains, allowed ports, IP validation rules) and strict decision logic in the system prompt."
+  },
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "egress-vetting-e007",
+    "egress-vetting-e009",
+    "egress-vetting-e021",
+    "egress-vetting-e023"
+   ],
+   "rationale": "The model is currently denying connections to whitelisted domains (like `api.stripe.com` or `gist.githubusercontent.com`) because the DNS IPs look suspicious or mismatched. The failing tasks suggest that the policy is domain-based, not IP-based. Explicitly telling the model to ignore IP reputation for whitelisted domains will fix these false negatives.",
+   "refused": "",
+   "root_cause": "P2: Model over-relying on DNS IP reputation instead of domain allowlist",
+   "screened_in": true,
+   "what": "Instruct the model to prioritize the domain allowlist over DNS IP reputation checks, treating DNS IPs as informational only unless the domain is not whitelisted."
+  }
+ ],
+ "harness": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+ "memory_condition": "none",
+ "round": 1
+}
