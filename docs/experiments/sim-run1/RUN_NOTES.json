@@ -1,0 +1,14 @@
+{
+ "schema": "agent-harness.sim-run-notes/1",
+ "comparable": false,
+ "caveat": "A source optimization run exists (Qwen3.8-27B, command-vetting, 4 rounds). It accepted no edit, so its Self-Improvement Memory is empty. Four target arms were then run from that state; because the memory and the starting harness were identical to the seed, the run does not test transfer, and its differences are within evaluation noise (about one task of 30).",
+ "reasons": [
+  "the source run promoted nothing: the source-evolved harness is the seed and the carried memory has no problems",
+  "the same harness scored 0.667 and 0.633 on the same 30 evolve tasks: evaluation noise is about one task",
+  "30 held-out tasks per set and one run per arm"
+ ],
+ "configuration": {
+  "feedback": "v1",
+  "record_rejected": false
+ }
+}

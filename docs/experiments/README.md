@@ -7,3 +7,9 @@ configuration recorded in its `results.json`; the model endpoint is not part of 
 
 - `sim-run1`: configuration `feedback=v1`, `record_rejected=false`. A negative result on the experiment's own design: the
   source run promoted nothing, so the transfer arms started from the seed with an empty memory.
+
+## RUN_NOTES.json
+
+Every run directory carries `RUN_NOTES.json` (`agent-harness.sim-run-notes/1`): `comparable` (false means no tool may put this
+run's arms side by side), `caveat` (the exact sentence to show with the run), `reasons`, and the `configuration` used. It is
+written by the person who read the run, after the run, and the experiment code never reads it.
