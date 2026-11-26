@@ -1,0 +1,11 @@
+civil_engineers/task2
+court_clerks/task1
+human_resources_specialists/task1
+management_analysts/task3
+medical_and_health_services_managers/task2
+petroleum_engineers/task1
+purchasing_agents_except_wholesale_retail_and_farm_products/task3
+secretaries_and_administrative_assistants_except_legal_medical_and_executive/task1
+sociology_teachers_postsecondary/task3
+technical_writers/task1
+web_administrators/task1
