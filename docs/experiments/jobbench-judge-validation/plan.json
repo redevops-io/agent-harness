@@ -1,0 +1,128 @@
+{
+ "written_before_running": true,
+ "candidates": 24,
+ "sample": [
+  {
+   "arm": "opencode+cr",
+   "task": "data_entry_keyers/task1",
+   "dir": "<local path>",
+   "kimi_file": "<local path>",
+   "kimi_passed": 4,
+   "kimi_total": 12,
+   "kimi_share": 0.3333333333333333
+  },
+  {
+   "arm": "opencode+cr",
+   "task": "mechanical_engineering_technicians/task3",
+   "dir": "<local path>",
+   "kimi_file": "<local path>",
+   "kimi_passed": 3,
+   "kimi_total": 9,
+   "kimi_share": 0.3333333333333333
+  },
+  {
+   "arm": "opencode+cr",
+   "task": "producers/task1",
+   "dir": "<local path>",
+   "kimi_file": "<local path>",
+   "kimi_passed": 0,
+   "kimi_total": 9,
+   "kimi_share": 0.0
+  },
+  {
+   "arm": "h2",
+   "task": "producers/task1",
+   "dir": "<local path>",
+   "kimi_file": "<local path>",
+   "kimi_passed": 1,
+   "kimi_total": 9,
+   "kimi_share": 0.1111111111111111
+  },
+  {
+   "arm": "h2+cr",
+   "task": "data_entry_keyers/task1",
+   "dir": "<local path>",
+   "kimi_file": "<local path>",
+   "kimi_passed": 5,
+   "kimi_total": 12,
+   "kimi_share": 0.4166666666666667
+  },
+  {
+   "arm": "h2+cr",
+   "task": "producers/task1",
+   "dir": "<local path>",
+   "kimi_file": "<local path>",
+   "kimi_passed": 4,
+   "kimi_total": 9,
+   "kimi_share": 0.4444444444444444
+  },
+  {
+   "arm": "opencode",
+   "task": "mechanical_engineering_technicians/task3",
+   "dir": "<local path>",
+   "kimi_file": "<local path>",
+   "kimi_passed": 2,
+   "kimi_total": 9,
+   "kimi_share": 0.2222222222222222
+  },
+  {
+   "arm": "opencode",
+   "task": "online_merchants/task1",
+   "dir": "<local path>",
+   "kimi_file": "<local path>",
+   "kimi_passed": 4,
+   "kimi_total": 8,
+   "kimi_share": 0.5
+  },
+  {
+   "arm": "opencode",
+   "task": "sales_agents_securities_and_commodities/task1",
+   "dir": "<local path>",
+   "kimi_file": "<local path>",
+   "kimi_passed": 2,
+   "kimi_total": 8,
+   "kimi_share": 0.25
+  },
+  {
+   "arm": "h2+cr",
+   "task": "licensing_examiners_and_inspectors/task1",
+   "dir": "<local path>",
+   "kimi_file": "<local path>",
+   "kimi_passed": 6,
+   "kimi_total": 10,
+   "kimi_share": 0.6
+  },
+  {
+   "arm": "h2",
+   "task": "online_merchants/task1",
+   "dir": "<local path>",
+   "kimi_file": "<local path>",
+   "kimi_passed": 5,
+   "kimi_total": 8,
+   "kimi_share": 0.625
+  },
+  {
+   "arm": "opencode",
+   "task": "social_science_research_assistants/task2",
+   "dir": "<local path>",
+   "kimi_file": "<local path>",
+   "kimi_passed": 3,
+   "kimi_total": 9,
+   "kimi_share": 0.3333333333333333
+  }
+ ],
+ "retest": [
+  "opencode/sales_agents_securities_and_commodities/task1",
+  "opencode+cr/producers/task1",
+  "opencode/social_science_research_assistants/task2",
+  "opencode/mechanical_engineering_technicians/task3"
+ ],
+ "local_judge": {
+  "model": "qwen3.8-27b",
+  "root": "Qwen/Qwen3.8-27B-FP8",
+  "server": "vLLM 0.34.0",
+  "rubric_timeout_s": 900,
+  "workers": 2,
+  "max_retries": 2
+ }
+}
