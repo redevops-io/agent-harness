@@ -74,8 +74,14 @@ class Feedback:
     def score(self) -> float:
         return (len(self.passed) / len(self.results)) if self.results else 0.0
 
+    @property
+    def mean_score(self) -> float:
+        """The mean of the per-task scores. For a pass/fail evaluator it equals ``score``; for a graded one (a rubric judge) it
+        also sees movement below the pass line, which the pass fraction cannot."""
+        return (sum(r.score for r in self.results) / len(self.results)) if self.results else 0.0
+
     def to_json(self) -> Dict[str, Any]:
-        return {"harness_id": self.harness_id, "score": round(self.score, 6), "passed": sorted(self.passed),
+        return {"harness_id": self.harness_id, "score": round(self.score, 6), "mean_score": round(self.mean_score, 6), "passed": sorted(self.passed),
                 "failed": sorted(self.failed), "cost_usd": self.cost_usd, "seconds": self.seconds,
                 "details": {r.task_id: r.detail for r in self.results if r.detail},
                 "observed": {r.task_id: r.observed for r in self.results if not r.passed},
@@ -292,6 +298,12 @@ class HarnessOptimizer:
             if fb.score < current.score and not self.allow_score_drop:
                 rec.note = f"the selector's choice scored {fb.score:.3f}, below the current {current.score:.3f}: not promoted"
                 rec.candidates[i]["refused"] = "scores below the current harness"
+                pick = None
+            elif fb.score == current.score and fb.mean_score < current.mean_score - 1e-9 and not self.allow_score_drop:
+                # equal pass fractions: a graded evaluator still tells a better harness from a worse one (G1: 16/74 -> 6/74 was promoted)
+                rec.note = (f"the selector's choice has the same pass fraction but a lower mean score "
+                            f"({fb.mean_score:.3f} < {current.mean_score:.3f}): not promoted")
+                rec.candidates[i]["refused"] = "mean score below the current harness"
                 pick = None
         if pick is not None:
             i, p, spec, fb = evaluated[pick]

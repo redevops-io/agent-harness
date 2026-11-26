@@ -214,3 +214,28 @@ def test_a_memory_view_hook_changes_what_both_engineers_see_never_the_stored_rec
                             condition=MemoryCondition.NONE, evolve_tasks=EVOLVE, provenance=PROV, memory_text=view)
     none.step()
     assert none.proposer.seen[0]["memory"] == ""                                                            # a no-memory arm stays without memory
+
+
+class GradedEvaluator:
+    """Nothing ever passes (the pass line is out of reach), but the score tells harnesses apart: the prompt's length is the score."""
+
+    def evaluate(self, harness, tasks):
+        n = len(harness.get("systemprompt.md"))
+        return Feedback(harness_id="", results=tuple(TaskResult(t, False, 1.0 / (1 + n), "") for t in tasks))
+
+
+def test_equal_pass_fractions_are_separated_by_the_mean_score_so_a_worse_graded_harness_is_not_promoted(tmp_path):
+    # G1 smoke: a candidate scored 6/74 against the baseline's 16/74, both below the pass line, and was promoted
+    longer = edit("You are an agent. " + "x" * 200, "wording", [])
+    o = opt(tmp_path, Proposer([[longer]]), selector=Selector(picks=[0]), evaluator=GradedEvaluator())
+    before = o.harness_id
+    rec = o.step()
+    assert rec.promoted is None and o.harness_id == before and "lower mean score" in rec.note
+    assert rec.candidates[0]["refused"] == "mean score below the current harness"
+
+
+def test_equal_pass_fractions_and_a_higher_mean_score_still_promote(tmp_path):
+    shorter = edit("Agent.", "wording", [])
+    o = opt(tmp_path, Proposer([[shorter]]), selector=Selector(picks=[0]), evaluator=GradedEvaluator())
+    rec = o.step()
+    assert rec.promoted is not None

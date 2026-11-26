@@ -22,3 +22,12 @@ If the gate fails, G1 reports exactly that; no record is added, copied or split,
 **Estimated cost:** 9 evaluations x 16 rollouts x about 7.5 minutes plus judging, with 3 in parallel: about 10 to 16 hours of local inference. Token use and seconds are recorded.
 
 **What a result would not show:** a better harness (the held-out set is not evaluated), anything about another model, or a rate: one run.
+
+## Amendment after the smoke run, before the real run (2026-11-26)
+
+A one-task smoke run (`1 baseline + 1 candidate evaluation`, 53 minutes, plumbing only) found that the optimizer accepted a candidate whose judge score fell from 16/74 to 6/74. Cause: the loop's accept guard compared the *pass fraction* (tasks at or above the 0.5 pass line), and both harnesses were below the line, so 0.0 was not less than 0.0. No threshold of the gate changes. What changes is the optimizer's own accept rule, fixed here before any G1 result exists:
+
+* `Feedback` also carries `mean_score`, the mean of the per-task scores (for a pass/fail evaluator it equals the pass fraction, so earlier experiments behave as before).
+* A candidate is refused when its pass fraction is lower than the current harness's, **or** when the pass fractions are equal and its `mean_score` is lower. Tests: `tests/sim/test_loop.py` (a worse graded harness is not promoted; a better one is).
+* The smoke candidate's rollout ran 200 turns and 7.4 million prompt tokens and delivered one placeholder-blocked file. That is a real failure class (`max_turns`, `invalid_deliverable`) and is reported as one; the turn limit is not lowered, because that would change the task. Cost is local inference time, recorded per evaluation.
+* The proposer's root-cause text in the smoke run was generic ("the system prompt was empty"). With real unmet-criteria feedback and 8 tasks that may improve; if the record is generic, G1 reports that and the gate decides.
