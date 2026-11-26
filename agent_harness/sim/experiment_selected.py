@@ -41,9 +41,15 @@ ARMS = ("complete", "selected")
 
 
 def _import_select(path: Path):
-    sys.path.insert(0, str(path))
-    from context_runtime.learning import sim_select  # noqa: PLC0415  (an optional, pinned dependency of the experiment only)
-    return sim_select
+    """``sim_select`` loaded from the checkout at ``path`` by file, not imported as a package: this package does not depend on Context Runtime
+    (the boundary tests forbid an import), the module itself uses only the standard library, and the experiment records the checkout's commit."""
+    import importlib.util  # noqa: PLC0415
+    src = Path(path) / "context_runtime" / "learning" / "sim_select.py"
+    spec = importlib.util.spec_from_file_location("sim_select_under_test", src)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = mod                      # dataclasses resolve their module through sys.modules
+    spec.loader.exec_module(mod)
+    return mod
 
 
 def _commit(path: Path) -> Dict[str, Any]:

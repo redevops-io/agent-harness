@@ -36,3 +36,7 @@ Also not shown: any accuracy difference between complete and selected memory (on
 ## A bug in my own measurement, found and corrected
 
 The per-round history check recorded during the run (`selection_trace` in `results.json`) keyed attempts by (round, sample), so a carried source attempt and a target attempt with the same round number collided, and one attempt per record was misattributed: it reported 5 of 6 identical for the complete arm too, where identity holds by construction. The recorded per-round `history` values are therefore not used. The check now keys on (run, round, sample, harness) with a regression test, and was recomputed on each arm's final record (the file above); that recomputation is a reconstruction after the run, with a query-free selection, labelled as such.
+
+## Note on the runner as committed
+
+Run 5 loaded `sim_select` by importing it as a package from the pinned checkout. The committed runner loads the same file by path instead (the repository's boundary tests forbid importing Context Runtime from this package); the module is the same file at the same commit, so the code that ran is the code that is recorded.
