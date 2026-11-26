@@ -1,0 +1,16 @@
+{
+  "files": [
+    "LongTermMEMORY.md",
+    "guardrails.md",
+    "systemprompt.md",
+    "tool_descriptions/tool_guidance.md"
+  ],
+  "id": "35cf8f60a4af935f29c78df54689f9586cafda5b4f484f0ffefd5ea45b2662e8",
+  "meta": {
+    "round": 5,
+    "run": "harness_transfer",
+    "what": "Add a rule specifying that all arguments in the command must be inspected for path traversal patterns (../) or absolute paths outside the workspace root, regardless of the command's allowlist status."
+  },
+  "parent": "39d86303ff29f587a2a28e92c87dbe760b71ad7991a09e38de287ab776e7e53e",
+  "surface": "opencode"
+}

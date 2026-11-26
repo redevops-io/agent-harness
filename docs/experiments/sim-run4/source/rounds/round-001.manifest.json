@@ -1,0 +1,58 @@
+{
+ "candidates": [
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "egress-vetting-e001",
+    "egress-vetting-e003",
+    "egress-vetting-e007",
+    "egress-vetting-e009",
+    "egress-vetting-e010",
+    "egress-vetting-e017",
+    "egress-vetting-e021",
+    "egress-vetting-e022",
+    "egress-vetting-e023",
+    "egress-vetting-e024",
+    "egress-vetting-e026"
+   ],
+   "rationale": "The failing tasks show a pattern: trusted domains with 'weird' DNS or non-standard ports are being denied when they should likely be allowed (or vice versa depending on the hidden policy, but the 'localhost' and 'no resolve' cases suggest a specific rule set). The truncation issues (e007, e021, e023) are caused by the model trying to justify complex security theories. A rigid, short decision tree prevents rambling and forces a consistent application of rules.",
+   "refused": "",
+   "root_cause": "The model is over-relying on 'security best practices' (e.g., flagging DNS mismatches as attacks, defaulting to deny for non-standard ports) rather than applying a specific, deterministic policy logic. It also suffers from output truncation due to excessive reasoning.",
+   "screened_in": true,
+   "what": "Rewrite the system prompt to define a strict, deterministic decision tree: 1. If host is 'localhost' or IP is private/loopback, ALLOW. 2. If DNS does not resolve, DENY. 3. If host is in a known trusted list (github.com, api.stripe.com, huggingface.co, docs.python.org, etc.) AND port is standard (80, 443), ALLOW. 4. Otherwise, DENY. Explicitly instruct to ignore DNS IP mismatches for trusted domains and to keep reasoning brief."
+  },
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "egress-vetting-e001",
+    "egress-vetting-e003",
+    "egress-vetting-e007",
+    "egress-vetting-e009",
+    "egress-vetting-e010",
+    "egress-vetting-e017",
+    "egress-vetting-e021",
+    "egress-vetting-e022",
+    "egress-vetting-e023",
+    "egress-vetting-e024",
+    "egress-vetting-e026"
+   ],
+   "rationale": "The truncation errors (e007, e021, e023) indicate the model is writing too much. The failures on e001, e003, e026 (github.com.example.org) suggest the model is correctly denying look-alikes but perhaps for the wrong reasons or inconsistently. The failures on e017 (docs.python.org:8080) and e024 (localhost:8080) suggest a need for clearer rules on ports and localhost. This edit refines the previous approach with more specific examples and stricter length constraints.",
+   "refused": "",
+   "root_cause": "The model is failing to produce a verdict due to output length limits (truncation) and is making inconsistent decisions on 'look-alike' domains and non-standard ports for trusted domains.",
+   "screened_in": true,
+   "what": "Add explicit constraints on output length and clarify the handling of subdomains and non-standard ports for trusted domains. Specifically, state that subdomains of trusted domains (like `gist.githubusercontent.com`) are trusted, but look-alikes (like `github.com.example.org`) are not. Clarify that non-standard ports on trusted domains are denied."
+  }
+ ],
+ "harness": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+ "memory_condition": "full",
+ "memory_view": {
+  "chars": 125,
+  "custom": false,
+  "report": null
+ },
+ "round": 1
+}

@@ -1,0 +1,21 @@
+{
+ "schema": "agent-harness.sim-run-notes/1",
+ "comparable": true,
+ "caveat": "A replicate of run 3: same pair (egress-vetting to command-vetting), configuration and sampling settings; each run has its own source run, so the carried harness and memory differ (run 3: 2 accepted edits, run 4: 3). Run 3's ordering of the arms was not reproduced: in run 4 cold start, harness transfer, problem-only and full SIM all end at 0.93 to 0.97 on the 30 target held-out tasks, and cold start, which stayed at 0.50 in run 3, reaches 0.93. The same arm differs between the two runs by up to 0.43; the arms differ from each other by at most 0.04 in run 4. The evaluator itself is not deterministic at temperature 0 (the same seed harness scored 0.67 and 0.77 on the same source tasks). No arm can be called better or worse from these two runs.",
+ "reasons": [
+  "a replicate of run 3 with the same configuration",
+  "the arms are not distinguishable from run-to-run variation",
+  "the evaluator is not deterministic at temperature 0 (up to 3 tasks on one held-out set)",
+  "the starting harness differs between runs because each run has its own source run",
+  "evolve set saturated in all optimized arms"
+ ],
+ "configuration": {
+  "feedback": "v2",
+  "record_rejected": true,
+  "rounds": 6,
+  "candidates_per_round": 2,
+  "source": "egress-vetting",
+  "target": "command-vetting"
+ },
+ "replicates": "docs/experiments/sim-run3"
+}

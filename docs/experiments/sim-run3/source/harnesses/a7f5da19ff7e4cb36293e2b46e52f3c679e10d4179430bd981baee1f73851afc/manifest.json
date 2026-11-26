@@ -1,0 +1,16 @@
+{
+  "files": [
+    "LongTermMEMORY.md",
+    "guardrails.md",
+    "systemprompt.md",
+    "tool_descriptions/tool_guidance.md"
+  ],
+  "id": "a7f5da19ff7e4cb36293e2b46e52f3c679e10d4179430bd981baee1f73851afc",
+  "meta": {
+    "round": 1,
+    "run": "source",
+    "what": "Instruct the model to ignore the DNS answers and focus solely on the host and port to determine if the connection is permitted, and to provide a concise verdict."
+  },
+  "parent": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+  "surface": "opencode"
+}

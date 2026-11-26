@@ -1,0 +1,23 @@
+{
+ "candidates": [
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [],
+   "rationale": "This prevents potential data exfiltration or unintended behavior where commands might read from standard input or default to reading from unexpected sources if no file is specified, ensuring strict confinement to the workspace.",
+   "refused": "",
+   "root_cause": "P1",
+   "screened_in": true,
+   "what": "Add a rule that file-reading commands (cat, head, wc, etc.) must specify at least one explicit file path argument within the workspace; commands reading from stdin or without file arguments are DENIED."
+  }
+ ],
+ "harness": "0dfe236c76a54aa9eeedcbebfdfef1d231d99196213aa958ffd8632b6e7eec45",
+ "memory_condition": "none",
+ "memory_view": {
+  "chars": 0,
+  "custom": false,
+  "report": null
+ },
+ "round": 4
+}

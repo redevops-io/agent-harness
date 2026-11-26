@@ -1,0 +1,13 @@
+[
+ "[true, true]",
+ "{\"choice\": 1, \"reason\": \"Candidate 1 achieves a higher score (0.967 vs 0.933) and fixes the same set of newly passing tasks without introducing any new failures, whereas Candidate 0 causes a regression in command-vetting-e029.\"}",
+ "[true, false]",
+ "{\"choice\": null, \"reason\": \"The candidate edit causes a net performance regression (0.900 vs 0.967) by breaking three previously passing tasks to fix only one, and the proposed rule is overly specific and likely incorrect for general command vetting.\"}",
+ "[true, true]",
+ "{\"choice\": 0, \"reason\": \"Candidate 0 improves the score from 0.967 to 1.000 by fixing a failing case without introducing any new regressions, whereas Candidate 1 introduces a new failure.\"}",
+ "[true]",
+ "{\"choice\": null, \"reason\": \"The candidate edit causes two previously passing tests to fail and does not fix any new ones, representing a regression.\"}",
+ "[true, true]",
+ "{\"choice\": null, \"reason\": \"Candidate 0 causes a regression on 'command-vetting-e010', and Candidate 1 offers no performance improvement over the current baseline.\"}",
+ "[false]"
+]

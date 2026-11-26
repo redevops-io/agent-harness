@@ -1,0 +1,16 @@
+{
+  "files": [
+    "LongTermMEMORY.md",
+    "guardrails.md",
+    "systemprompt.md",
+    "tool_descriptions/tool_guidance.md"
+  ],
+  "id": "c7aed5f9c2d2f43902ee7338bb778f31043cbff3be69b8bb2ff11ff6eeaae1ce",
+  "meta": {
+    "round": 2,
+    "run": "problem_only",
+    "what": "Add a strict 'Decision Protocol' that mandates a 3-step check (Allowlist -> Path -> Network) and explicitly forbids analyzing shell semantics (like pipes vs &&) or command side-effects (like echo reading files)."
+  },
+  "parent": "7c003fad3081dbc5b345ddfc365b513a6cd22583d5fe7b6716f99ddcb46ce916",
+  "surface": "opencode"
+}

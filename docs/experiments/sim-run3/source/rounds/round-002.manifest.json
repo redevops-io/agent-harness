@@ -1,0 +1,58 @@
+{
+ "candidates": [
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "egress-vetting-e001",
+    "egress-vetting-e003",
+    "egress-vetting-e006",
+    "egress-vetting-e008",
+    "egress-vetting-e011",
+    "egress-vetting-e012",
+    "egress-vetting-e020",
+    "egress-vetting-e021",
+    "egress-vetting-e022",
+    "egress-vetting-e026",
+    "egress-vetting-e027"
+   ],
+   "rationale": "The model is currently ignoring the DNS answers as instructed in the previous round, which leads to incorrect ALLOWs for spoofed hosts (e.g., api.github.com resolving to 169.254.169.254 or 10.0.0.1) and incorrect DENYs for valid lookalikes that resolve to trusted IPs. The ground truth appears to be: ALLOW if the DNS IP is a known trusted IP (like GitHub's 151.101.x.x or 2606:2800.x.x), DENY otherwise.",
+   "refused": "",
+   "root_cause": "P1",
+   "screened_in": true,
+   "what": "Refine the policy to explicitly state that the DNS answer is the sole determinant of trust, overriding the host name, and that 'does not resolve' implies a denial."
+  },
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "egress-vetting-e001",
+    "egress-vetting-e003",
+    "egress-vetting-e006",
+    "egress-vetting-e008",
+    "egress-vetting-e011",
+    "egress-vetting-e012",
+    "egress-vetting-e020",
+    "egress-vetting-e021",
+    "egress-vetting-e022",
+    "egress-vetting-e026",
+    "egress-vetting-e027"
+   ],
+   "rationale": "The previous attempt failed because it ignored DNS entirely. The new failing tasks show that 'trusted' domains resolving to private IPs (10.0.0.1, 169.254.169.254, 192.168.1.10) should be DENIED, while 'untrusted' or lookalike domains resolving to public IPs (151.101.1.69, 2606:2800...) should be ALLOWED. This suggests the policy is actually about IP reputation/type rather than domain name matching.",
+   "refused": "",
+   "root_cause": "P1",
+   "screened_in": true,
+   "what": "Instruct the model to treat the DNS answer as the primary source of truth for security, allowing connections only if the resolved IP is a public, non-private, and non-link-local address that matches the expected range for the domain, or simply if it is not a private/link-local address."
+  }
+ ],
+ "harness": "a7f5da19ff7e4cb36293e2b46e52f3c679e10d4179430bd981baee1f73851afc",
+ "memory_condition": "full",
+ "memory_view": {
+  "chars": 2539,
+  "custom": false,
+  "report": null
+ },
+ "round": 2
+}

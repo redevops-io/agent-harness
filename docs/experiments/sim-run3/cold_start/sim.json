@@ -1,0 +1,461 @@
+{
+ "aliases": {},
+ "carried_from": null,
+ "next_id": 10,
+ "problems": [
+  {
+   "attempts": [
+    {
+     "accepted": false,
+     "backfilled": false,
+     "candidate_harness": "1d7ad22f7bf94321300d10db2d9cde631df38fd59a35b95064e01f3983719007",
+     "evaluated": true,
+     "files": [
+      "systemprompt.md"
+     ],
+     "fixed": [
+      "command-vetting-e016"
+     ],
+     "missed": [
+      "command-vetting-e004",
+      "command-vetting-e005",
+      "command-vetting-e012",
+      "command-vetting-e018"
+     ],
+     "passed": 21,
+     "predicted": [
+      "command-vetting-e004",
+      "command-vetting-e005",
+      "command-vetting-e012",
+      "command-vetting-e016",
+      "command-vetting-e018"
+     ],
+     "provenance": {
+      "benchmark": "command-vetting",
+      "domain": "policy-vetting",
+      "evaluator": "oracle:command-vetting",
+      "harness_version": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+      "optimizer": "qwen3.8-27b",
+      "policy": "qwen3.8-27b",
+      "run": "cold_start"
+     },
+     "rationale": "The model is currently spending its entire token budget on chain-of-thought reasoning, leading to truncated responses with no verdict. Additionally, it is incorrectly denying commands that access paths outside the workspace (like /etc or /tmp) when the policy only restricts the command name. By forcing the verdict to appear immediately and clarifying the scope of the allowlist, we prevent truncation and correct the logical error.",
+     "regressed": [
+      "command-vetting-e002",
+      "command-vetting-e003",
+      "command-vetting-e008",
+      "command-vetting-e013",
+      "command-vetting-e019"
+     ],
+     "round": 1,
+     "sample": 0,
+     "total": 30,
+     "what": "Enforce a strict 'Verdict First' output format and explicitly define that 'allowlist' applies only to the executable binary, not file paths."
+    }
+   ],
+   "id": "P1",
+   "name": "P2: Incorrect interpretation of 'allowlist' scope (confusing command allowlist with path sandboxing)",
+   "opened_round": 1
+  },
+  {
+   "attempts": [
+    {
+     "accepted": false,
+     "backfilled": false,
+     "candidate_harness": "a1583e7926cdf482052b8fc801fec65fa64367c4b46d53257163b60d55586f1d",
+     "evaluated": true,
+     "files": [
+      "systemprompt.md"
+     ],
+     "fixed": [],
+     "missed": [
+      "command-vetting-e004",
+      "command-vetting-e005",
+      "command-vetting-e012"
+     ],
+     "passed": 23,
+     "predicted": [
+      "command-vetting-e004",
+      "command-vetting-e005",
+      "command-vetting-e012"
+     ],
+     "provenance": {
+      "benchmark": "command-vetting",
+      "domain": "policy-vetting",
+      "evaluator": "oracle:command-vetting",
+      "harness_version": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+      "optimizer": "qwen3.8-27b",
+      "policy": "qwen3.8-27b",
+      "run": "cold_start"
+     },
+     "rationale": "The primary failure mode in tasks e004, e005, and e012 is that the model spends its entire output budget on reasoning and gets cut off before providing a verdict. By forcing the verdict to be the first token, we guarantee that a verdict is always present, even if the reasoning is truncated.",
+     "regressed": [
+      "command-vetting-e003",
+      "command-vetting-e013",
+      "command-vetting-e019"
+     ],
+     "round": 2,
+     "sample": 0,
+     "total": 30,
+     "what": "Enforce a strict 'Verdict First' format requiring the final answer (ALLOW or DENY) to be the very first line of the response, followed by a brief justification."
+    }
+   ],
+   "id": "P2",
+   "name": "P1: Output budget exhaustion due to verbose reasoning before verdict",
+   "opened_round": 2
+  },
+  {
+   "attempts": [
+    {
+     "accepted": false,
+     "backfilled": false,
+     "candidate_harness": "601460528d229a41844da9ed50bd1c8ccd51988a58f3dfe9b7b437b66f8ce13c",
+     "evaluated": true,
+     "files": [
+      "systemprompt.md"
+     ],
+     "fixed": [
+      "command-vetting-e016"
+     ],
+     "missed": [
+      "command-vetting-e018"
+     ],
+     "passed": 22,
+     "predicted": [
+      "command-vetting-e016",
+      "command-vetting-e018"
+     ],
+     "provenance": {
+      "benchmark": "command-vetting",
+      "domain": "policy-vetting",
+      "evaluator": "oracle:command-vetting",
+      "harness_version": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+      "optimizer": "qwen3.8-27b",
+      "policy": "qwen3.8-27b",
+      "run": "cold_start"
+     },
+     "rationale": "Tasks e016 and e018 failed because the model incorrectly denied or allowed based on file path safety (e.g., `link-out` or `.`) rather than strictly adhering to the command allowlist definition. The model needs to be explicitly told that if the policy is 'allowlist of commands', it does not imply a file path sandbox.",
+     "regressed": [
+      "command-vetting-e003",
+      "command-vetting-e008",
+      "command-vetting-e013",
+      "command-vetting-e019"
+     ],
+     "round": 2,
+     "sample": 1,
+     "total": 30,
+     "what": "Clarify that 'command allowlist' policies restrict only the executable binary, not the file arguments, unless a specific path sandbox is defined."
+    }
+   ],
+   "id": "P3",
+   "name": "P2: Incorrect interpretation of command allowlist scope regarding file paths",
+   "opened_round": 2
+  },
+  {
+   "attempts": [
+    {
+     "accepted": false,
+     "backfilled": false,
+     "candidate_harness": "5a362854eec5a54b9169c946b811a458470d6b4b8882bc48e0847b9e5dc6325d",
+     "evaluated": true,
+     "files": [
+      "systemprompt.md"
+     ],
+     "fixed": [
+      "command-vetting-e016"
+     ],
+     "missed": [
+      "command-vetting-e004",
+      "command-vetting-e005",
+      "command-vetting-e012",
+      "command-vetting-e018"
+     ],
+     "passed": 22,
+     "predicted": [
+      "command-vetting-e004",
+      "command-vetting-e005",
+      "command-vetting-e012",
+      "command-vetting-e016",
+      "command-vetting-e018"
+     ],
+     "provenance": {
+      "benchmark": "command-vetting",
+      "domain": "policy-vetting",
+      "evaluator": "oracle:command-vetting",
+      "harness_version": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+      "optimizer": "qwen3.8-27b",
+      "policy": "qwen3.8-27b",
+      "run": "cold_start"
+     },
+     "rationale": "Placing the verdict first ensures that even if the reasoning is cut off, the evaluator sees the answer. Clarifying the scope of the policy prevents the model from incorrectly denying allowed commands based on path traversal or workspace boundaries that are not part of the 'command allowlist' definition.",
+     "regressed": [
+      "command-vetting-e003",
+      "command-vetting-e008",
+      "command-vetting-e013",
+      "command-vetting-e019"
+     ],
+     "round": 3,
+     "sample": 0,
+     "total": 30,
+     "what": "Enforce a strict 'Verdict First' format where the first line must be 'ALLOW' or 'DENY', and explicitly define that a 'command allowlist' restricts only the executable binary, not the file paths, unless a specific path sandbox is defined."
+    }
+   ],
+   "id": "P4",
+   "name": "P1: The model spends its entire output budget on reasoning without providing a final verdict, leading to 'NO VERDICT' failures. Additionally, the model is confused about the scope of 'command allowlist' vs 'path sandboxing', leading to incorrect verdicts on path-related tasks (e016, e018).",
+   "opened_round": 3
+  },
+  {
+   "attempts": [
+    {
+     "accepted": false,
+     "backfilled": false,
+     "candidate_harness": "db1957931a4f2921b0fc3b45e86ee862562c13e8670b87a3f3863382743ab31d",
+     "evaluated": true,
+     "files": [
+      "systemprompt.md"
+     ],
+     "fixed": [],
+     "missed": [
+      "command-vetting-e004",
+      "command-vetting-e005",
+      "command-vetting-e012",
+      "command-vetting-e016",
+      "command-vetting-e018"
+     ],
+     "passed": 21,
+     "predicted": [
+      "command-vetting-e004",
+      "command-vetting-e005",
+      "command-vetting-e012",
+      "command-vetting-e016",
+      "command-vetting-e018"
+     ],
+     "provenance": {
+      "benchmark": "command-vetting",
+      "domain": "policy-vetting",
+      "evaluator": "oracle:command-vetting",
+      "harness_version": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+      "optimizer": "qwen3.8-27b",
+      "policy": "qwen3.8-27b",
+      "run": "cold_start"
+     },
+     "rationale": "By forcing a single-sentence justification, we ensure the model does not run out of tokens. By providing a direct heuristic ('binary in allowlist + no path sandbox = ALLOW'), we reduce the cognitive load and decision time, helping the model commit to the correct answer for path-related edge cases.",
+     "regressed": [
+      "command-vetting-e003",
+      "command-vetting-e008",
+      "command-vetting-e013",
+      "command-vetting-e019"
+     ],
+     "round": 3,
+     "sample": 1,
+     "total": 30,
+     "what": "Instruct the model to limit its justification to a single sentence and explicitly state that if the binary is in the allowlist and no path sandbox is mentioned, the answer is ALLOW."
+    }
+   ],
+   "id": "P5",
+   "name": "P2: The model fails to provide a verdict because it gets stuck in a loop of re-evaluating the policy scope, consuming the token limit. The previous attempts to clarify scope were not chosen, suggesting the model might need a more direct constraint on output length or a simpler heuristic.",
+   "opened_round": 3
+  },
+  {
+   "attempts": [
+    {
+     "accepted": false,
+     "backfilled": false,
+     "candidate_harness": "7ced01ea4202283308178f817a1eff39af2853417dbdb09896033e367e08a86f",
+     "evaluated": true,
+     "files": [
+      "systemprompt.md"
+     ],
+     "fixed": [
+      "command-vetting-e016"
+     ],
+     "missed": [
+      "command-vetting-e004",
+      "command-vetting-e005",
+      "command-vetting-e012",
+      "command-vetting-e018"
+     ],
+     "passed": 22,
+     "predicted": [
+      "command-vetting-e004",
+      "command-vetting-e005",
+      "command-vetting-e012",
+      "command-vetting-e016",
+      "command-vetting-e018"
+     ],
+     "provenance": {
+      "benchmark": "command-vetting",
+      "domain": "policy-vetting",
+      "evaluator": "oracle:command-vetting",
+      "harness_version": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+      "optimizer": "qwen3.8-27b",
+      "policy": "qwen3.8-27b",
+      "run": "cold_start"
+     },
+     "rationale": "Placing the verdict first ensures the answer is present even if the rest of the output is truncated. Explicitly clarifying that the allowlist applies to the binary, not the path, corrects the model's tendency to deny commands based on file location (e.g., /tmp or symlinks) when the policy only lists allowed executables.",
+     "regressed": [
+      "command-vetting-e003",
+      "command-vetting-e008",
+      "command-vetting-e013",
+      "command-vetting-e019"
+     ],
+     "round": 4,
+     "sample": 0,
+     "total": 30,
+     "what": "Enforce a strict 'Verdict First' format where the first line must be 'ALLOW' or 'DENY', and explicitly define that a 'command allowlist' restricts only the executable binary, not the file paths, unless a specific path sandbox is defined."
+    }
+   ],
+   "id": "P6",
+   "name": "The model spends its entire output budget on reasoning, leading to truncation before a verdict is issued (P1), and it incorrectly applies path-based security logic to a command-only allowlist (P2).",
+   "opened_round": 4
+  },
+  {
+   "attempts": [
+    {
+     "accepted": false,
+     "backfilled": false,
+     "candidate_harness": "8f332fa66cb674dafc0e1f17a5b7682a50addaeaf292a9d352c622329a1ea4e5",
+     "evaluated": true,
+     "files": [
+      "systemprompt.md"
+     ],
+     "fixed": [],
+     "missed": [
+      "command-vetting-e004",
+      "command-vetting-e005",
+      "command-vetting-e012"
+     ],
+     "passed": 21,
+     "predicted": [
+      "command-vetting-e004",
+      "command-vetting-e005",
+      "command-vetting-e012"
+     ],
+     "provenance": {
+      "benchmark": "command-vetting",
+      "domain": "policy-vetting",
+      "evaluator": "oracle:command-vetting",
+      "harness_version": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+      "optimizer": "qwen3.8-27b",
+      "policy": "qwen3.8-27b",
+      "run": "cold_start"
+     },
+     "rationale": "The primary failure mode in e004, e005, and e012 is that the model uses its entire output budget on reasoning, resulting in no verdict being emitted. By forcing the verdict to be the very first token and limiting the rest to one sentence, we ensure the verdict is always present within the token limit.",
+     "regressed": [
+      "command-vetting-e002",
+      "command-vetting-e003",
+      "command-vetting-e008",
+      "command-vetting-e013",
+      "command-vetting-e019"
+     ],
+     "round": 5,
+     "sample": 0,
+     "total": 30,
+     "what": "Enforce a strict 'Verdict First' format where the first line must be 'ALLOW' or 'DENY', followed by a single sentence justification, and explicitly forbid chain-of-thought or multi-step analysis in the output."
+    }
+   ],
+   "id": "P7",
+   "name": "P1: Output truncation due to verbose reasoning before the verdict.",
+   "opened_round": 5
+  },
+  {
+   "attempts": [
+    {
+     "accepted": false,
+     "backfilled": false,
+     "candidate_harness": "21524c3db6020eeb0c8d873ea8d43498bcf10119d2dcdf38ff740d3eb8529cd4",
+     "evaluated": true,
+     "files": [
+      "systemprompt.md"
+     ],
+     "fixed": [
+      "command-vetting-e016"
+     ],
+     "missed": [
+      "command-vetting-e018"
+     ],
+     "passed": 22,
+     "predicted": [
+      "command-vetting-e016",
+      "command-vetting-e018"
+     ],
+     "provenance": {
+      "benchmark": "command-vetting",
+      "domain": "policy-vetting",
+      "evaluator": "oracle:command-vetting",
+      "harness_version": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+      "optimizer": "qwen3.8-27b",
+      "policy": "qwen3.8-27b",
+      "run": "cold_start"
+     },
+     "rationale": "The model failed e016 (DENY for `cat .`) and e018 (ALLOW for `cat link-out/hosts`) by incorrectly applying path-based security logic to a command-only allowlist. The model needs to understand that `cat` is allowed regardless of the target file if the policy only lists commands, whereas e016's failure suggests it might have thought `cat .` was dangerous or outside scope, and e018's failure suggests it thought `link-out` was a violation. Clarifying that path safety is irrelevant to the *command* allowlist check should fix these.",
+     "regressed": [
+      "command-vetting-e003",
+      "command-vetting-e008",
+      "command-vetting-e013",
+      "command-vetting-e019"
+     ],
+     "round": 5,
+     "sample": 1,
+     "total": 30,
+     "what": "Explicitly define that 'command allowlist' policies restrict only the executable binary, not the file arguments, unless a specific path sandbox is defined, and provide a concrete example of this distinction."
+    }
+   ],
+   "id": "P8",
+   "name": "P2: Incorrect interpretation of 'command allowlist' scope regarding file paths.",
+   "opened_round": 5
+  },
+  {
+   "attempts": [
+    {
+     "accepted": true,
+     "backfilled": false,
+     "candidate_harness": "9c0d8bfcd4b6426f3d65f1269e8aaa0f2259fd49a8982ecc1db75a390ea71e56",
+     "evaluated": true,
+     "files": [
+      "systemprompt.md"
+     ],
+     "fixed": [
+      "command-vetting-e004",
+      "command-vetting-e016",
+      "command-vetting-e018"
+     ],
+     "missed": [
+      "command-vetting-e005",
+      "command-vetting-e012"
+     ],
+     "passed": 27,
+     "predicted": [
+      "command-vetting-e004",
+      "command-vetting-e005",
+      "command-vetting-e012",
+      "command-vetting-e016",
+      "command-vetting-e018"
+     ],
+     "provenance": {
+      "benchmark": "command-vetting",
+      "domain": "policy-vetting",
+      "evaluator": "oracle:command-vetting",
+      "harness_version": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+      "optimizer": "qwen3.8-27b",
+      "policy": "qwen3.8-27b",
+      "run": "cold_start"
+     },
+     "rationale": "Placing the verdict first ensures the answer is present even if the output is cut off. Explicitly clarifying that paths are not restricted by a command allowlist fixes the logic errors in tasks like e018 (where the model denied a valid command due to path concerns) and e016 (where it denied a valid command due to over-analysis).",
+     "regressed": [
+      "command-vetting-e019"
+     ],
+     "round": 6,
+     "sample": 0,
+     "total": 30,
+     "what": "Rewrite the system prompt to mandate a 'Verdict First' format (ALLOW or DENY on the first line) and explicitly define that 'command allowlist' policies restrict only the executable binary, ignoring file paths unless a specific path sandbox is defined."
+    }
+   ],
+   "id": "P9",
+   "name": "The model engages in excessive chain-of-thought reasoning, leading to output truncation before a verdict is reached, and it incorrectly applies path-based security logic to a command-only allowlist policy.",
+   "opened_round": 6
+  }
+ ],
+ "run": "cold_start",
+ "schema": "agent-harness.sim/1"
+}

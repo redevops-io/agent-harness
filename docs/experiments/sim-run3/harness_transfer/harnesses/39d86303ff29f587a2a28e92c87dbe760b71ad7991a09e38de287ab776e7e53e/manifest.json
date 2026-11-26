@@ -1,0 +1,16 @@
+{
+  "files": [
+    "LongTermMEMORY.md",
+    "guardrails.md",
+    "systemprompt.md",
+    "tool_descriptions/tool_guidance.md"
+  ],
+  "id": "39d86303ff29f587a2a28e92c87dbe760b71ad7991a09e38de287ab776e7e53e",
+  "meta": {
+    "round": 2,
+    "run": "harness_transfer",
+    "what": "Add a strict constraint to output the verdict on the first line and limit the explanation to a single sentence to prevent token exhaustion."
+  },
+  "parent": "e501757292662e8f0c40d3e082c01a0aa3df9dc5064e705aac9e76cc9dedfcd7",
+  "surface": "opencode"
+}

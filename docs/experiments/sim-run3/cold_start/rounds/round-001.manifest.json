@@ -1,0 +1,29 @@
+{
+ "candidates": [
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "command-vetting-e004",
+    "command-vetting-e005",
+    "command-vetting-e012",
+    "command-vetting-e016",
+    "command-vetting-e018"
+   ],
+   "rationale": "The model is currently spending its entire token budget on chain-of-thought reasoning, leading to truncated responses with no verdict. Additionally, it is incorrectly denying commands that access paths outside the workspace (like /etc or /tmp) when the policy only restricts the command name. By forcing the verdict to appear immediately and clarifying the scope of the allowlist, we prevent truncation and correct the logical error.",
+   "refused": "",
+   "root_cause": "P2: Incorrect interpretation of 'allowlist' scope (confusing command allowlist with path sandboxing)",
+   "screened_in": true,
+   "what": "Enforce a strict 'Verdict First' output format and explicitly define that 'allowlist' applies only to the executable binary, not file paths."
+  }
+ ],
+ "harness": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+ "memory_condition": "none",
+ "memory_view": {
+  "chars": 0,
+  "custom": false,
+  "report": null
+ },
+ "round": 1
+}

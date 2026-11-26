@@ -1,0 +1,16 @@
+{
+  "files": [
+    "LongTermMEMORY.md",
+    "guardrails.md",
+    "systemprompt.md",
+    "tool_descriptions/tool_guidance.md"
+  ],
+  "id": "2b53f26b7609f44d97a92d87b63d2f34572764973a59409026c18d0ecc885c88",
+  "meta": {
+    "round": 1,
+    "run": "harness_transfer",
+    "what": "Rewrite systemprompt.md to define a strict command vetting policy that requires commands to be in the allowlist AND paths to remain within the workspace root, explicitly denying path traversal and absolute paths outside the root."
+  },
+  "parent": "afe5bf62b8031fba9523c9f75c4d09f12f9201dc0509ca0bec0f70649e816fc1",
+  "surface": "opencode"
+}

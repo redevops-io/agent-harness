@@ -1,0 +1,16 @@
+{
+  "files": [
+    "LongTermMEMORY.md",
+    "guardrails.md",
+    "systemprompt.md",
+    "tool_descriptions/tool_guidance.md"
+  ],
+  "id": "f791650ac75662c80f09ef856f24923d946a194f2adf4cb7d1f6181bfe62914b",
+  "meta": {
+    "round": 1,
+    "run": "source",
+    "what": "Rewrite the system prompt to define a strict, deterministic decision tree: 1. If host is 'localhost' or IP is private/loopback, ALLOW. 2. If DNS does not resolve, DENY. 3. If host is in a known trusted list (github.com, api.stripe.com, huggingface.co, docs.python.org, etc.) AND port is standard (80, 443), ALLOW. 4. Otherwise, DENY. Explicitly instruct to ignore DNS IP mismatches for trusted domains and to keep reasoning brief."
+  },
+  "parent": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+  "surface": "opencode"
+}

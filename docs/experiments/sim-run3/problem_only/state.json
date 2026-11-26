@@ -1,0 +1,38 @@
+{
+ "condition": "problem_only",
+ "current": "c7aed5f9c2d2f43902ee7338bb778f31043cbff3be69b8bb2ff11ff6eeaae1ce",
+ "promotions": [
+  {
+   "harness": "60224c9949aae3cfd4e988bc9f1f32d1b88b4e408725a74d2dc27a9056932d86",
+   "kind": "start",
+   "round": 0
+  },
+  {
+   "harness": "7c003fad3081dbc5b345ddfc365b513a6cd22583d5fe7b6716f99ddcb46ce916",
+   "kind": "promotion",
+   "parent": "60224c9949aae3cfd4e988bc9f1f32d1b88b4e408725a74d2dc27a9056932d86",
+   "problem": "P1",
+   "round": 1
+  },
+  {
+   "harness": "c7aed5f9c2d2f43902ee7338bb778f31043cbff3be69b8bb2ff11ff6eeaae1ce",
+   "kind": "promotion",
+   "parent": "7c003fad3081dbc5b345ddfc365b513a6cd22583d5fe7b6716f99ddcb46ce916",
+   "problem": "P1",
+   "round": 2
+  }
+ ],
+ "provenance": {
+  "benchmark": "command-vetting",
+  "domain": "policy-vetting",
+  "evaluator": "oracle:command-vetting",
+  "harness_version": "",
+  "optimizer": "qwen3.8-27b",
+  "policy": "qwen3.8-27b",
+  "run": "problem_only"
+ },
+ "record_rejected": true,
+ "round": 6,
+ "run": "problem_only",
+ "schema": "agent-harness.sim-run/1"
+}

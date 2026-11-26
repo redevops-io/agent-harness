@@ -1,0 +1,11 @@
+{
+ "candidates": [],
+ "harness": "84c27d8aed06a2c28df7df2bbe53e38bb93c7323aa4c01e51ee1096a87c57294",
+ "memory_condition": "full",
+ "memory_view": {
+  "chars": 23329,
+  "custom": false,
+  "report": null
+ },
+ "round": 3
+}

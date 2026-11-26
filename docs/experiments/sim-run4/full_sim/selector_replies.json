@@ -1,0 +1,8 @@
+[
+ "[true, false]",
+ "{\"choice\": 0, \"reason\": \"The candidate achieves a perfect score of 1.000 on the evolve set, fixing two previously failing tasks without introducing any regressions, which is a clear and significant improvement over the current 0.933 score.\"}",
+ "[\n  false,\n  true\n]",
+ "{\"choice\": null, \"reason\": \"The current harness is already achieving a perfect score of 1.000, so adopting a candidate that predicts no new fixes or regressions offers no performance benefit and only introduces unnecessary change risk.\"}",
+ "[\n  true\n]",
+ "{\"choice\": null, \"reason\": \"The candidate maintains the current 1.000 score with no predicted fixes or regressions, offering no measurable improvement over the existing harness.\"}"
+]

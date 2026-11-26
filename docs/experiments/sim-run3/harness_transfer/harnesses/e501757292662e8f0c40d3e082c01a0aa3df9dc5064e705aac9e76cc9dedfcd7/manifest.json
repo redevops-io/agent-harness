@@ -1,0 +1,16 @@
+{
+  "files": [
+    "LongTermMEMORY.md",
+    "guardrails.md",
+    "systemprompt.md",
+    "tool_descriptions/tool_guidance.md"
+  ],
+  "id": "e501757292662e8f0c40d3e082c01a0aa3df9dc5064e705aac9e76cc9dedfcd7",
+  "meta": {
+    "round": 1,
+    "run": "harness_transfer",
+    "what": "Rewrite the system prompt to explicitly define the task as command vetting, remove the irrelevant DNS instructions, and enforce a strict output format that places the verdict (ALLOW or DENY) at the very beginning of the response."
+  },
+  "parent": "60224c9949aae3cfd4e988bc9f1f32d1b88b4e408725a74d2dc27a9056932d86",
+  "surface": "opencode"
+}
