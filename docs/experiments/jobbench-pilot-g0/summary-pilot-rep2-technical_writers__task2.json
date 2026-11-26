@@ -1,0 +1,111 @@
+{
+  "task": "technical_writers/task2",
+  "attempt": 1,
+  "stop": "done",
+  "turns": 16,
+  "seconds": 611.4,
+  "prompt_tokens": 259231,
+  "completion_tokens": 22437,
+  "tool_calls": 19,
+  "tool_errors": 0,
+  "deliverables": [
+    "doc_impact_analysis.csv",
+    "migration_guide_v3.1.0.md",
+    "revised_api_reference.md"
+  ],
+  "blocked_fetches": [],
+  "outside_output": [],
+  "supervisor": null,
+  "completion": {
+    "status": "structurally_valid",
+    "files": [
+      {
+        "name": "doc_impact_analysis.csv",
+        "status": "valid",
+        "reason": "",
+        "size": 11658
+      },
+      {
+        "name": "migration_guide_v3.1.0.md",
+        "status": "valid",
+        "reason": "",
+        "size": 20159
+      },
+      {
+        "name": "revised_api_reference.md",
+        "status": "valid",
+        "reason": "",
+        "size": 39790
+      }
+    ],
+    "required_exts": [
+      "csv",
+      "md"
+    ],
+    "missing_exts": [],
+    "expected_names": [
+      "migration_guide_v3.1.0.md",
+      "revised_api_reference.md",
+      "doc_impact_analysis.csv"
+    ],
+    "unmatched_names": []
+  },
+  "incomplete_preserved": "",
+  "model": "qwen3.8-27b",
+  "context_manager": "context-runtime",
+  "rag": false,
+  "archived_items": 17,
+  "retrieval_calls": 3,
+  "failure": {
+    "class": "delivered",
+    "files_outside_output": [],
+    "network_errors": 0,
+    "placeholder_blocked": 0,
+    "capability_notes": 0,
+    "refused_or_repeated_calls": 0,
+    "turns": 16,
+    "supervisor_events": [],
+    "completion_status": "structurally_valid"
+  },
+  "edit_stats": {
+    "edit_calls": 0,
+    "edit_ok": 0,
+    "edit_failed": 0,
+    "failure_categories": {},
+    "failure_outcomes": {},
+    "write_file_calls": 0
+  },
+  "run_options": {
+    "tools": "legacy",
+    "network": "none",
+    "supervise": false,
+    "supervisor_config": null,
+    "vision": "off",
+    "vision_supported": false,
+    "capability_notes": false,
+    "check_integrity": false,
+    "max_images": null
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "stop": "done",
+      "turns": 16,
+      "seconds": 611.4,
+      "deliverables": [
+        "doc_impact_analysis.csv",
+        "migration_guide_v3.1.0.md",
+        "revised_api_reference.md"
+      ],
+      "failure": "delivered"
+    }
+  ],
+  "judge": {
+    "graded": true,
+    "score": 0.36666666666666664,
+    "total": 22.0,
+    "max": 60.0,
+    "passed": 3,
+    "count": 8
+  }
+}
