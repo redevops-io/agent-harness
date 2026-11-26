@@ -1,0 +1,748 @@
+{
+ "arms": {
+  "complete-1": {
+   "candidates_per_round": 2,
+   "engineer_usage": {
+    "calls": 16,
+    "calls_without_usage": 0,
+    "completion_tokens": 6280,
+    "prompt_tokens": 119941,
+    "seconds": 201.16
+   },
+   "error": "",
+   "evolve_scores": [
+    0.866667,
+    0.966667,
+    0.966667,
+    0.966667,
+    0.966667,
+    0.966667,
+    0.9666666666666667
+   ],
+   "memory_condition": "full",
+   "missed_predictions": 1,
+   "policy_calls": 150,
+   "policy_usage": {
+    "calls": 150,
+    "calls_without_usage": 0,
+    "completion_tokens": 12873,
+    "prompt_tokens": 55680,
+    "seconds": 438.03
+   },
+   "predictions": 7,
+   "promotions": 1,
+   "proposed": 12,
+   "refused": 0,
+   "regressed_tasks_in_promotions": 8,
+   "rounds": 6,
+   "seconds": 317.1,
+   "selection_trace": [
+    {
+     "compacted": [],
+     "complete": true,
+     "history": {
+      "attempt_descriptions_verbatim": 5,
+      "attempts": 5,
+      "attempts_shown": 5,
+      "attempts_with_identical_measured_fields": 5,
+      "problems": 1,
+      "problems_not_shown": [],
+      "rationales_in_record": 5,
+      "rationales_verbatim": 5
+     },
+     "omitted": [],
+     "tokens": 3665
+    },
+    {
+     "compacted": [],
+     "complete": true,
+     "history": {
+      "attempt_descriptions_verbatim": 5,
+      "attempts": 6,
+      "attempts_shown": 6,
+      "attempts_with_identical_measured_fields": 5,
+      "problems": 1,
+      "problems_not_shown": [],
+      "rationales_in_record": 6,
+      "rationales_verbatim": 5
+     },
+     "omitted": [],
+     "tokens": 4144
+    },
+    {
+     "compacted": [],
+     "complete": true,
+     "history": {
+      "attempt_descriptions_verbatim": 5,
+      "attempts": 7,
+      "attempts_shown": 7,
+      "attempts_with_identical_measured_fields": 5,
+      "problems": 1,
+      "problems_not_shown": [],
+      "rationales_in_record": 7,
+      "rationales_verbatim": 5
+     },
+     "omitted": [],
+     "tokens": 4562
+    },
+    {
+     "compacted": [],
+     "complete": true,
+     "history": {
+      "attempt_descriptions_verbatim": 5,
+      "attempts": 8,
+      "attempts_shown": 8,
+      "attempts_with_identical_measured_fields": 5,
+      "problems": 1,
+      "problems_not_shown": [],
+      "rationales_in_record": 8,
+      "rationales_verbatim": 5
+     },
+     "omitted": [],
+     "tokens": 4976
+    },
+    {
+     "compacted": [],
+     "complete": true,
+     "history": {
+      "attempt_descriptions_verbatim": 5,
+      "attempts": 8,
+      "attempts_shown": 8,
+      "attempts_with_identical_measured_fields": 5,
+      "problems": 1,
+      "problems_not_shown": [],
+      "rationales_in_record": 8,
+      "rationales_verbatim": 5
+     },
+     "omitted": [],
+     "tokens": 4976
+    },
+    {
+     "compacted": [],
+     "complete": true,
+     "history": {
+      "attempt_descriptions_verbatim": 6,
+      "attempts": 9,
+      "attempts_shown": 9,
+      "attempts_with_identical_measured_fields": 6,
+      "problems": 1,
+      "problems_not_shown": [],
+      "rationales_in_record": 9,
+      "rationales_verbatim": 6
+     },
+     "omitted": [],
+     "tokens": 5389
+    }
+   ],
+   "source_heldout_final": 0.8333333333333334,
+   "status": "completed",
+   "target_heldout_final": 0.6
+  },
+  "complete-2": {
+   "candidates_per_round": 2,
+   "engineer_usage": {
+    "calls": 12,
+    "calls_without_usage": 0,
+    "completion_tokens": 2342,
+    "prompt_tokens": 85939,
+    "seconds": 73.33
+   },
+   "error": "",
+   "evolve_scores": [
+    0.866667,
+    0.866667,
+    0.933333,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "memory_condition": "full",
+   "missed_predictions": 0,
+   "policy_calls": 120,
+   "policy_usage": {
+    "calls": 120,
+    "calls_without_usage": 0,
+    "completion_tokens": 21762,
+    "prompt_tokens": 33462,
+    "seconds": 623.54
+   },
+   "predictions": 10,
+   "promotions": 2,
+   "proposed": 6,
+   "refused": 0,
+   "regressed_tasks_in_promotions": 6,
+   "rounds": 6,
+   "seconds": 242.9,
+   "selection_trace": [
+    {
+     "compacted": [],
+     "complete": true,
+     "history": {
+      "attempt_descriptions_verbatim": 5,
+      "attempts": 5,
+      "attempts_shown": 5,
+      "attempts_with_identical_measured_fields": 5,
+      "problems": 1,
+      "problems_not_shown": [],
+      "rationales_in_record": 5,
+      "rationales_verbatim": 5
+     },
+     "omitted": [],
+     "tokens": 3665
+    },
+    {
+     "compacted": [],
+     "complete": true,
+     "history": {
+      "attempt_descriptions_verbatim": 5,
+      "attempts": 6,
+      "attempts_shown": 6,
+      "attempts_with_identical_measured_fields": 5,
+      "problems": 1,
+      "problems_not_shown": [],
+      "rationales_in_record": 6,
+      "rationales_verbatim": 5
+     },
+     "omitted": [],
+     "tokens": 4097
+    },
+    {
+     "compacted": [],
+     "complete": true,
+     "history": {
+      "attempt_descriptions_verbatim": 5,
+      "attempts": 7,
+      "attempts_shown": 7,
+      "attempts_with_identical_measured_fields": 5,
+      "problems": 1,
+      "problems_not_shown": [],
+      "rationales_in_record": 7,
+      "rationales_verbatim": 5
+     },
+     "omitted": [],
+     "tokens": 4511
+    },
+    {
+     "compacted": [],
+     "complete": true,
+     "history": {
+      "attempt_descriptions_verbatim": 5,
+      "attempts": 8,
+      "attempts_shown": 8,
+      "attempts_with_identical_measured_fields": 5,
+      "problems": 1,
+      "problems_not_shown": [],
+      "rationales_in_record": 8,
+      "rationales_verbatim": 5
+     },
+     "omitted": [],
+     "tokens": 4835
+    },
+    {
+     "compacted": [],
+     "complete": true,
+     "history": {
+      "attempt_descriptions_verbatim": 5,
+      "attempts": 8,
+      "attempts_shown": 8,
+      "attempts_with_identical_measured_fields": 5,
+      "problems": 1,
+      "problems_not_shown": [],
+      "rationales_in_record": 8,
+      "rationales_verbatim": 5
+     },
+     "omitted": [],
+     "tokens": 4835
+    },
+    {
+     "compacted": [],
+     "complete": true,
+     "history": {
+      "attempt_descriptions_verbatim": 5,
+      "attempts": 8,
+      "attempts_shown": 8,
+      "attempts_with_identical_measured_fields": 5,
+      "problems": 1,
+      "problems_not_shown": [],
+      "rationales_in_record": 8,
+      "rationales_verbatim": 5
+     },
+     "omitted": [],
+     "tokens": 4835
+    }
+   ],
+   "source_heldout_final": 0.7,
+   "status": "completed",
+   "target_heldout_final": 0.9666666666666667
+  },
+  "complete-3": {
+   "candidates_per_round": 2,
+   "engineer_usage": {
+    "calls": 18,
+    "calls_without_usage": 0,
+    "completion_tokens": 5023,
+    "prompt_tokens": 139067,
+    "seconds": 143.39
+   },
+   "error": "",
+   "evolve_scores": [
+    0.766667,
+    0.933333,
+    0.933333,
+    0.933333,
+    0.933333,
+    0.966667,
+    1.0
+   ],
+   "memory_condition": "full",
+   "missed_predictions": 5,
+   "policy_calls": 210,
+   "policy_usage": {
+    "calls": 210,
+    "calls_without_usage": 0,
+    "completion_tokens": 32208,
+    "prompt_tokens": 64896,
+    "seconds": 914.91
+   },
+   "predictions": 16,
+   "promotions": 3,
+   "proposed": 11,
+   "refused": 0,
+   "regressed_tasks_in_promotions": 3,
+   "rounds": 6,
+   "seconds": 385.8,
+   "selection_trace": [
+    {
+     "compacted": [],
+     "complete": true,
+     "history": {
+      "attempt_descriptions_verbatim": 5,
+      "attempts": 5,
+      "attempts_shown": 5,
+      "attempts_with_identical_measured_fields": 5,
+      "problems": 1,
+      "problems_not_shown": [],
+      "rationales_in_record": 5,
+      "rationales_verbatim": 5
+     },
+     "omitted": [],
+     "tokens": 3665
+    },
+    {
+     "compacted": [],
+     "complete": true,
+     "history": {
+      "attempt_descriptions_verbatim": 5,
+      "attempts": 6,
+      "attempts_shown": 6,
+      "attempts_with_identical_measured_fields": 5,
+      "problems": 1,
+      "problems_not_shown": [],
+      "rationales_in_record": 6,
+      "rationales_verbatim": 5
+     },
+     "omitted": [],
+     "tokens": 4124
+    },
+    {
+     "compacted": [],
+     "complete": true,
+     "history": {
+      "attempt_descriptions_verbatim": 5,
+      "attempts": 7,
+      "attempts_shown": 7,
+      "attempts_with_identical_measured_fields": 5,
+      "problems": 1,
+      "problems_not_shown": [],
+      "rationales_in_record": 7,
+      "rationales_verbatim": 5
+     },
+     "omitted": [],
+     "tokens": 4527
+    },
+    {
+     "compacted": [],
+     "complete": true,
+     "history": {
+      "attempt_descriptions_verbatim": 5,
+      "attempts": 8,
+      "attempts_shown": 8,
+      "attempts_with_identical_measured_fields": 5,
+      "problems": 1,
+      "problems_not_shown": [],
+      "rationales_in_record": 8,
+      "rationales_verbatim": 5
+     },
+     "omitted": [],
+     "tokens": 4901
+    },
+    {
+     "compacted": [],
+     "complete": true,
+     "history": {
+      "attempt_descriptions_verbatim": 5,
+      "attempts": 9,
+      "attempts_shown": 9,
+      "attempts_with_identical_measured_fields": 5,
+      "problems": 1,
+      "problems_not_shown": [],
+      "rationales_in_record": 9,
+      "rationales_verbatim": 5
+     },
+     "omitted": [],
+     "tokens": 5266
+    },
+    {
+     "compacted": [],
+     "complete": true,
+     "history": {
+      "attempt_descriptions_verbatim": 6,
+      "attempts": 10,
+      "attempts_shown": 10,
+      "attempts_with_identical_measured_fields": 6,
+      "problems": 1,
+      "problems_not_shown": [],
+      "rationales_in_record": 10,
+      "rationales_verbatim": 6
+     },
+     "omitted": [],
+     "tokens": 5630
+    }
+   ],
+   "source_heldout_final": 0.6,
+   "status": "completed",
+   "target_heldout_final": 0.5333333333333333
+  },
+  "selected-1": {
+   "candidates_per_round": 2,
+   "engineer_usage": {
+    "calls": 13,
+    "calls_without_usage": 0,
+    "completion_tokens": 8086,
+    "prompt_tokens": 64823,
+    "seconds": 227.66
+   },
+   "error": "",
+   "evolve_scores": [
+    0.866667,
+    0.933333,
+    0.966667,
+    0.966667,
+    0.966667,
+    0.966667,
+    0.9666666666666667
+   ],
+   "memory_condition": "full",
+   "missed_predictions": 3,
+   "policy_calls": 120,
+   "policy_usage": {
+    "calls": 120,
+    "calls_without_usage": 0,
+    "completion_tokens": 11873,
+    "prompt_tokens": 43692,
+    "seconds": 357.69
+   },
+   "predictions": 7,
+   "promotions": 3,
+   "proposed": 8,
+   "refused": 1,
+   "regressed_tasks_in_promotions": 1,
+   "rounds": 6,
+   "seconds": 320.9,
+   "selection_trace": [
+    {
+     "compacted": [
+      "P1"
+     ],
+     "complete": false,
+     "history": {
+      "attempt_descriptions_verbatim": 0,
+      "attempts": 5,
+      "attempts_shown": 5,
+      "attempts_with_identical_measured_fields": 5,
+      "problems": 1,
+      "problems_not_shown": [],
+      "rationales_in_record": 5,
+      "rationales_verbatim": 0
+     },
+     "omitted": [],
+     "tokens": 2059,
+     "tokens_complete": 3665
+    },
+    {
+     "compacted": [
+      "P1"
+     ],
+     "complete": false,
+     "history": {
+      "attempt_descriptions_verbatim": 0,
+      "attempts": 6,
+      "attempts_shown": 6,
+      "attempts_with_identical_measured_fields": 5,
+      "problems": 1,
+      "problems_not_shown": [],
+      "rationales_in_record": 6,
+      "rationales_verbatim": 0
+     },
+     "omitted": [],
+     "tokens": 2365,
+     "tokens_complete": 4097
+    },
+    {
+     "compacted": [
+      "P1"
+     ],
+     "complete": false,
+     "history": {
+      "attempt_descriptions_verbatim": 0,
+      "attempts": 7,
+      "attempts_shown": 7,
+      "attempts_with_identical_measured_fields": 5,
+      "problems": 1,
+      "problems_not_shown": [],
+      "rationales_in_record": 7,
+      "rationales_verbatim": 0
+     },
+     "omitted": [],
+     "tokens": 2633,
+     "tokens_complete": 4485
+    },
+    {
+     "compacted": [
+      "P1"
+     ],
+     "complete": false,
+     "history": {
+      "attempt_descriptions_verbatim": 0,
+      "attempts": 8,
+      "attempts_shown": 8,
+      "attempts_with_identical_measured_fields": 5,
+      "problems": 1,
+      "problems_not_shown": [],
+      "rationales_in_record": 8,
+      "rationales_verbatim": 0
+     },
+     "omitted": [],
+     "tokens": 2885,
+     "tokens_complete": 4845
+    },
+    {
+     "compacted": [
+      "P1"
+     ],
+     "complete": false,
+     "history": {
+      "attempt_descriptions_verbatim": 0,
+      "attempts": 8,
+      "attempts_shown": 8,
+      "attempts_with_identical_measured_fields": 5,
+      "problems": 1,
+      "problems_not_shown": [],
+      "rationales_in_record": 8,
+      "rationales_verbatim": 0
+     },
+     "omitted": [],
+     "tokens": 2885,
+     "tokens_complete": 4845
+    },
+    {
+     "compacted": [
+      "P1"
+     ],
+     "complete": false,
+     "history": {
+      "attempt_descriptions_verbatim": 0,
+      "attempts": 8,
+      "attempts_shown": 8,
+      "attempts_with_identical_measured_fields": 5,
+      "problems": 1,
+      "problems_not_shown": [],
+      "rationales_in_record": 8,
+      "rationales_verbatim": 0
+     },
+     "omitted": [],
+     "tokens": 2885,
+     "tokens_complete": 4845
+    }
+   ],
+   "source_heldout_final": 0.8333333333333334,
+   "status": "completed",
+   "target_heldout_final": 0.6
+  },
+  "selected-2": {
+   "engineer_usage": {
+    "calls": 6,
+    "calls_without_usage": 0,
+    "completion_tokens": 1751,
+    "prompt_tokens": 28894,
+    "seconds": 48.35
+   },
+   "error": "BudgetTooSmall: needs 3030 tokens, budget 3000",
+   "policy_usage": {
+    "calls": 120,
+    "calls_without_usage": 0,
+    "completion_tokens": 18975,
+    "prompt_tokens": 33882,
+    "seconds": 527.03
+   },
+   "seconds": 187.3,
+   "selection_trace": [
+    {
+     "compacted": [
+      "P1"
+     ],
+     "complete": false,
+     "history": {
+      "attempt_descriptions_verbatim": 0,
+      "attempts": 5,
+      "attempts_shown": 5,
+      "attempts_with_identical_measured_fields": 5,
+      "problems": 1,
+      "problems_not_shown": [],
+      "rationales_in_record": 5,
+      "rationales_verbatim": 0
+     },
+     "omitted": [],
+     "tokens": 2059,
+     "tokens_complete": 3665
+    },
+    {
+     "compacted": [
+      "P1"
+     ],
+     "complete": false,
+     "history": {
+      "attempt_descriptions_verbatim": 0,
+      "attempts": 7,
+      "attempts_shown": 7,
+      "attempts_with_identical_measured_fields": 6,
+      "problems": 1,
+      "problems_not_shown": [],
+      "rationales_in_record": 7,
+      "rationales_verbatim": 0
+     },
+     "omitted": [],
+     "tokens": 2762,
+     "tokens_complete": 4570
+    },
+    {
+     "budget": 3000,
+     "budget_too_small": true,
+     "needed": 3030
+    }
+   ],
+   "status": "stopped"
+  },
+  "selected-3": {
+   "engineer_usage": {
+    "calls": 8,
+    "calls_without_usage": 0,
+    "completion_tokens": 4375,
+    "prompt_tokens": 40950,
+    "seconds": 118.63
+   },
+   "error": "BudgetTooSmall: needs 3035 tokens, budget 3000",
+   "policy_usage": {
+    "calls": 120,
+    "calls_without_usage": 0,
+    "completion_tokens": 24556,
+    "prompt_tokens": 34872,
+    "seconds": 707.3
+   },
+   "seconds": 308.7,
+   "selection_trace": [
+    {
+     "compacted": [
+      "P1"
+     ],
+     "complete": false,
+     "history": {
+      "attempt_descriptions_verbatim": 0,
+      "attempts": 5,
+      "attempts_shown": 5,
+      "attempts_with_identical_measured_fields": 5,
+      "problems": 1,
+      "problems_not_shown": [],
+      "rationales_in_record": 5,
+      "rationales_verbatim": 0
+     },
+     "omitted": [],
+     "tokens": 2059,
+     "tokens_complete": 3665
+    },
+    {
+     "compacted": [
+      "P1"
+     ],
+     "complete": false,
+     "history": {
+      "attempt_descriptions_verbatim": 0,
+      "attempts": 7,
+      "attempts_shown": 7,
+      "attempts_with_identical_measured_fields": 6,
+      "problems": 1,
+      "problems_not_shown": [],
+      "rationales_in_record": 7,
+      "rationales_verbatim": 0
+     },
+     "omitted": [],
+     "tokens": 2737,
+     "tokens_complete": 4610
+    },
+    {
+     "compacted": [
+      "P1"
+     ],
+     "complete": false,
+     "history": {
+      "attempt_descriptions_verbatim": 0,
+      "attempts": 7,
+      "attempts_shown": 7,
+      "attempts_with_identical_measured_fields": 6,
+      "problems": 1,
+      "problems_not_shown": [],
+      "rationales_in_record": 7,
+      "rationales_verbatim": 0
+     },
+     "omitted": [],
+     "tokens": 2737,
+     "tokens_complete": 4610
+    },
+    {
+     "budget": 3000,
+     "budget_too_small": true,
+     "needed": 3035
+    }
+   ],
+   "status": "stopped"
+  }
+ },
+ "budget_tokens": 3000,
+ "candidates_per_round": 2,
+ "caveats": [
+  "replicates alternate the two arms; sampling of the harness engineers is not seeded",
+  "30 held-out tasks: one task is 3.3 points",
+  "the carried memory holds ONE problem, so selection can compact its prose but cannot omit or rank problems",
+  "same model proposes, selects and acts"
+ ],
+ "configuration": {
+  "feedback": "v2",
+  "record_rejected": true
+ },
+ "context_runtime": {
+  "commit": "3b55bec98f681b1a25de09787217d715cb3256b6",
+  "dirty": false,
+  "path": "/Users/arybach/qualification/ctx-runtime-3b55bec"
+ },
+ "cost_note": "local GPU inference: no per-token price applies; tokens (as reported by the server) and wall-clock seconds are the cost measures",
+ "from_run": "/Users/arybach/qualification/sim-experiments/run3-qwen-egress-to-cmd",
+ "model": "qwen3.8-27b",
+ "replicates": 3,
+ "rounds": 6,
+ "schema": "agent-harness.sim-selected/1",
+ "source": "egress-vetting",
+ "target": "command-vetting",
+ "target_heldout_start": 0.5666666666666667,
+ "token_counter": "context_runtime estimate_tokens (4 characters per token)"
+}

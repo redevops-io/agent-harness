@@ -65,3 +65,11 @@ def test_the_meter_counts_what_the_server_reports_and_what_it_does_not():
 
 def test_the_measured_fields_are_the_ones_a_view_may_never_change():
     assert {"predicted", "fixed", "missed", "regressed", "passed", "total", "accepted"} <= set(MEASURED)
+
+
+def test_a_carried_attempt_and_a_target_attempt_with_the_same_round_are_not_confused():
+    a = _attempt(1, provenance={"run": "source"}, candidate_harness="hS")
+    b = _attempt(1, provenance={"run": "target"}, candidate_harness="hT", fixed=["t7"])
+    rec = {"problems": [{"id": "P1", "attempts": [a, b]}]}
+    r = history_report(rec, json.dumps(rec))
+    assert r["attempts"] == r["attempts_shown"] == r["attempts_with_identical_measured_fields"] == 2

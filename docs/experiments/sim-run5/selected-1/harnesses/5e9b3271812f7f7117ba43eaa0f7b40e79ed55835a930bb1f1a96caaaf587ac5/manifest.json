@@ -1,0 +1,16 @@
+{
+  "files": [
+    "LongTermMEMORY.md",
+    "guardrails.md",
+    "systemprompt.md",
+    "tool_descriptions/tool_guidance.md"
+  ],
+  "id": "5e9b3271812f7f7117ba43eaa0f7b40e79ed55835a930bb1f1a96caaaf587ac5",
+  "meta": {
+    "round": 3,
+    "run": "selected-1",
+    "what": "Explicitly define that in a command chain (e.g., 'cmd1 && cmd2'), each command must be evaluated independently, and 'wc -l' without a file argument reads from stdin (or the previous command's output) and is therefore allowed, not a path escape."
+  },
+  "parent": "e693a3eddeb413438e7007caffe4b54c36ae85ad6a1edd4fc9a83f27806d4e79",
+  "surface": "opencode"
+}

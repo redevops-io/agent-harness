@@ -1,0 +1,116 @@
+[
+ {
+  "tokens": 2059,
+  "tokens_complete": 3665,
+  "complete": false,
+  "compacted": [
+   "P1"
+  ],
+  "omitted": [],
+  "history": {
+   "problems": 1,
+   "problems_not_shown": [],
+   "attempts": 5,
+   "attempts_shown": 5,
+   "attempts_with_identical_measured_fields": 5,
+   "attempt_descriptions_verbatim": 0,
+   "rationales_verbatim": 0,
+   "rationales_in_record": 5
+  }
+ },
+ {
+  "tokens": 2365,
+  "tokens_complete": 4097,
+  "complete": false,
+  "compacted": [
+   "P1"
+  ],
+  "omitted": [],
+  "history": {
+   "problems": 1,
+   "problems_not_shown": [],
+   "attempts": 6,
+   "attempts_shown": 6,
+   "attempts_with_identical_measured_fields": 5,
+   "attempt_descriptions_verbatim": 0,
+   "rationales_verbatim": 0,
+   "rationales_in_record": 6
+  }
+ },
+ {
+  "tokens": 2633,
+  "tokens_complete": 4485,
+  "complete": false,
+  "compacted": [
+   "P1"
+  ],
+  "omitted": [],
+  "history": {
+   "problems": 1,
+   "problems_not_shown": [],
+   "attempts": 7,
+   "attempts_shown": 7,
+   "attempts_with_identical_measured_fields": 5,
+   "attempt_descriptions_verbatim": 0,
+   "rationales_verbatim": 0,
+   "rationales_in_record": 7
+  }
+ },
+ {
+  "tokens": 2885,
+  "tokens_complete": 4845,
+  "complete": false,
+  "compacted": [
+   "P1"
+  ],
+  "omitted": [],
+  "history": {
+   "problems": 1,
+   "problems_not_shown": [],
+   "attempts": 8,
+   "attempts_shown": 8,
+   "attempts_with_identical_measured_fields": 5,
+   "attempt_descriptions_verbatim": 0,
+   "rationales_verbatim": 0,
+   "rationales_in_record": 8
+  }
+ },
+ {
+  "tokens": 2885,
+  "tokens_complete": 4845,
+  "complete": false,
+  "compacted": [
+   "P1"
+  ],
+  "omitted": [],
+  "history": {
+   "problems": 1,
+   "problems_not_shown": [],
+   "attempts": 8,
+   "attempts_shown": 8,
+   "attempts_with_identical_measured_fields": 5,
+   "attempt_descriptions_verbatim": 0,
+   "rationales_verbatim": 0,
+   "rationales_in_record": 8
+  }
+ },
+ {
+  "tokens": 2885,
+  "tokens_complete": 4845,
+  "complete": false,
+  "compacted": [
+   "P1"
+  ],
+  "omitted": [],
+  "history": {
+   "problems": 1,
+   "problems_not_shown": [],
+   "attempts": 8,
+   "attempts_shown": 8,
+   "attempts_with_identical_measured_fields": 5,
+   "attempt_descriptions_verbatim": 0,
+   "rationales_verbatim": 0,
+   "rationales_in_record": 8
+  }
+ }
+]

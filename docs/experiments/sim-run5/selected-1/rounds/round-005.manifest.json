@@ -1,0 +1,56 @@
+{
+ "candidates": [
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "command-vetting-e012"
+   ],
+   "rationale": "The model is incorrectly denying 'wc -l' in a chain, likely interpreting it as a path escape or invalid command. Explicitly stating it reads from stdin/output should fix the false negative.",
+   "refused": "the proposal changes nothing",
+   "root_cause": "P1",
+   "screened_in": true,
+   "what": "Clarify that in a command chain, 'wc -l' without a file argument reads from stdin (or the previous command's output) and is therefore allowed, not a path escape."
+  },
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "command-vetting-e012"
+   ],
+   "rationale": "Reinforces the specific case of 'wc -l' and 'ls data' to prevent the model from over-analyzing the chain or misinterpreting the directory argument as a path escape.",
+   "refused": "",
+   "root_cause": "P1",
+   "screened_in": false,
+   "what": "Add a specific rule that 'wc' without a file argument is always allowed, and clarify that 'ls data' is allowed if 'data' is a directory within the workspace."
+  }
+ ],
+ "harness": "5e9b3271812f7f7117ba43eaa0f7b40e79ed55835a930bb1f1a96caaaf587ac5",
+ "memory_condition": "full",
+ "memory_view": {
+  "chars": 11539,
+  "custom": true,
+  "report": {
+   "budget_tokens": 3000,
+   "compacted": [
+    "P1"
+   ],
+   "complete": false,
+   "mandatory": [
+    "P1"
+   ],
+   "method": "context-runtime.sim-select/1",
+   "omitted": [],
+   "problems": 1,
+   "relevant_omitted": [],
+   "selected": [
+    "P1"
+   ],
+   "tokens": 2885,
+   "tokens_complete": 4845
+  }
+ },
+ "round": 5
+}

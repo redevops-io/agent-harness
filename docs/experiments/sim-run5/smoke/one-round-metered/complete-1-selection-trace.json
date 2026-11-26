@@ -1,0 +1,18 @@
+[
+ {
+  "tokens": 3665,
+  "complete": true,
+  "compacted": [],
+  "omitted": [],
+  "history": {
+   "problems": 1,
+   "problems_not_shown": [],
+   "attempts": 5,
+   "attempts_shown": 5,
+   "attempts_with_identical_measured_fields": 5,
+   "attempt_descriptions_verbatim": 5,
+   "rationales_verbatim": 5,
+   "rationales_in_record": 5
+  }
+ }
+]

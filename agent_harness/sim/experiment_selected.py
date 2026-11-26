@@ -85,6 +85,12 @@ MEASURED = ("round", "sample", "files", "predicted", "provenance", "accepted", "
             "candidate_harness", "evaluated")
 
 
+def _attempt_key(a: Dict[str, Any]) -> tuple:
+    """An attempt is identified by the run that made it as well as its round and sample: a carried source attempt and a target attempt can
+    share a round number (an earlier version keyed on round and sample alone and misattributed one attempt in every record)."""
+    return (str((a.get("provenance") or {}).get("run", "")), a.get("round"), a.get("sample"), a.get("candidate_harness"))
+
+
 def history_report(record: Dict[str, Any], view_text: str) -> Dict[str, Any]:
     """What of the record's intervention history is in the text the proposer read: parsed back from that text, not from the tool's report."""
     try:
@@ -97,10 +103,10 @@ def history_report(record: Dict[str, Any], view_text: str) -> Dict[str, Any]:
         got = shown.get(p["id"])
         if got is None:
             problems_missing.append(p["id"])
-        by_round = {(a.get("round"), a.get("sample")): a for a in (got or {}).get("attempts", [])}
+        by_key = {_attempt_key(a): a for a in (got or {}).get("attempts", [])}
         for a in p.get("attempts", []):
             n_att += 1
-            b = by_round.get((a.get("round"), a.get("sample")))
+            b = by_key.get(_attempt_key(a))
             if b is None:
                 continue
             n_shown += 1

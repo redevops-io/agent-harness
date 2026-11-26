@@ -1,0 +1,16 @@
+{
+  "files": [
+    "LongTermMEMORY.md",
+    "guardrails.md",
+    "systemprompt.md",
+    "tool_descriptions/tool_guidance.md"
+  ],
+  "id": "e693a3eddeb413438e7007caffe4b54c36ae85ad6a1edd4fc9a83f27806d4e79",
+  "meta": {
+    "round": 2,
+    "run": "selected-1",
+    "what": "Refine the command vetting policy to explicitly define that 'escaping the workspace' applies only to file path arguments (e.g., in ls, cat, head) and not to data arguments (e.g., in echo), and clarify that 'wc -l' without a file argument is valid."
+  },
+  "parent": "fe8e675b57c5aa5298d8877ce533ed31fbc1f13e34f837531d37c312d6a78a3b",
+  "surface": "opencode"
+}

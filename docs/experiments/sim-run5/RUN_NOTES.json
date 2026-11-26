@@ -1,0 +1,22 @@
+{
+ "schema": "agent-harness.sim-run-notes/1",
+ "comparable": false,
+ "caveat": "Complete memory against Context Runtime's selected memory (budget 3,000 tokens, commit 3b55bec), 3 replicates per arm, one model. Only 1 of 3 selected replicates completed: the other two stopped with BudgetTooSmall (needing 3,030 and 3,035 tokens) after round 3, so there is no accuracy comparison. The complete arm's replicates ended at 0.60, 0.97 and 0.53, a spread of 0.43 from one start. Selection cut the memory shown from 3,665-5,630 to 2,059-2,885 tokens and prompt tokens per engineer call by 33 percent, kept every attempt's measured fields, and shortened every attempt description and dropped every rationale. Every record has ONE problem, so relevance ranking and selection across problems were not exercised and cannot be validated by this run.",
+ "reasons": [
+  "two of three selected replicates stopped with BudgetTooSmall",
+  "one completed selected run cannot be compared with three noisy complete runs",
+  "every memory holds a single problem: selection among problems was not exercised",
+  "the budget was fixed in advance and not tuned",
+  "the first start of the run was interrupted and its output was not preserved"
+ ],
+ "configuration": {
+  "budget_tokens": 3000,
+  "context_runtime_commit": "3b55bec98f681b1a25de09787217d715cb3256b6",
+  "from_run": "sim-run3",
+  "feedback": "v2",
+  "record_rejected": true,
+  "rounds": 6,
+  "candidates_per_round": 2,
+  "replicates": 3
+ }
+}

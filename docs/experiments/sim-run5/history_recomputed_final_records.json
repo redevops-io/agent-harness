@@ -1,0 +1,118 @@
+{
+ "complete-1": {
+  "problems": 1,
+  "attempts": 9,
+  "complete_tokens": 5389,
+  "complete": {
+   "problems": 1,
+   "problems_not_shown": [],
+   "attempts": 9,
+   "attempts_shown": 9,
+   "attempts_with_identical_measured_fields": 9,
+   "attempt_descriptions_verbatim": 9,
+   "rationales_verbatim": 9,
+   "rationales_in_record": 9
+  },
+  "selected": "BudgetTooSmall needs 3176"
+ },
+ "complete-2": {
+  "problems": 1,
+  "attempts": 8,
+  "complete_tokens": 4835,
+  "complete": {
+   "problems": 1,
+   "problems_not_shown": [],
+   "attempts": 8,
+   "attempts_shown": 8,
+   "attempts_with_identical_measured_fields": 8,
+   "attempt_descriptions_verbatim": 8,
+   "rationales_verbatim": 8,
+   "rationales_in_record": 8
+  },
+  "selected_tokens": 2966,
+  "selected": {
+   "problems": 1,
+   "problems_not_shown": [],
+   "attempts": 8,
+   "attempts_shown": 8,
+   "attempts_with_identical_measured_fields": 8,
+   "attempt_descriptions_verbatim": 0,
+   "rationales_verbatim": 0,
+   "rationales_in_record": 8
+  }
+ },
+ "complete-3": {
+  "problems": 1,
+  "attempts": 11,
+  "complete_tokens": 6311,
+  "complete": {
+   "problems": 1,
+   "problems_not_shown": [],
+   "attempts": 11,
+   "attempts_shown": 11,
+   "attempts_with_identical_measured_fields": 11,
+   "attempt_descriptions_verbatim": 11,
+   "rationales_verbatim": 11,
+   "rationales_in_record": 11
+  },
+  "selected": "BudgetTooSmall needs 3751"
+ },
+ "selected-1": {
+  "problems": 1,
+  "attempts": 8,
+  "complete_tokens": 4845,
+  "complete": {
+   "problems": 1,
+   "problems_not_shown": [],
+   "attempts": 8,
+   "attempts_shown": 8,
+   "attempts_with_identical_measured_fields": 8,
+   "attempt_descriptions_verbatim": 8,
+   "rationales_verbatim": 8,
+   "rationales_in_record": 8
+  },
+  "selected_tokens": 2885,
+  "selected": {
+   "problems": 1,
+   "problems_not_shown": [],
+   "attempts": 8,
+   "attempts_shown": 8,
+   "attempts_with_identical_measured_fields": 8,
+   "attempt_descriptions_verbatim": 0,
+   "rationales_verbatim": 0,
+   "rationales_in_record": 8
+  }
+ },
+ "selected-2": {
+  "problems": 1,
+  "attempts": 8,
+  "complete_tokens": 4948,
+  "complete": {
+   "problems": 1,
+   "problems_not_shown": [],
+   "attempts": 8,
+   "attempts_shown": 8,
+   "attempts_with_identical_measured_fields": 8,
+   "attempt_descriptions_verbatim": 8,
+   "rationales_verbatim": 8,
+   "rationales_in_record": 8
+  },
+  "selected": "BudgetTooSmall needs 3030"
+ },
+ "selected-3": {
+  "problems": 1,
+  "attempts": 8,
+  "complete_tokens": 5292,
+  "complete": {
+   "problems": 1,
+   "problems_not_shown": [],
+   "attempts": 8,
+   "attempts_shown": 8,
+   "attempts_with_identical_measured_fields": 8,
+   "attempt_descriptions_verbatim": 8,
+   "rationales_verbatim": 8,
+   "rationales_in_record": 8
+  },
+  "selected": "BudgetTooSmall needs 3035"
+ }
+}

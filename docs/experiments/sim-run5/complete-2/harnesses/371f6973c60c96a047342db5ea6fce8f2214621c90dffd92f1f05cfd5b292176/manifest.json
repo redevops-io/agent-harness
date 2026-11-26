@@ -1,0 +1,16 @@
+{
+  "files": [
+    "LongTermMEMORY.md",
+    "guardrails.md",
+    "systemprompt.md",
+    "tool_descriptions/tool_guidance.md"
+  ],
+  "id": "371f6973c60c96a047342db5ea6fce8f2214621c90dffd92f1f05cfd5b292176",
+  "meta": {
+    "round": 2,
+    "run": "complete-2",
+    "what": "Replace the DNS-specific policy with a command vetting policy that explicitly denies path traversal, symlink escapes, and command chaining, and requires a single simple invocation of an allowlisted binary."
+  },
+  "parent": "60224c9949aae3cfd4e988bc9f1f32d1b88b4e408725a74d2dc27a9056932d86",
+  "surface": "opencode"
+}

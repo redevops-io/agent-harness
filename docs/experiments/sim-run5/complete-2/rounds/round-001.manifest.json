@@ -1,0 +1,46 @@
+{
+ "candidates": [
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "command-vetting-e004",
+    "command-vetting-e008",
+    "command-vetting-e012",
+    "command-vetting-e018"
+   ],
+   "rationale": "The current system prompt is entirely about DNS resolution, which is irrelevant to the command vetting tasks. The model is confused by the mismatch and defaults to ALLOW because the binaries (head, cat, ls) are on the allowlist, ignoring the security violations (path traversal, symlinks, command chaining). A specific command policy will guide the model to DENY these unsafe patterns.",
+   "refused": "",
+   "root_cause": "P1",
+   "screened_in": true,
+   "what": "Replace the DNS-specific policy with a generic command vetting policy that explicitly denies path traversal (../) and symlink escapes, and requires the command to be a single, simple invocation of an allowlisted binary."
+  },
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "command-vetting-e004",
+    "command-vetting-e008",
+    "command-vetting-e012",
+    "command-vetting-e018"
+   ],
+   "rationale": "The model is currently trying to apply the DNS policy to command tasks, leading to confusion and incorrect ALLOWs. Explicitly disambiguating the task type and ignoring the DNS policy for commands will help the model focus on the relevant security constraints (path traversal, symlinks, chaining).",
+   "refused": "",
+   "root_cause": "P1",
+   "screened_in": false,
+   "what": "Update the system prompt to explicitly state that for command vetting tasks, the DNS policy is ignored and the decision is based solely on the command allowlist and path safety constraints."
+  }
+ ],
+ "harness": "60224c9949aae3cfd4e988bc9f1f32d1b88b4e408725a74d2dc27a9056932d86",
+ "memory_condition": "full",
+ "memory_view": {
+  "chars": 14658,
+  "custom": true,
+  "report": {
+   "method": "complete-record"
+  }
+ },
+ "round": 1
+}

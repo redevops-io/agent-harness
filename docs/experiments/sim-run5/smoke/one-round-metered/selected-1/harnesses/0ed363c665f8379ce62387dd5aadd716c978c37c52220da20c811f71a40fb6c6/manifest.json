@@ -1,0 +1,16 @@
+{
+  "files": [
+    "LongTermMEMORY.md",
+    "guardrails.md",
+    "systemprompt.md",
+    "tool_descriptions/tool_guidance.md"
+  ],
+  "id": "0ed363c665f8379ce62387dd5aadd716c978c37c52220da20c811f71a40fb6c6",
+  "meta": {
+    "round": 1,
+    "run": "selected-1",
+    "what": "Rewrite the system prompt to explicitly distinguish between 'egress-vetting' (DNS/IP based) and 'command-vetting' (allowlist/sandbox based) tasks, providing specific rules for command vetting that prioritize the command name against the allowlist and ignore file path arguments or shell operators."
+  },
+  "parent": "60224c9949aae3cfd4e988bc9f1f32d1b88b4e408725a74d2dc27a9056932d86",
+  "surface": "opencode"
+}

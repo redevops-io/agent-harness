@@ -1,0 +1,12 @@
+[
+ "[\n  true,\n  false\n]",
+ "{\"choice\": 0, \"reason\": \"The candidate improves the score from 0.867 to 0.967 by fixing three tasks without causing any regressions, addressing the truncation and over-analysis issues identified in P1.\"}",
+ "[\n  true,\n  false\n]",
+ "{\"choice\": null, \"reason\": \"The candidate fixes only one task (e012) but causes two regressions (e023, e029), resulting in a net performance decrease and a lower score (0.933 vs 0.967).\"}",
+ "[true, false]",
+ "{\"choice\": null, \"reason\": \"The candidate introduces 3 new failures (e010, e016, e023) to fix only 1 (e012), resulting in a net performance regression.\"}",
+ "[\n  false,\n  false\n]",
+ "[\n  true,\n  false\n]",
+ "{\"choice\": null, \"reason\": \"The candidate fixes only one task (e012) while regressing three others (e010, e016, e023), resulting in a net performance decrease from 29 to 27 passes.\"}",
+ "[\n  false,\n  false\n]"
+]

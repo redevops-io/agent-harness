@@ -1,0 +1,16 @@
+{
+  "files": [
+    "LongTermMEMORY.md",
+    "guardrails.md",
+    "systemprompt.md",
+    "tool_descriptions/tool_guidance.md"
+  ],
+  "id": "5fc444836085c327bd529a273532e9a84c4cd471378d12502e138bbdbd5a7e4b",
+  "meta": {
+    "round": 1,
+    "run": "complete-1",
+    "what": "Rewrite the system prompt to explicitly define the command vetting policy (allowlist + workspace boundary) and enforce a strict, concise output format to prevent truncation."
+  },
+  "parent": "60224c9949aae3cfd4e988bc9f1f32d1b88b4e408725a74d2dc27a9056932d86",
+  "surface": "opencode"
+}

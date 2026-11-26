@@ -1,0 +1,45 @@
+[
+ {
+  "tokens": 2059,
+  "tokens_complete": 3665,
+  "complete": false,
+  "compacted": [
+   "P1"
+  ],
+  "omitted": [],
+  "history": {
+   "problems": 1,
+   "problems_not_shown": [],
+   "attempts": 5,
+   "attempts_shown": 5,
+   "attempts_with_identical_measured_fields": 5,
+   "attempt_descriptions_verbatim": 0,
+   "rationales_verbatim": 0,
+   "rationales_in_record": 5
+  }
+ },
+ {
+  "tokens": 2762,
+  "tokens_complete": 4570,
+  "complete": false,
+  "compacted": [
+   "P1"
+  ],
+  "omitted": [],
+  "history": {
+   "problems": 1,
+   "problems_not_shown": [],
+   "attempts": 7,
+   "attempts_shown": 7,
+   "attempts_with_identical_measured_fields": 6,
+   "attempt_descriptions_verbatim": 0,
+   "rationales_verbatim": 0,
+   "rationales_in_record": 7
+  }
+ },
+ {
+  "budget_too_small": true,
+  "needed": 3030,
+  "budget": 3000
+ }
+]
