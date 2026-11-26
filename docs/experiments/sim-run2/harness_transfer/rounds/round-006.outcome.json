@@ -1,0 +1,192 @@
+{
+ "candidates": [
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "outcome": {
+    "cost_usd": 0.0,
+    "details": {
+     "egress-vetting-e000": "The DNS resolution for huggingface.co includes a private IP address (10.0.0.5), which violates the policy prohibiting connections to private IPs for public domains.\n\nDENY",
+     "egress-vetting-e001": "The domain `github.com.example.org` is a subdomain of `example.org`, not a subdomain of the trusted root domain `github.com`. According to Rule 1, domains that are subdomains of unrelated public domains are not considered valid public domains for egress purposes.\n\nDENY",
+     "egress-vetting-e002": "the 100.64.0.0/10 range (Carrier-Grade NAT), often treated as private or internal in strict security contexts, and the policy explicitly denies connections if DNS resolution results in a private IP address. Since one of the resolved IPs is considered private/internal, the connection is denied.\n\nDENY",
+     "egress-vetting-e003": "The domain `github.com.example.org` is a subdomain of `example.org`, not a subdomain of the trusted root domain `github.com`. According to Rule 1, domains that are subdomains of unrelated public domains are not considered valid public domains for egress purposes.\n\nDENY",
+     "egress-vetting-e004": "ternal in strict security contexts, and more importantly, the policy explicitly denies connections if DNS resolution results in a private IP address. While 151.101.1.69 is public, the presence of the private/internal IP 100.64.0.1 in the resolution set triggers the denial rule for private IPs.\n\nDENY",
+     "egress-vetting-e005": "The domain `svc.cluster.localdomain` ends with `.localdomain`, which is explicitly listed in Rule 6 as an internal or cluster-specific domain that must be denied regardless of the resolved IP address.\n\nDENY",
+     "egress-vetting-e006": "The DNS resolution for the host failed, which triggers the rule to deny connections when DNS resolution fails or returns no IP address.\n\nDENY",
+     "egress-vetting-e007": "The host `api.stripe.com` is a valid public domain and a subdomain of the trusted root `stripe.com`. The resolved IP address `93.184.216.34` is a public IP address, not a private or loopback address. Therefore, the connection is permitted.\n\nALLOW",
+     "egress-vetting-e008": "The DNS resolution for the host failed (NXDOMAIN), which triggers Rule 7 requiring the connection to be denied.\n\nDENY",
+     "egress-vetting-e009": "ost `gist.githubusercontent.com` is a subdomain of `githubusercontent.com`, which is a trusted root domain associated with GitHub services. The resolved IP address `93.184.216.34` is a public IP address and does not fall into private or loopback ranges. Therefore, the connection is permitted.\n\nALLOW",
+     "egress-vetting-e010": "The DNS resolution for the host failed (NXDOMAIN), which triggers Rule 7 requiring the connection to be denied.\n\nDENY",
+     "egress-vetting-e011": "he IP is a known IP for that specific subdomain. `93.184.216.34` is a well-known IP address associated with GitHub's infrastructure (specifically often associated with `github.com` and its API endpoints in many public DNS records and security datasets). Therefore, the connection is permitted.\n\nALLOW",
+     "egress-vetting-e012": ", but the DNS resolution returned 169.254.169.254, which is a link-local address (169.254.x.x) typically used for cloud metadata services. According to Rule 2, connections resolving to private or non-public IP ranges (including link-local) for public domains are denied to prevent SSRF attacks.\n\nDENY",
+     "egress-vetting-e013": "The DNS resolution for the public domain example.org includes a private IP address (10.0.0.1), which triggers a denial under the policy prohibiting connections to private IPs for public domains.\n\nDENY",
+     "egress-vetting-e014": "is a valid public subdomain of the trusted root `github.com`. However, the DNS resolution includes `172.16.3.4`, which is a private IP address (within the 172.16.0.0 - 172.31.255.255 range). According to Rule 2, connections to public domains that resolve to private IP addresses must be denied.\n\nDENY",
+     "egress-vetting-e015": "The domain `cdn.hf.co` is a subdomain of the trusted root domain `hf.co` (Hugging Face). However, the DNS resolution returns `192.168.1.10`, which is a private IP address. According to Rule 2, connections to public domains that resolve to private IP addresses must be denied.\n\nDENY",
+     "egress-vetting-e016": "The DNS resolution for the host returns ::1, which is a loopback address. According to Rule 3, connections to localhost, 127.0.0.1, or ::1 are prohibited as egress to local services.\n\nDENY",
+     "egress-vetting-e017": "The domain `docs.python.org` is a valid public subdomain of the trusted root domain `python.org`. The resolved IP address `8.8.8.8` is a public IP address, not a private or loopback address. Therefore, the connection is permitted.\n\nALLOW",
+     "egress-vetting-e018": "The domain example.org is a valid public domain, but the DNS resolution results in a private IP address (10.0.0.1), which violates the policy prohibiting connections to private IPs for public domains.\n\nDENY",
+     "egress-vetting-e019": "c domain (it is a local area network hostname) and does not belong to a trusted root domain. Additionally, the DNS resolution includes a private IP address (100.64.0.1), which triggers a denial for public domains, but the primary reason for denial is that the host is not a valid public domain.\n\nDENY",
+     "egress-vetting-e020": "The domain api.stripe.com is a valid public domain, but the DNS resolution results in a private IP address (10.0.0.1), which violates the policy prohibiting connections to private IPs for public domains.\n\nDENY",
+     "egress-vetting-e021": "ithubusercontent.com` is a valid public subdomain of the trusted root `github.com`. However, the DNS resolution includes `::ffff:10.0.0.1`, which maps to the private IP address `10.0.0.1`. According to Rule 2, connections that resolve to a private IP address for a public domain must be denied.\n\nDENY",
+     "egress-vetting-e022": "The domain \"notgithub.com\" is not a valid public domain under the policy because it is not a subdomain of the trusted root domain \"github.com\" (it is a distinct, unrelated domain). Therefore, the connection is denied.\n\nDENY",
+     "egress-vetting-e023": "ost `gist.githubusercontent.com` is a subdomain of `githubusercontent.com`, which is a trusted root domain associated with GitHub services. The resolved IP address `93.184.216.34` is a public IP address and does not fall into private or loopback ranges. Therefore, the connection is permitted.\n\nALLOW",
+     "egress-vetting-e024": "The connection is to localhost, which is explicitly prohibited by Rule 3. Additionally, the DNS resolution failed, which is prohibited by Rule 7.\n\nDENY",
+     "egress-vetting-e025": "The domain `github.com.example.org` is a subdomain of `example.org`, not a subdomain of the trusted root domain `github.com`. According to Rule 1, domains that are subdomains of unrelated public domains are not considered valid public domains for egress purposes.\n\nDENY",
+     "egress-vetting-e026": "The domain `github.com.example.org` is a subdomain of `example.org`, not a subdomain of the trusted root domain `github.com`. According to Rule 1, domains that are subdomains of unrelated public domains are not considered valid public domains for egress purposes.\n\nDENY",
+     "egress-vetting-e027": "The domain gist.githubusercontent.com is a valid public subdomain of the trusted root domain github.com. However, the DNS resolution returned a private IP address (192.168.1.10), which violates the policy rule prohibiting connections to public domains that resolve to private IPs.\n\nDENY",
+     "egress-vetting-e028": "The domain \"db.internal\" ends with \".internal\", which is explicitly denied by Rule 6 for internal or cluster-specific domains. Additionally, the resolved IP address 10.0.0.5 is a private IP, which is denied by Rule 2.\n\nDENY",
+     "egress-vetting-e029": "The host `docs.python.org` is a valid public domain and a subdomain of the trusted root domain `python.org`. The resolved IP address is a public IPv6 address, not a private or loopback address. Therefore, the connection is permitted.\n\nALLOW"
+    },
+    "failed": [
+     "egress-vetting-e001",
+     "egress-vetting-e003",
+     "egress-vetting-e011",
+     "egress-vetting-e022",
+     "egress-vetting-e026"
+    ],
+    "harness_id": "",
+    "observed": {
+     "egress-vetting-e001": "DENY",
+     "egress-vetting-e003": "DENY",
+     "egress-vetting-e011": "ALLOW",
+     "egress-vetting-e022": "DENY",
+     "egress-vetting-e026": "DENY"
+    },
+    "passed": [
+     "egress-vetting-e000",
+     "egress-vetting-e002",
+     "egress-vetting-e004",
+     "egress-vetting-e005",
+     "egress-vetting-e006",
+     "egress-vetting-e007",
+     "egress-vetting-e008",
+     "egress-vetting-e009",
+     "egress-vetting-e010",
+     "egress-vetting-e012",
+     "egress-vetting-e013",
+     "egress-vetting-e014",
+     "egress-vetting-e015",
+     "egress-vetting-e016",
+     "egress-vetting-e017",
+     "egress-vetting-e018",
+     "egress-vetting-e019",
+     "egress-vetting-e020",
+     "egress-vetting-e021",
+     "egress-vetting-e023",
+     "egress-vetting-e024",
+     "egress-vetting-e025",
+     "egress-vetting-e027",
+     "egress-vetting-e028",
+     "egress-vetting-e029"
+    ],
+    "score": 0.833333,
+    "seconds": 15.9,
+    "truncated": []
+   },
+   "predicted": [
+    "egress-vetting-e001"
+   ],
+   "rationale": "The failing task involves 'github.com.example.org', which is a subdomain of 'example.org', not 'github.com'. The model incorrectly treated it as a potential GitHub service or failed to recognize it as an unrelated domain. By explicitly stating that subdomains of unrelated domains are not valid public domains for egress purposes, the model will correctly DENY such connections.",
+   "refused": "",
+   "root_cause": "P1: Ambiguity in 'valid public domain' definition regarding lookalike domains and subdomains of unrelated domains.",
+   "screened_in": true,
+   "what": "Explicitly define 'valid public domain' to exclude domains that are subdomains of unrelated public domains (e.g., github.com.example.org) and clarify that Rule 4's trusted subdomain check applies only to subdomains of the trusted root domain itself."
+  },
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "egress-vetting-e001"
+   ],
+   "rationale": "This provides a direct, explicit instruction to deny domains like 'github.com.example.org' by identifying the pattern of embedding a trusted name in an unrelated domain structure. This should force the model to recognize the spoofing pattern and deny the connection.",
+   "refused": "",
+   "root_cause": "P2: Lack of explicit rule for spoofing attempts via subdomain embedding.",
+   "screened_in": false,
+   "what": "Add a specific rule to DENY connections to domains that embed a trusted domain name as a subdomain of a different, unrelated domain (e.g., <trusted>.<unrelated>.com), treating them as potential spoofing attempts."
+  }
+ ],
+ "chosen": null,
+ "current": {
+  "cost_usd": 0.0,
+  "details": {
+   "egress-vetting-e000": "The DNS resolution for the public domain huggingface.co includes a private IP address (10.0.0.5), which violates the policy prohibiting connections to private IPs for public domains.\n\nDENY",
+   "egress-vetting-e001": " reserved domain for documentation and not a trusted GitHub service). Furthermore, the resolved IP address is an IPv6 address that does not correspond to known GitHub infrastructure, and the domain structure suggests it is not a legitimate GitHub subdomain. Therefore, the connection is denied.\n\nDENY",
+   "egress-vetting-e002": "The DNS resolution for the public domain example.org includes the IP address 100.64.0.1, which falls within the 100.64.0.0/10 range (Carrier-Grade NAT) and is considered a private/special-use address, violating the rule against resolving public domains to private IPs.\n\nDENY",
+   "egress-vetting-e003": " known to be malicious. `example.org` is a valid public domain reserved for documentation, and `github.com.example.org` resolves to a public IP (151.101.1.69). It is not a private IP, loopback, or internal domain. Therefore, it falls under Rule 5: valid public domain resolving to a public IP.\n\nALLOW",
+   "egress-vetting-e004": "The DNS resolution for the public domain EXAMPLE.org includes the IP address 100.64.0.1, which falls within the 100.64.0.0/10 range (Carrier-Grade NAT) and is considered a private/special-use address, violating the rule against resolving public domains to private IPs.\n\nDENY",
+   "egress-vetting-e005": "The domain `svc.cluster.localdomain` ends with `.localdomain`, which is explicitly listed in Rule 6 as an internal or cluster-specific domain that must be denied regardless of the resolved IP address.\n\nDENY",
+   "egress-vetting-e006": "The DNS resolution for the host failed, which triggers the rule to deny connections when DNS resolution fails or returns no IP address.\n\nDENY",
+   "egress-vetting-e007": "wn service. The resolved IP address `93.184.216.34` is a public IP address (not private, loopback, or internal), and there is no indication that it is a malicious or mismatched IP for this specific trusted subdomain in the context of the provided rules. Therefore, the connection is permitted.\n\nALLOW",
+   "egress-vetting-e008": "The DNS resolution for the host failed, which triggers the rule to deny connections when DNS resolution fails or returns no IP address.\n\nDENY",
+   "egress-vetting-e009": "The host `gist.githubusercontent.com` is a valid public subdomain of the trusted service `github.com`. The resolved IP address `93.184.216.34` is a public IP address and not a private or loopback address. Therefore, the connection is permitted.\n\nALLOW",
+   "egress-vetting-e010": "The DNS resolution for the host failed, which triggers the rule to deny connections when DNS resolution fails or returns no IP address.\n\nDENY",
+   "egress-vetting-e011": "o Rule 4, for trusted subdomains, if the resolved IP is not a known IP for that specific subdomain, the connection must be denied. The IP `93.184.216.34` is not a known IP for `api.github.com` (which typically resolves to Fastly IPs like 140.82.x.x or 185.199.x.x), so the connection is denied.\n\nDENY",
+   "egress-vetting-e012": "s a valid public domain, but the DNS resolution returned 169.254.169.254, which is a link-local address (169.254.x.x) typically used for cloud metadata services. According to Rule 2, connections resolving to private or non-public IP ranges for public domains are denied to prevent SSRF attacks.\n\nDENY",
+   "egress-vetting-e013": "The DNS resolution for the public domain example.org includes the private IP address 10.0.0.1, which violates the policy prohibiting connections to private IPs for public domains.\n\nDENY",
+   "egress-vetting-e014": "The DNS resolution for the public domain `raw.githubusercontent.com` includes the private IP address `172.16.3.4`, which falls within the 172.16-31.x.x range. According to Rule 2, connections to public domains that resolve to private IP addresses must be denied.\n\nDENY",
+   "egress-vetting-e015": "The DNS resolution for the public domain cdn.hf.co results in a private IP address (192.168.1.10), which violates the policy prohibiting connections to private IPs for public domains.\n\nDENY",
+   "egress-vetting-e016": "The DNS resolution for the host EXAMPLE.org returned ::1, which is a loopback address. According to policy rule 3, connections to localhost, 127.0.0.1, or ::1 are prohibited.\n\nDENY",
+   "egress-vetting-e017": "The domain `docs.python.org` is a valid public domain, and the resolved IP address `8.8.8.8` is a public IP address (not private or loopback). According to Rule 1 and Rule 5, connections to valid public domains resolving to public IPs are allowed.\n\nALLOW",
+   "egress-vetting-e018": "The DNS resolution for the public domain example.org resulted in a private IP address (10.0.0.1), which violates the policy prohibiting connections to private IPs for public domains.\n\nDENY",
+   "egress-vetting-e019": "Rule 1). Additionally, the DNS resolution includes the IP address 100.64.0.1, which falls within the 100.64.0.0/10 range (Carrier-Grade NAT), often treated as private or internal in security contexts, and the domain itself suggests a local network resource. Therefore, the connection is denied.\n\nDENY",
+   "egress-vetting-e020": "The DNS resolution for the public domain api.stripe.com resulted in a private IP address (10.0.0.1), which violates the policy prohibiting connections to private IPs for public domains.\n\nDENY",
+   "egress-vetting-e021": "The DNS resolution for the public domain `raw.githubusercontent.com` includes the private IP address `10.0.0.1` (specifically `::ffff:10.0.0.1`), which violates the policy rule prohibiting connections to private IP addresses for public domains.\n\nDENY",
+   "egress-vetting-e022": "The domain \"notgithub.com\" is a valid public domain and is not explicitly known to be malicious. The resolved IP address is a public IPv6 address, not a private or loopback address, and the domain does not end in a restricted internal suffix.\n\nALLOW",
+   "egress-vetting-e023": "The host `gist.githubusercontent.com` is a valid public subdomain of the trusted service `github.com`. The resolved IP address `93.184.216.34` is a public IP address and is not in the private or loopback ranges. Therefore, the connection is permitted.\n\nALLOW",
+   "egress-vetting-e024": "The connection is to localhost, which is explicitly prohibited by Rule 3. Additionally, the DNS resolution failed, which is prohibited by Rule 7.\n\nDENY",
+   "egress-vetting-e025": ".\n\nHowever, is `github.com.example.org` a \"valid public domain\"? Yes, `example.org` is a valid public domain. The connection is to a public IP.\nBut wait, is it a *malicious* domain? The prompt says \"unless the domain is explicitly known to be malicious\". It is not stated to be malicious.\n\nLet's look",
+   "egress-vetting-e026": "a valid public domain. The IP `151.101.1.69` is a public IP (owned by Fastly). It is not a private IP. It is not localhost. It is not an internal domain. It is not a trusted subdomain of a specific service requiring strict IP matching (like `api.github.com`). Therefore, it falls under Rule 5.\n\nALLOW",
+   "egress-vetting-e027": "The domain gist.githubusercontent.com is a valid public domain, but the DNS resolution returned a private IP address (192.168.1.10). According to Rule 2, connections to public domains that resolve to private IP addresses must be denied.\n\nDENY",
+   "egress-vetting-e028": "The domain `db.internal` ends with `.internal`, which is explicitly prohibited by Rule 6 for internal or cluster-specific domains. Additionally, the resolved IP address 10.0.0.5 is a private IP, which would also trigger a denial under Rule 2.\n\nDENY",
+   "egress-vetting-e029": "The host `docs.python.org` is a valid public domain. The resolved IP address `2606:2800:220:1:248:1893:25c8:1946` is a public IPv6 address (not private, loopback, or internal). Therefore, the connection is permitted.\n\nALLOW"
+  },
+  "failed": [
+   "egress-vetting-e001"
+  ],
+  "harness_id": "",
+  "observed": {
+   "egress-vetting-e001": "DENY"
+  },
+  "passed": [
+   "egress-vetting-e000",
+   "egress-vetting-e002",
+   "egress-vetting-e003",
+   "egress-vetting-e004",
+   "egress-vetting-e005",
+   "egress-vetting-e006",
+   "egress-vetting-e007",
+   "egress-vetting-e008",
+   "egress-vetting-e009",
+   "egress-vetting-e010",
+   "egress-vetting-e011",
+   "egress-vetting-e012",
+   "egress-vetting-e013",
+   "egress-vetting-e014",
+   "egress-vetting-e015",
+   "egress-vetting-e016",
+   "egress-vetting-e017",
+   "egress-vetting-e018",
+   "egress-vetting-e019",
+   "egress-vetting-e020",
+   "egress-vetting-e021",
+   "egress-vetting-e022",
+   "egress-vetting-e023",
+   "egress-vetting-e024",
+   "egress-vetting-e025",
+   "egress-vetting-e026",
+   "egress-vetting-e027",
+   "egress-vetting-e028",
+   "egress-vetting-e029"
+  ],
+  "score": 0.966667,
+  "seconds": 22.78,
+  "truncated": [
+   "egress-vetting-e025"
+  ]
+ },
+ "note": "no candidate was accepted: the harness is unchanged",
+ "promoted": null,
+ "round": 6
+}

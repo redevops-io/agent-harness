@@ -1,0 +1,38 @@
+{
+ "candidates": [
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "egress-vetting-e001"
+   ],
+   "rationale": "The failing task involves 'github.com.example.org', which is a subdomain of 'example.org', not 'github.com'. The model incorrectly treated it as a potential GitHub service or failed to recognize it as an unrelated domain. By explicitly stating that subdomains of unrelated domains are not valid public domains for egress purposes, the model will correctly DENY such connections.",
+   "refused": "",
+   "root_cause": "P1: Ambiguity in 'valid public domain' definition regarding lookalike domains and subdomains of unrelated domains.",
+   "screened_in": true,
+   "what": "Explicitly define 'valid public domain' to exclude domains that are subdomains of unrelated public domains (e.g., github.com.example.org) and clarify that Rule 4's trusted subdomain check applies only to subdomains of the trusted root domain itself."
+  },
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "egress-vetting-e001"
+   ],
+   "rationale": "This provides a direct, explicit instruction to deny domains like 'github.com.example.org' by identifying the pattern of embedding a trusted name in an unrelated domain structure. This should force the model to recognize the spoofing pattern and deny the connection.",
+   "refused": "",
+   "root_cause": "P2: Lack of explicit rule for spoofing attempts via subdomain embedding.",
+   "screened_in": false,
+   "what": "Add a specific rule to DENY connections to domains that embed a trusted domain name as a subdomain of a different, unrelated domain (e.g., <trusted>.<unrelated>.com), treating them as potential spoofing attempts."
+  }
+ ],
+ "harness": "cf07c3d3cde997eb2608250e89dc8863711f090f7277ee7ea6f7f8dea3e0fb5d",
+ "memory_condition": "none",
+ "memory_view": {
+  "chars": 0,
+  "custom": false,
+  "report": null
+ },
+ "round": 6
+}

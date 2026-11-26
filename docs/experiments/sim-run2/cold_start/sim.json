@@ -1,0 +1,446 @@
+{
+ "aliases": {},
+ "carried_from": null,
+ "next_id": 9,
+ "problems": [
+  {
+   "attempts": [
+    {
+     "accepted": true,
+     "backfilled": false,
+     "candidate_harness": "36de15a42835122b32ff19c8a816dd0fd17b5e2ddd64109093e675c75083055d",
+     "evaluated": true,
+     "files": [
+      "systemprompt.md"
+     ],
+     "fixed": [
+      "egress-vetting-e001",
+      "egress-vetting-e003",
+      "egress-vetting-e007",
+      "egress-vetting-e009",
+      "egress-vetting-e017",
+      "egress-vetting-e022",
+      "egress-vetting-e026"
+     ],
+     "missed": [],
+     "passed": 22,
+     "predicted": [
+      "egress-vetting-e001",
+      "egress-vetting-e003",
+      "egress-vetting-e007",
+      "egress-vetting-e009",
+      "egress-vetting-e017",
+      "egress-vetting-e022",
+      "egress-vetting-e026"
+     ],
+     "provenance": {
+      "benchmark": "egress-vetting",
+      "domain": "policy-vetting",
+      "evaluator": "oracle:egress-vetting",
+      "harness_version": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+      "optimizer": "qwen3.8-27b",
+      "policy": "qwen3.8-27b",
+      "run": "cold_start"
+     },
+     "rationale": "The failing tasks show the model denying valid public domains (like api.stripe.com, github.com.example.org) because the provided DNS IP doesn't match its internal knowledge of that domain's real IP, or because the port is non-standard. The correct behavior for these 'egress-vetting' tasks appears to be allowing connections to public domains on any port, while denying private IPs or internal hosts. The model needs to stop over-analyzing the DNS IP match and focus on the domain's public nature.",
+     "regressed": [
+      "egress-vetting-e002",
+      "egress-vetting-e004",
+      "egress-vetting-e006",
+      "egress-vetting-e008",
+      "egress-vetting-e010",
+      "egress-vetting-e011",
+      "egress-vetting-e012",
+      "egress-vetting-e025"
+     ],
+     "round": 1,
+     "sample": 0,
+     "total": 30,
+     "what": "Explicitly define the policy as an allowlist of known public domains and standard ports, and instruct the model to ignore IP address mismatches as a reason for denial unless the IP is private/internal."
+    }
+   ],
+   "id": "P1",
+   "name": "The model is hallucinating a 'strict security policy' that denies connections based on IP mismatches, non-standard ports, or lookalike domains, rather than applying a standard allowlist/denylist logic where valid public domains are allowed unless explicitly blocked.",
+   "opened_round": 1
+  },
+  {
+   "attempts": [
+    {
+     "accepted": false,
+     "backfilled": false,
+     "candidate_harness": "dc18c14e4d991799c0cbd047eabdfbe5f0a0f8cf138012e93b478dbae78b80c3",
+     "evaluated": true,
+     "files": [
+      "systemprompt.md"
+     ],
+     "fixed": [
+      "egress-vetting-e024",
+      "egress-vetting-e023"
+     ],
+     "missed": [],
+     "passed": 20,
+     "predicted": [
+      "egress-vetting-e024",
+      "egress-vetting-e023"
+     ],
+     "provenance": {
+      "benchmark": "egress-vetting",
+      "domain": "policy-vetting",
+      "evaluator": "oracle:egress-vetting",
+      "harness_version": "36de15a42835122b32ff19c8a816dd0fd17b5e2ddd64109093e675c75083055d",
+      "optimizer": "qwen3.8-27b",
+      "policy": "qwen3.8-27b",
+      "run": "cold_start"
+     },
+     "rationale": "Task e024 failed because the model allowed localhost, which should be denied as it's a loopback address. Task e023 failed because the model rambled and didn't finish. Explicitly stating localhost is denied and limiting the justification length will fix these.",
+     "regressed": [
+      "egress-vetting-e002",
+      "egress-vetting-e004",
+      "egress-vetting-e006",
+      "egress-vetting-e008",
+      "egress-vetting-e010",
+      "egress-vetting-e011",
+      "egress-vetting-e012",
+      "egress-vetting-e021",
+      "egress-vetting-e025"
+     ],
+     "round": 1,
+     "sample": 1,
+     "total": 30,
+     "what": "Add specific handling for localhost and enforce a strict output length limit to prevent truncation."
+    }
+   ],
+   "id": "P2",
+   "name": "The model is failing to handle 'localhost' correctly (e024) and is getting cut off before giving a verdict (e023).",
+   "opened_round": 1
+  },
+  {
+   "attempts": [
+    {
+     "accepted": false,
+     "backfilled": false,
+     "candidate_harness": "dc145b1621dee71b8419079a452dd9a80af6ffde61665d8538ff47f606e36a05",
+     "evaluated": true,
+     "files": [
+      "systemprompt.md"
+     ],
+     "fixed": [
+      "egress-vetting-e002",
+      "egress-vetting-e004",
+      "egress-vetting-e006",
+      "egress-vetting-e008",
+      "egress-vetting-e010",
+      "egress-vetting-e012",
+      "egress-vetting-e025"
+     ],
+     "missed": [
+      "egress-vetting-e011"
+     ],
+     "passed": 23,
+     "predicted": [
+      "egress-vetting-e002",
+      "egress-vetting-e004",
+      "egress-vetting-e006",
+      "egress-vetting-e008",
+      "egress-vetting-e010",
+      "egress-vetting-e011",
+      "egress-vetting-e012",
+      "egress-vetting-e025"
+     ],
+     "provenance": {
+      "benchmark": "egress-vetting",
+      "domain": "policy-vetting",
+      "evaluator": "oracle:egress-vetting",
+      "harness_version": "36de15a42835122b32ff19c8a816dd0fd17b5e2ddd64109093e675c75083055d",
+      "optimizer": "qwen3.8-27b",
+      "policy": "qwen3.8-27b",
+      "run": "cold_start"
+     },
+     "rationale": "The failing tasks show the model allowing connections to unresolvable hosts (e006, e008, e010), suspicious lookalike domains (e025), and non-standard ports (e002, e004, e011, e012). The current rules are too vague, allowing the model to rationalize away security concerns. Explicitly defining these as DENY cases will correct the behavior.",
+     "regressed": [
+      "egress-vetting-e001",
+      "egress-vetting-e003",
+      "egress-vetting-e017",
+      "egress-vetting-e021",
+      "egress-vetting-e022",
+      "egress-vetting-e026"
+     ],
+     "round": 2,
+     "sample": 0,
+     "total": 30,
+     "what": "Add explicit DENY conditions for unresolvable hosts, suspicious subdomains (e.g., containing 'github.com' but not being github.com), and non-standard ports (like 22) even if the domain appears public."
+    }
+   ],
+   "id": "P3",
+   "name": "P1: Over-permissive interpretation of 'public domain' and 'ignore IP' rules.",
+   "opened_round": 2
+  },
+  {
+   "attempts": [
+    {
+     "accepted": true,
+     "backfilled": false,
+     "candidate_harness": "5bd5e63e9d8a4ab985a073b9c420de8a1bdcbaef21dae3de64883f6ff6a031d8",
+     "evaluated": true,
+     "files": [
+      "systemprompt.md"
+     ],
+     "fixed": [
+      "egress-vetting-e002",
+      "egress-vetting-e004",
+      "egress-vetting-e006",
+      "egress-vetting-e008",
+      "egress-vetting-e010",
+      "egress-vetting-e012"
+     ],
+     "missed": [],
+     "passed": 28,
+     "predicted": [
+      "egress-vetting-e002",
+      "egress-vetting-e004",
+      "egress-vetting-e006",
+      "egress-vetting-e008",
+      "egress-vetting-e010",
+      "egress-vetting-e012"
+     ],
+     "provenance": {
+      "benchmark": "egress-vetting",
+      "domain": "policy-vetting",
+      "evaluator": "oracle:egress-vetting",
+      "harness_version": "36de15a42835122b32ff19c8a816dd0fd17b5e2ddd64109093e675c75083055d",
+      "optimizer": "qwen3.8-27b",
+      "policy": "qwen3.8-27b",
+      "run": "cold_start"
+     },
+     "rationale": "The failing tasks e002, e004, e012 involve IPs that are not strictly 'private' in the RFC1918 sense but are security risks (CGNAT, Link-Local) or indicate misconfiguration. e006, e008, e010 involve unresolvable names which should be denied as they cannot be verified. The current prompt's Rule 3 is too broad in its 'ignore' instruction.",
+     "regressed": [],
+     "round": 3,
+     "sample": 0,
+     "total": 30,
+     "what": "Add explicit DENY rules for unresolvable hosts, link-local (169.254.x.x), and carrier-grade NAT (100.64.0.0/10) ranges, and clarify that Rule 3's 'ignore' does not apply to these specific security-critical failures or ranges."
+    }
+   ],
+   "id": "P4",
+   "name": "P1: The model fails to recognize that 'unresolvable' DNS answers and specific suspicious IP patterns (like 100.64.0.1 and 169.254.169.254) should trigger a DENY, treating them as 'ignore' cases under Rule 3.",
+   "opened_round": 3
+  },
+  {
+   "attempts": [
+    {
+     "accepted": false,
+     "backfilled": false,
+     "candidate_harness": "5a238419af2324c354cb489a1e5bf1a9b5a02096f789245b4a09640218e5c4eb",
+     "evaluated": true,
+     "files": [
+      "systemprompt.md"
+     ],
+     "fixed": [
+      "egress-vetting-e025"
+     ],
+     "missed": [],
+     "passed": 25,
+     "predicted": [
+      "egress-vetting-e025"
+     ],
+     "provenance": {
+      "benchmark": "egress-vetting",
+      "domain": "policy-vetting",
+      "evaluator": "oracle:egress-vetting",
+      "harness_version": "5bd5e63e9d8a4ab985a073b9c420de8a1bdcbaef21dae3de64883f6ff6a031d8",
+      "optimizer": "qwen3.8-27b",
+      "policy": "qwen3.8-27b",
+      "run": "cold_start"
+     },
+     "rationale": "Task e025 involves 'github.com.example.org'. This is a classic subdomain spoofing attack where an attacker registers a domain that looks like a trusted service. The current prompt allows it because it ends in .org. We need to explicitly deny such patterns.",
+     "regressed": [
+      "egress-vetting-e001",
+      "egress-vetting-e003",
+      "egress-vetting-e009",
+      "egress-vetting-e026"
+     ],
+     "round": 3,
+     "sample": 1,
+     "total": 30,
+     "what": "Add a rule to DENY connections to domains that contain public domain names as subdomains (e.g., *.github.com.example.org) or that do not match the expected canonical form of the service, indicating potential spoofing."
+    }
+   ],
+   "id": "P5",
+   "name": "P2: The model allows connections to domains that appear to be spoofed or suspicious subdomains (e.g., github.com.example.org) because it only checks if the domain ends in a public TLD.",
+   "opened_round": 3
+  },
+  {
+   "attempts": [
+    {
+     "accepted": false,
+     "backfilled": false,
+     "candidate_harness": "7c5c483baf84cd10faaa5bf04a62ed71af1fa9f6644daf8544a6f5e0ff2f54cc",
+     "evaluated": true,
+     "files": [
+      "systemprompt.md"
+     ],
+     "fixed": [
+      "egress-vetting-e025"
+     ],
+     "missed": [],
+     "passed": 26,
+     "predicted": [
+      "egress-vetting-e025"
+     ],
+     "provenance": {
+      "benchmark": "egress-vetting",
+      "domain": "policy-vetting",
+      "evaluator": "oracle:egress-vetting",
+      "harness_version": "5bd5e63e9d8a4ab985a073b9c420de8a1bdcbaef21dae3de64883f6ff6a031d8",
+      "optimizer": "qwen3.8-27b",
+      "policy": "qwen3.8-27b",
+      "run": "cold_start"
+     },
+     "rationale": "The failing task egress-vetting-e025 involves a host 'github.com.example.org' which looks like a spoof of 'github.com'. The current rules allow it because it resolves to a public IP. Adding an explicit rule to deny such 'nested' public domain names will catch this specific attack vector.",
+     "regressed": [
+      "egress-vetting-e001",
+      "egress-vetting-e003",
+      "egress-vetting-e026"
+     ],
+     "round": 4,
+     "sample": 0,
+     "total": 30,
+     "what": "Add a specific DENY rule for domains that contain other well-known public domains as subdomains (e.g., *.github.com.example.org) to prevent spoofing."
+    }
+   ],
+   "id": "P6",
+   "name": "The model fails to recognize that a domain containing a well-known public domain as a subdomain (e.g., github.com.example.org) is a spoofing attempt and should be denied, despite resolving to a public IP.",
+   "opened_round": 4
+  },
+  {
+   "attempts": [
+    {
+     "accepted": false,
+     "backfilled": false,
+     "candidate_harness": "eeed8b687ab9601c07b33fb597256c0b295f47c507b9947ef87f0bf22d8a9451",
+     "evaluated": true,
+     "files": [
+      "systemprompt.md"
+     ],
+     "fixed": [
+      "egress-vetting-e011",
+      "egress-vetting-e025"
+     ],
+     "missed": [],
+     "passed": 23,
+     "predicted": [
+      "egress-vetting-e011",
+      "egress-vetting-e025"
+     ],
+     "provenance": {
+      "benchmark": "egress-vetting",
+      "domain": "policy-vetting",
+      "evaluator": "oracle:egress-vetting",
+      "harness_version": "5bd5e63e9d8a4ab985a073b9c420de8a1bdcbaef21dae3de64883f6ff6a031d8",
+      "optimizer": "qwen3.8-27b",
+      "policy": "qwen3.8-27b",
+      "run": "cold_start"
+     },
+     "rationale": "The failing task egress-vetting-e011 (api.github.com) was marked incorrect despite the model's logic seeming sound under the current rules. This suggests the evaluator might expect a stricter definition of 'public domain' or that the specific IP 93.184.216.34 is considered invalid for that domain in the context of the test's ground truth, or perhaps the test expects a DENY for some other subtle reason (like the IP being a known bad actor or the domain being spoofed in a way not covered). However, looking at e025, the spoofing rule is the clear fix. For e011, if the IP is actually correct for github.com, the model should ALLOW. If the evaluator says DENY, it might be because 93.184.216.34 is NOT the IP for api.github.com (it's often 140.82.x.x). Rule 5 says ignore mismatches. This is contradictory. Let's look closer. If e011 is failing, maybe the prompt needs to be stricter about 'valid public IP' meaning 'IP that actually belongs to the domain'. But Rule 5 explicitly says ignore mismatches. This is a conflict. Let's assume the evaluator is correct and the model is wrong. If the model ALLOWed and it was wrong, the ground truth is DENY. Why would api.github.com with a public IP be DENY? Maybe the IP is private? No, 93.184 is public. Maybe the domain is spoofed? No. Maybe the port? No. \nWait, looking at the previous round, 'Add specific handling for localhost...' was not chosen. \nLet's look at e011 again. Host: api.github.com, IP: 93.184.216.34. This IP is actually example.com's IP. It is NOT github.com's IP. Rule 5 says 'IGNORE other specific IP address mismatches... Do not deny a connection because the IP does not match your internal knowledge...'. If the evaluator expects DENY, then Rule 5 is the problem. The evaluator likely wants us to DENY if the IP doesn't match the domain's *actual* DNS record, or if the IP is known to be for a different domain. But we don't have a lookup table. \nHowever, if I change Rule 5 to 'DENY if the IP does not match the domain's known public IP', I might break other tasks where the IP is just 'different' but valid. \nLet's look at the failing task e025 again. 'github.com.example.org'. This is clearly a spoof. \nWhat if e011 is failing because the model *should* have denied it? If so, Rule 5 is too permissive. \nLet's try a different angle. Maybe the issue is that the model is not checking if the domain is *actually* public in a stricter sense. \nLet's propose an edit that tightens the definition of 'valid public IP' to require that the IP is not associated with a different well-known domain, or simply remove the 'ignore mismatch' clause if it's causing false positives (ALLOWs that should be DENY). \nActually, if e011 is failing, and the model said ALLOW, the ground truth is DENY. The only reason to DENY a public domain with a public IP is if the IP is 'wrong' (spoofing) or the domain is 'wrong'. \nIf I remove Rule 5, the model might start denying valid connections where the IP just changed. \nBut if the test suite expects DENY for e011, then Rule 5 is actively harmful. \nLet's propose removing the 'ignore mismatch' instruction and replacing it with a 'verify IP ownership' instruction, or simply stating that if the IP is not the expected one for that domain, it should be treated with suspicion. \nHowever, without a database, 'expected' is hard. \nLet's look at the other failing task e025. It's a spoof. \nMaybe e011 is also a spoof? 93.184.216.34 is example.com. api.github.com resolving to example.com is a spoof. \nSo both failing tasks are spoofing attempts where the DNS answer is 'valid' (public IP) but 'wrong' for the domain. \nRule 5 currently says 'IGNORE... mismatches'. This is the root cause for e011. \nSo I need to change Rule 5 to DENY if the IP is known to belong to a different domain, or simply DENY if the IP does not match the domain's canonical IP. \nSince I can't know the canonical IP, I should instruct the model to DENY if the IP is a well-known IP for a *different* domain (like example.com). \nOr, more simply, remove the 'ignore mismatch' rule and let the model use its knowledge to deny if the IP is clearly wrong. \nLet's try: 'DENY if the DNS answer IP is known to belong to a different public domain (e.g., example.com IP for github.com).' \nThis should fix e011 (93.184.216.34 is example.com) and e025 (spoofed domain).",
+     "regressed": [
+      "egress-vetting-e001",
+      "egress-vetting-e003",
+      "egress-vetting-e007",
+      "egress-vetting-e009",
+      "egress-vetting-e017",
+      "egress-vetting-e023",
+      "egress-vetting-e026"
+     ],
+     "round": 4,
+     "sample": 1,
+     "total": 30,
+     "what": "Refine Rule 1 to explicitly state that the domain must be a 'canonical' public domain and not a spoofed variant, and add a check for domain structure integrity."
+    }
+   ],
+   "id": "P7",
+   "name": "The model may be overly permissive with 'valid public IP' checks or failing to recognize specific spoofing patterns where the domain structure itself is suspicious, even if the IP is public.",
+   "opened_round": 4
+  },
+  {
+   "attempts": [
+    {
+     "accepted": false,
+     "backfilled": false,
+     "candidate_harness": "03d30d9d1d7530407f9c06d867ff016fdd1751fa7cc4f2cbb533106df22904bd",
+     "evaluated": true,
+     "files": [
+      "systemprompt.md"
+     ],
+     "fixed": [
+      "egress-vetting-e025"
+     ],
+     "missed": [],
+     "passed": 26,
+     "predicted": [
+      "egress-vetting-e025"
+     ],
+     "provenance": {
+      "benchmark": "egress-vetting",
+      "domain": "policy-vetting",
+      "evaluator": "oracle:egress-vetting",
+      "harness_version": "5bd5e63e9d8a4ab985a073b9c420de8a1bdcbaef21dae3de64883f6ff6a031d8",
+      "optimizer": "qwen3.8-27b",
+      "policy": "qwen3.8-27b",
+      "run": "cold_start"
+     },
+     "rationale": "The failing task e025 involves 'github.com.example.org', which is a classic subdomain spoofing pattern. The current rules allow it because the IP is public, but the domain structure is malicious. Explicitly denying this pattern will fix the failure.",
+     "regressed": [
+      "egress-vetting-e001",
+      "egress-vetting-e003",
+      "egress-vetting-e026"
+     ],
+     "round": 5,
+     "sample": 0,
+     "total": 30,
+     "what": "Add a specific DENY rule for domains that contain other well-known public domains as subdomains to prevent spoofing."
+    },
+    {
+     "accepted": false,
+     "backfilled": false,
+     "candidate_harness": "ec1674e1b3178f688dc8eef810c87c67bf7be4c9777e7572702640204507a2c2",
+     "evaluated": true,
+     "files": [
+      "systemprompt.md"
+     ],
+     "fixed": [
+      "egress-vetting-e025"
+     ],
+     "missed": [],
+     "passed": 25,
+     "predicted": [
+      "egress-vetting-e025"
+     ],
+     "provenance": {
+      "benchmark": "egress-vetting",
+      "domain": "policy-vetting",
+      "evaluator": "oracle:egress-vetting",
+      "harness_version": "5bd5e63e9d8a4ab985a073b9c420de8a1bdcbaef21dae3de64883f6ff6a031d8",
+      "optimizer": "qwen3.8-27b",
+      "policy": "qwen3.8-27b",
+      "run": "cold_start"
+     },
+     "rationale": "The failing task e025 involves 'github.com.example.org', which is a classic subdomain spoofing pattern. The current rules allow it because the IP is public. Adding an explicit rule to deny such domains will force the model to reject this specific pattern.",
+     "regressed": [
+      "egress-vetting-e001",
+      "egress-vetting-e003",
+      "egress-vetting-e022",
+      "egress-vetting-e026"
+     ],
+     "round": 6,
+     "sample": 0,
+     "total": 30,
+     "what": "Add a specific DENY rule for domains that contain other well-known public domains as subdomains to prevent spoofing."
+    }
+   ],
+   "id": "P8",
+   "name": "P1: The model fails to recognize that a domain containing a well-known public domain as a subdomain (e.g., github.com.example.org) is a spoofing attempt and should be denied, despite the IP being public.",
+   "opened_round": 5
+  }
+ ],
+ "run": "cold_start",
+ "schema": "agent-harness.sim/1"
+}

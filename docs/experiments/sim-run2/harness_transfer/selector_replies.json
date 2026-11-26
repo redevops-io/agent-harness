@@ -1,0 +1,14 @@
+[
+ "[true, true]",
+ "{\"choice\": 1, \"reason\": \"Candidate 1 achieves a significantly higher score (0.867 vs 0.700) and fixes more previously failing cases (10 vs 5) with fewer regressions (4 vs 4), addressing both output budget issues and specific policy errors.\"}",
+ "[true, false]",
+ "{\"choice\": 0, \"reason\": \"The edit improves the score from 0.867 to 0.933 by fixing two failing cases without introducing any new failures, addressing the specific root cause of allowing internal or unresolvable domains.\"}",
+ "[true, false]",
+ "{\"choice\": null, \"reason\": \"The candidate causes four regressions (newly failing cases) to fix only one case, resulting in a net performance decrease from 0.933 to 0.833.\"}",
+ "[true, true]",
+ "{\"choice\": 1, \"reason\": \"Candidate 1 achieves a higher score (0.967 vs 0.833) and fixes more cases (e011, e025) with only one regression (e001), whereas Candidate 0 causes four regressions.\"}",
+ "[true, false]",
+ "{\"choice\": null, \"reason\": \"The candidate edit causes 6 previously passing tests to fail, indicating a significant regression that outweighs the predicted fix for a single test.\"}",
+ "[true, false]",
+ "{\"choice\": null, \"reason\": \"The candidate edit causes four previously passing tasks to fail (regression) while only predicting to fix one, resulting in a net negative impact on performance.\"}"
+]

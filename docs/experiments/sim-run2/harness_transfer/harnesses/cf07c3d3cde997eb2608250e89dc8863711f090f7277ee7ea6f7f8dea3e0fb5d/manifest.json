@@ -1,0 +1,16 @@
+{
+  "files": [
+    "LongTermMEMORY.md",
+    "guardrails.md",
+    "systemprompt.md",
+    "tool_descriptions/tool_guidance.md"
+  ],
+  "id": "cf07c3d3cde997eb2608250e89dc8863711f090f7277ee7ea6f7f8dea3e0fb5d",
+  "meta": {
+    "round": 4,
+    "run": "harness_transfer",
+    "what": "Add a rule that DENYs connections to subdomains of trusted domains if the resolved IP does not match the known IP range for that specific subdomain, or clarify that only the root domain and explicitly listed subdomains are allowed."
+  },
+  "parent": "3cf35cac9246416c2d8cfd5494e3287a1c0beb58a84c22373ff9971b1937f199",
+  "surface": "opencode"
+}

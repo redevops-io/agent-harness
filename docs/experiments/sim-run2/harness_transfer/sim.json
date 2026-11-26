@@ -1,0 +1,372 @@
+{
+ "aliases": {},
+ "carried_from": null,
+ "next_id": 9,
+ "problems": [
+  {
+   "attempts": [
+    {
+     "accepted": true,
+     "backfilled": false,
+     "candidate_harness": "78405ac88992a254eae7c4a891b619e92c0a8207273fa35be9c6de0753ca169f",
+     "evaluated": true,
+     "files": [
+      "systemprompt.md"
+     ],
+     "fixed": [
+      "egress-vetting-e023",
+      "egress-vetting-e024"
+     ],
+     "missed": [],
+     "passed": 26,
+     "predicted": [
+      "egress-vetting-e023",
+      "egress-vetting-e024"
+     ],
+     "provenance": {
+      "benchmark": "egress-vetting",
+      "domain": "policy-vetting",
+      "evaluator": "oracle:egress-vetting",
+      "harness_version": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+      "optimizer": "qwen3.8-27b",
+      "policy": "qwen3.8-27b",
+      "run": "harness_transfer"
+     },
+     "rationale": "Task e023 failed because the model rambled and didn't output a verdict. Task e024 failed because the model allowed localhost, which is generally a security risk for egress (data exfiltration to local files/services). The prompt needs to enforce a concise output and explicitly deny localhost/loopback.",
+     "regressed": [
+      "egress-vetting-e005",
+      "egress-vetting-e008",
+      "egress-vetting-e011",
+      "egress-vetting-e025"
+     ],
+     "round": 1,
+     "sample": 1,
+     "total": 30,
+     "what": "unspecified edit"
+    }
+   ],
+   "id": "P1",
+   "name": "The model is failing to provide a final verdict in some cases (e.g., e023) due to over-explaining and running out of output budget, and is incorrectly allowing localhost (e024) which is typically denied in egress policies.",
+   "opened_round": 1
+  },
+  {
+   "attempts": [
+    {
+     "accepted": false,
+     "backfilled": false,
+     "candidate_harness": "80477340b5c6ad1a26aab86afd9b44d03e66c0fbc4f8715eba8db13e488ec479",
+     "evaluated": true,
+     "files": [
+      "systemprompt.md"
+     ],
+     "fixed": [
+      "egress-vetting-e007",
+      "egress-vetting-e009"
+     ],
+     "missed": [
+      "egress-vetting-e001",
+      "egress-vetting-e003",
+      "egress-vetting-e017",
+      "egress-vetting-e022",
+      "egress-vetting-e026"
+     ],
+     "passed": 21,
+     "predicted": [
+      "egress-vetting-e001",
+      "egress-vetting-e003",
+      "egress-vetting-e007",
+      "egress-vetting-e009",
+      "egress-vetting-e017",
+      "egress-vetting-e022",
+      "egress-vetting-e026"
+     ],
+     "provenance": {
+      "benchmark": "egress-vetting",
+      "domain": "policy-vetting",
+      "evaluator": "oracle:egress-vetting",
+      "harness_version": "78405ac88992a254eae7c4a891b619e92c0a8207273fa35be9c6de0753ca169f",
+      "optimizer": "qwen3.8-27b",
+      "policy": "qwen3.8-27b",
+      "run": "harness_transfer"
+     },
+     "rationale": "The failing tasks show the model denying valid public domains (like api.stripe.com, gist.githubusercontent.com) because their DNS IPs don't match the model's internal 'expected' IPs, or denying lookalike domains (github.com.example.org) which are technically valid public domains. The model is over-securing. It needs to be instructed to ALLOW connections to valid public domains unless there is a specific, explicit policy violation (like connecting to a private IP range for a public domain, or a known malicious domain), rather than denying based on 'strictness' or IP mismatch.",
+     "regressed": [
+      "egress-vetting-e002",
+      "egress-vetting-e004",
+      "egress-vetting-e011",
+      "egress-vetting-e019"
+     ],
+     "round": 1,
+     "sample": 0,
+     "total": 30,
+     "what": "unspecified edit"
+    }
+   ],
+   "id": "P2",
+   "name": "The model is hallucinating a strict security policy that denies connections based on IP mismatches, non-standard ports, or lookalike domains, rather than following a standard allow-list or general egress policy where valid public domains are allowed.",
+   "opened_round": 1
+  },
+  {
+   "attempts": [
+    {
+     "accepted": true,
+     "backfilled": false,
+     "candidate_harness": "3cf35cac9246416c2d8cfd5494e3287a1c0beb58a84c22373ff9971b1937f199",
+     "evaluated": true,
+     "files": [
+      "systemprompt.md"
+     ],
+     "fixed": [
+      "egress-vetting-e005",
+      "egress-vetting-e008"
+     ],
+     "missed": [],
+     "passed": 28,
+     "predicted": [
+      "egress-vetting-e005",
+      "egress-vetting-e008"
+     ],
+     "provenance": {
+      "benchmark": "egress-vetting",
+      "domain": "policy-vetting",
+      "evaluator": "oracle:egress-vetting",
+      "harness_version": "78405ac88992a254eae7c4a891b619e92c0a8207273fa35be9c6de0753ca169f",
+      "optimizer": "qwen3.8-27b",
+      "policy": "qwen3.8-27b",
+      "run": "harness_transfer"
+     },
+     "rationale": "The current policy only explicitly denies private IPs and loopback. It lacks guidance on internal TLDs that might resolve to public IPs (as in e005) and on DNS failures (as in e008). Explicitly defining these as DENY cases will correct the model's permissive bias in these edge cases.",
+     "regressed": [],
+     "round": 2,
+     "sample": 0,
+     "total": 30,
+     "what": "Add explicit rules to DENY connections to internal/cluster domains (e.g., ending in .local, .localdomain, .internal) and to DENY connections where the DNS resolution fails or returns no IP address."
+    }
+   ],
+   "id": "P3",
+   "name": "P1: Model fails to recognize internal/cluster-specific domains (like .localdomain) as non-public, and incorrectly allows connections to domains that do not resolve (NXDOMAIN).",
+   "opened_round": 2
+  },
+  {
+   "attempts": [
+    {
+     "accepted": false,
+     "backfilled": false,
+     "candidate_harness": "d5178b0b4fcc2c068641fda695e429ac96c5b08a989b1a9e2620be7e9198936d",
+     "evaluated": true,
+     "files": [
+      "systemprompt.md"
+     ],
+     "fixed": [
+      "egress-vetting-e025"
+     ],
+     "missed": [],
+     "passed": 25,
+     "predicted": [
+      "egress-vetting-e025"
+     ],
+     "provenance": {
+      "benchmark": "egress-vetting",
+      "domain": "policy-vetting",
+      "evaluator": "oracle:egress-vetting",
+      "harness_version": "3cf35cac9246416c2d8cfd5494e3287a1c0beb58a84c22373ff9971b1937f199",
+      "optimizer": "qwen3.8-27b",
+      "policy": "qwen3.8-27b",
+      "run": "harness_transfer"
+     },
+     "rationale": "The failing task egress-vetting-e025 involves github.com.example.org. The model treated it as a 'lookalike' protected by Rule 4. However, in many security contexts, a subdomain of a generic domain like example.org is not inherently trusted just because it contains 'github.com'. By tightening the definition of lookalike and removing the blanket protection for such subdomains, the model should be forced to evaluate the domain's trustworthiness more critically or deny it if it's not a known valid service.",
+     "regressed": [
+      "egress-vetting-e001",
+      "egress-vetting-e003",
+      "egress-vetting-e022",
+      "egress-vetting-e026"
+     ],
+     "round": 3,
+     "sample": 0,
+     "total": 30,
+     "what": "Clarify Rule 4 to specify that 'lookalike' refers only to domains that visually mimic a trusted domain (e.g., githuub.com) but are distinct registered domains, and explicitly state that subdomains of unrelated public domains (like example.org) are not automatically trusted just because they contain a trusted name as a subdomain."
+    }
+   ],
+   "id": "P4",
+   "name": "P1: The model incorrectly applies Rule 4 (lookalike domains) to domains that are not actually lookalikes of the base domain (e.g., github.com.example.org is a subdomain of example.org, not a lookalike of github.com), leading to false ALLOWs for potentially suspicious or untrusted domains that resolve to public IPs.",
+   "opened_round": 3
+  },
+  {
+   "attempts": [
+    {
+     "accepted": true,
+     "backfilled": false,
+     "candidate_harness": "cf07c3d3cde997eb2608250e89dc8863711f090f7277ee7ea6f7f8dea3e0fb5d",
+     "evaluated": true,
+     "files": [
+      "systemprompt.md"
+     ],
+     "fixed": [
+      "egress-vetting-e011"
+     ],
+     "missed": [],
+     "passed": 29,
+     "predicted": [
+      "egress-vetting-e011"
+     ],
+     "provenance": {
+      "benchmark": "egress-vetting",
+      "domain": "policy-vetting",
+      "evaluator": "oracle:egress-vetting",
+      "harness_version": "3cf35cac9246416c2d8cfd5494e3287a1c0beb58a84c22373ff9971b1937f199",
+      "optimizer": "qwen3.8-27b",
+      "policy": "qwen3.8-27b",
+      "run": "harness_transfer"
+     },
+     "rationale": "The failing task egress-vetting-e011 involves api.github.com resolving to 93.184.216.34 (which is actually the IP for example.com, not api.github.com). The model allowed it because it's a 'valid public domain'. If the policy requires that the IP matches the known IP for the specific domain, or if api.github.com is not in the trusted list, it should be denied. Given the previous round's failure to tighten the definition, I will try to explicitly deny if the IP is not a known IP for that specific host, overriding the 'do not deny solely because IP does not match' rule for specific trusted subdomains.",
+     "regressed": [
+      "egress-vetting-e001"
+     ],
+     "round": 4,
+     "sample": 1,
+     "total": 30,
+     "what": "Add a rule that DENYs connections to subdomains of trusted domains if the resolved IP does not match the known IP range for that specific subdomain, or clarify that only the root domain and explicitly listed subdomains are allowed."
+    }
+   ],
+   "id": "P5",
+   "name": "P2: The model allows api.github.com on port 80, but the expected answer is DENY. This suggests that 'valid public domains' might require specific ports or that api.github.com is not considered a 'valid public domain' in the same way as github.com, or perhaps the IP 93.184.216.34 is not the correct IP for api.github.com and the policy should be stricter about IP matching for specific subdomains.",
+   "opened_round": 4
+  },
+  {
+   "attempts": [
+    {
+     "accepted": false,
+     "backfilled": false,
+     "candidate_harness": "7ef806a3b9205a374cc7bc55d1289eb9972fed511c90398e73c5d70ed251889c",
+     "evaluated": true,
+     "files": [
+      "systemprompt.md"
+     ],
+     "fixed": [
+      "egress-vetting-e025"
+     ],
+     "missed": [],
+     "passed": 25,
+     "predicted": [
+      "egress-vetting-e025"
+     ],
+     "provenance": {
+      "benchmark": "egress-vetting",
+      "domain": "policy-vetting",
+      "evaluator": "oracle:egress-vetting",
+      "harness_version": "cf07c3d3cde997eb2608250e89dc8863711f090f7277ee7ea6f7f8dea3e0fb5d",
+      "optimizer": "qwen3.8-27b",
+      "policy": "qwen3.8-27b",
+      "run": "harness_transfer"
+     },
+     "rationale": "The failing task egress-vetting-e025 shows the model allowing github.com.example.org because it misinterprets 'lookalike' or 'valid public domain'. Clarifying that subdomains of generic TLDs or unrelated domains are not trusted will prevent this false positive.",
+     "regressed": [
+      "egress-vetting-e001",
+      "egress-vetting-e003",
+      "egress-vetting-e022",
+      "egress-vetting-e026"
+     ],
+     "round": 4,
+     "sample": 0,
+     "total": 30,
+     "what": "Modify Rule 4 to explicitly state that subdomains of unrelated public domains (like example.org) are NOT considered valid public domains for the purpose of allowing egress, even if they contain a trusted name as a subdomain."
+    }
+   ],
+   "id": "P6",
+   "name": "P1: The model incorrectly applies Rule 4 (lookalike exception) to domains that are subdomains of unrelated public domains (e.g., github.com.example.org), treating them as 'valid public domains' when they are not the trusted service itself.",
+   "opened_round": 4
+  },
+  {
+   "attempts": [
+    {
+     "accepted": false,
+     "backfilled": false,
+     "candidate_harness": "d6fedd050168c2d16e557b90f73e9e2471d41e362a1b09856a7f49664886eac5",
+     "evaluated": true,
+     "files": [
+      "systemprompt.md"
+     ],
+     "fixed": [],
+     "missed": [
+      "egress-vetting-e001"
+     ],
+     "passed": 23,
+     "predicted": [
+      "egress-vetting-e001"
+     ],
+     "provenance": {
+      "benchmark": "egress-vetting",
+      "domain": "policy-vetting",
+      "evaluator": "oracle:egress-vetting",
+      "harness_version": "cf07c3d3cde997eb2608250e89dc8863711f090f7277ee7ea6f7f8dea3e0fb5d",
+      "optimizer": "qwen3.8-27b",
+      "policy": "qwen3.8-27b",
+      "run": "harness_transfer"
+     },
+     "rationale": "The failing task involves 'github.com.example.org', which is a subdomain of 'example.org' (a valid public domain) but not a subdomain of 'github.com'. The current rules might be interpreted as allowing it because 'example.org' is valid and the IP is public, or confusingly applying Rule 4. By explicitly stating that subdomains of unrelated domains are not 'valid public domains' for the purpose of Rule 1/5, we force a DENY for this specific pattern.",
+     "regressed": [
+      "egress-vetting-e003",
+      "egress-vetting-e007",
+      "egress-vetting-e009",
+      "egress-vetting-e022",
+      "egress-vetting-e023",
+      "egress-vetting-e026"
+     ],
+     "round": 5,
+     "sample": 0,
+     "total": 30,
+     "what": "Explicitly define 'valid public domain' to exclude domains that are subdomains of unrelated public domains (e.g., github.com.example.org) even if they contain a trusted name, and clarify that Rule 4's trusted subdomain check applies only to subdomains of the trusted root domain itself."
+    }
+   ],
+   "id": "P7",
+   "name": "P1: Ambiguity in 'valid public domain' definition regarding lookalike domains and subdomains of unrelated trusted domains.",
+   "opened_round": 5
+  },
+  {
+   "attempts": [
+    {
+     "accepted": false,
+     "backfilled": false,
+     "candidate_harness": "cb76f32e6785cf4b93cc3c605f05d56a8b2a5a2ee2e7a63875ce3789a800c723",
+     "evaluated": true,
+     "files": [
+      "systemprompt.md"
+     ],
+     "fixed": [],
+     "missed": [
+      "egress-vetting-e001"
+     ],
+     "passed": 25,
+     "predicted": [
+      "egress-vetting-e001"
+     ],
+     "provenance": {
+      "benchmark": "egress-vetting",
+      "domain": "policy-vetting",
+      "evaluator": "oracle:egress-vetting",
+      "harness_version": "cf07c3d3cde997eb2608250e89dc8863711f090f7277ee7ea6f7f8dea3e0fb5d",
+      "optimizer": "qwen3.8-27b",
+      "policy": "qwen3.8-27b",
+      "run": "harness_transfer"
+     },
+     "rationale": "The failing task involves 'github.com.example.org', which is a subdomain of 'example.org', not 'github.com'. The model incorrectly treated it as a potential GitHub service or failed to recognize it as an unrelated domain. By explicitly stating that subdomains of unrelated domains are not valid public domains for egress purposes, the model will correctly DENY such connections.",
+     "regressed": [
+      "egress-vetting-e003",
+      "egress-vetting-e011",
+      "egress-vetting-e022",
+      "egress-vetting-e026"
+     ],
+     "round": 6,
+     "sample": 0,
+     "total": 30,
+     "what": "Explicitly define 'valid public domain' to exclude domains that are subdomains of unrelated public domains (e.g., github.com.example.org) and clarify that Rule 4's trusted subdomain check applies only to subdomains of the trusted root domain itself."
+    }
+   ],
+   "id": "P8",
+   "name": "P1: Ambiguity in 'valid public domain' definition regarding lookalike domains and subdomains of unrelated domains.",
+   "opened_round": 6
+  }
+ ],
+ "run": "harness_transfer",
+ "schema": "agent-harness.sim/1"
+}

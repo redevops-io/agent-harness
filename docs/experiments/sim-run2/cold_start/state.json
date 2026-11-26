@@ -1,0 +1,38 @@
+{
+ "condition": "none",
+ "current": "5bd5e63e9d8a4ab985a073b9c420de8a1bdcbaef21dae3de64883f6ff6a031d8",
+ "promotions": [
+  {
+   "harness": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+   "kind": "start",
+   "round": 0
+  },
+  {
+   "harness": "36de15a42835122b32ff19c8a816dd0fd17b5e2ddd64109093e675c75083055d",
+   "kind": "promotion",
+   "parent": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+   "problem": "P1",
+   "round": 1
+  },
+  {
+   "harness": "5bd5e63e9d8a4ab985a073b9c420de8a1bdcbaef21dae3de64883f6ff6a031d8",
+   "kind": "promotion",
+   "parent": "36de15a42835122b32ff19c8a816dd0fd17b5e2ddd64109093e675c75083055d",
+   "problem": "P4",
+   "round": 3
+  }
+ ],
+ "provenance": {
+  "benchmark": "egress-vetting",
+  "domain": "policy-vetting",
+  "evaluator": "oracle:egress-vetting",
+  "harness_version": "",
+  "optimizer": "qwen3.8-27b",
+  "policy": "qwen3.8-27b",
+  "run": "cold_start"
+ },
+ "record_rejected": true,
+ "round": 6,
+ "run": "cold_start",
+ "schema": "agent-harness.sim-run/1"
+}

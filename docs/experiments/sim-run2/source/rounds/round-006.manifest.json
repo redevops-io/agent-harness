@@ -1,0 +1,48 @@
+{
+ "candidates": [
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "command-vetting-e003",
+    "command-vetting-e005",
+    "command-vetting-e008",
+    "command-vetting-e012",
+    "command-vetting-e016",
+    "command-vetting-e018"
+   ],
+   "rationale": "The model is overthinking the distinction between 'command policy' and 'sandbox enforcement', leading it to either deny allowed commands due to path traversal concerns (e003, e005, e018) or to ramble until it runs out of tokens without giving a verdict (e008, e012, e016). By clarifying that the policy only checks the command name against the allowlist and enforcing a strict, short output format, we address both issues.",
+   "refused": "",
+   "root_cause": "P1",
+   "screened_in": true,
+   "what": "Rewrite the system prompt to explicitly define the policy as checking ONLY the command name against the allowlist, ignoring all arguments and environment details, and mandate a strict single-word output format to prevent token exhaustion."
+  },
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "command-vetting-e003",
+    "command-vetting-e005",
+    "command-vetting-e008",
+    "command-vetting-e012",
+    "command-vetting-e016",
+    "command-vetting-e018"
+   ],
+   "rationale": "The model's reasoning in e003 and e018 explicitly mentions 'sandbox mechanism' and 'symlink resolution', indicating it is being distracted by the environment description. By explicitly telling it to ignore these details for the purpose of the command policy check and showing a clear example of a correct, concise answer, we can guide it to the correct logic and format.",
+   "refused": "",
+   "root_cause": "P2",
+   "screened_in": true,
+   "what": "Add a specific instruction to ignore environmental details (workspace contents, symlinks) when evaluating the command allowlist, and provide a few-shot example of a correct concise response."
+  }
+ ],
+ "harness": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+ "memory_condition": "full",
+ "memory_view": {
+  "chars": 11712,
+  "custom": false,
+  "report": null
+ },
+ "round": 6
+}

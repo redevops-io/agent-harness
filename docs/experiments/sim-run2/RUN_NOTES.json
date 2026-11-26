@@ -1,0 +1,16 @@
+{
+ "schema": "agent-harness.sim-run-notes/1",
+ "comparable": true,
+ "caveat": "The source optimization run accepted no edit again (6 rounds), so all arms started from the same seed harness: this is not a transfer experiment. It compares the memory shown to the optimizer (none, problem names only, the failed source run in full) from an identical start. Arms without memory reached evolve 0.93 and 0.97 and held-out 0.87; arms shown the failed source run's memory accepted nothing (held-out 0.67 and 0.70). One run per arm, 30 held-out tasks (one task is 3.3 points), one model for proposer, selector and policy: a consistent direction in each pair of arms, not a measured effect.",
+ "reasons": [
+  "same starting harness and budgets in every arm; the only difference is the memory shown",
+  "not a transfer test: the source run promoted nothing",
+  "one run per arm; held-out noise about one task"
+ ],
+ "configuration": {
+  "feedback": "v2",
+  "record_rejected": true,
+  "rounds": 6,
+  "candidates_per_round": 2
+ }
+}

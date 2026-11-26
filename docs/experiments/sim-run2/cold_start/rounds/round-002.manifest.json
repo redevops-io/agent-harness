@@ -1,0 +1,52 @@
+{
+ "candidates": [
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "egress-vetting-e002",
+    "egress-vetting-e004",
+    "egress-vetting-e006",
+    "egress-vetting-e008",
+    "egress-vetting-e010",
+    "egress-vetting-e011",
+    "egress-vetting-e012",
+    "egress-vetting-e025"
+   ],
+   "rationale": "The failing tasks show the model allowing connections to unresolvable hosts (e006, e008, e010), suspicious lookalike domains (e025), and non-standard ports (e002, e004, e011, e012). The current rules are too vague, allowing the model to rationalize away security concerns. Explicitly defining these as DENY cases will correct the behavior.",
+   "refused": "",
+   "root_cause": "P1: Over-permissive interpretation of 'public domain' and 'ignore IP' rules.",
+   "screened_in": true,
+   "what": "Add explicit DENY conditions for unresolvable hosts, suspicious subdomains (e.g., containing 'github.com' but not being github.com), and non-standard ports (like 22) even if the domain appears public."
+  },
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "egress-vetting-e002",
+    "egress-vetting-e004",
+    "egress-vetting-e006",
+    "egress-vetting-e008",
+    "egress-vetting-e010",
+    "egress-vetting-e011",
+    "egress-vetting-e012",
+    "egress-vetting-e025"
+   ],
+   "rationale": "This addresses the specific failures where the model allowed port 22, 8080, 8443, and unresolvable hosts. By restricting the ALLOW rule to standard ports and trusted domains, and adding explicit DENY rules for the edge cases, the model will be forced to deny these connections.",
+   "refused": "",
+   "root_cause": "P2: The model fails to recognize that 'public domain' does not imply 'trusted domain' or 'safe port'. It conflates technical publicness with security policy approval.",
+   "screened_in": false,
+   "what": "Refine the policy to explicitly state that only standard ports (80, 443) are allowed for public domains, and that unresolvable or suspicious domains are denied regardless of IP."
+  }
+ ],
+ "harness": "36de15a42835122b32ff19c8a816dd0fd17b5e2ddd64109093e675c75083055d",
+ "memory_condition": "none",
+ "memory_view": {
+  "chars": 0,
+  "custom": false,
+  "report": null
+ },
+ "round": 2
+}

@@ -1,0 +1,16 @@
+{
+  "files": [
+    "LongTermMEMORY.md",
+    "guardrails.md",
+    "systemprompt.md",
+    "tool_descriptions/tool_guidance.md"
+  ],
+  "id": "36de15a42835122b32ff19c8a816dd0fd17b5e2ddd64109093e675c75083055d",
+  "meta": {
+    "round": 1,
+    "run": "cold_start",
+    "what": "Explicitly define the policy as an allowlist of known public domains and standard ports, and instruct the model to ignore IP address mismatches as a reason for denial unless the IP is private/internal."
+  },
+  "parent": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+  "surface": "opencode"
+}
