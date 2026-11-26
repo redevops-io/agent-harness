@@ -1,0 +1,120 @@
+{
+  "task": "data_entry_keyers/task2",
+  "attempt": 2,
+  "stop": "done",
+  "turns": 26,
+  "seconds": 531.7,
+  "prompt_tokens": 567637,
+  "completion_tokens": 18939,
+  "tool_calls": 28,
+  "tool_errors": 0,
+  "deliverables": [
+    "corrected_billing_data.csv",
+    "error_log.xlsx",
+    "flagged_review_items.csv",
+    "reconciliation_report.xlsx"
+  ],
+  "blocked_fetches": [],
+  "outside_output": [],
+  "supervisor": null,
+  "completion": {
+    "status": "structurally_valid",
+    "files": [
+      {
+        "name": "corrected_billing_data.csv",
+        "status": "valid",
+        "reason": "",
+        "size": 14066
+      },
+      {
+        "name": "error_log.xlsx",
+        "status": "valid",
+        "reason": "",
+        "size": 7419
+      },
+      {
+        "name": "flagged_review_items.csv",
+        "status": "valid",
+        "reason": "",
+        "size": 22579
+      },
+      {
+        "name": "reconciliation_report.xlsx",
+        "status": "valid",
+        "reason": "",
+        "size": 12434
+      }
+    ],
+    "required_exts": [],
+    "missing_exts": [],
+    "expected_names": [],
+    "unmatched_names": []
+  },
+  "incomplete_preserved": "",
+  "model": "qwen3.8-27b",
+  "context_manager": "context-runtime",
+  "rag": false,
+  "archived_items": 28,
+  "retrieval_calls": 6,
+  "failure": {
+    "class": "delivered",
+    "files_outside_output": [],
+    "network_errors": 1,
+    "placeholder_blocked": 0,
+    "capability_notes": 0,
+    "refused_or_repeated_calls": 0,
+    "turns": 26,
+    "supervisor_events": [],
+    "completion_status": "structurally_valid"
+  },
+  "edit_stats": {
+    "edit_calls": 0,
+    "edit_ok": 0,
+    "edit_failed": 0,
+    "failure_categories": {},
+    "failure_outcomes": {},
+    "write_file_calls": 0
+  },
+  "run_options": {
+    "tools": "legacy",
+    "network": "none",
+    "supervise": false,
+    "supervisor_config": null,
+    "vision": "off",
+    "vision_supported": false,
+    "capability_notes": false,
+    "check_integrity": false,
+    "max_images": null
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "stop": "max_turns",
+      "turns": 200,
+      "seconds": 936.7,
+      "deliverables": [],
+      "failure": "turn_limit"
+    },
+    {
+      "attempt": 2,
+      "stop": "done",
+      "turns": 26,
+      "seconds": 531.7,
+      "deliverables": [
+        "corrected_billing_data.csv",
+        "error_log.xlsx",
+        "flagged_review_items.csv",
+        "reconciliation_report.xlsx"
+      ],
+      "failure": "delivered"
+    }
+  ],
+  "judge": {
+    "graded": true,
+    "score": 0.6,
+    "total": 36.0,
+    "max": 60.0,
+    "passed": 5,
+    "count": 8
+  }
+}

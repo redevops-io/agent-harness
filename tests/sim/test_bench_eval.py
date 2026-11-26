@@ -48,3 +48,66 @@ def test_an_ungraded_task_makes_the_evaluation_incomplete_instead_of_a_pass_or_a
     ev, _, _ = make(tmp_path, {"a": SimpleNamespace(status="graded", score=1.0), "b": SimpleNamespace(status="ungraded", reason="judge endpoint down")})
     with pytest.raises(EvaluationIncomplete, match="could not be graded"):
         ev.evaluate(harness(), ["a", "b"])
+
+
+def _details(path, unmet):
+    from pathlib import Path
+    import json
+    p = Path(path); p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps({"rubrics": [{"index": 0, "result": {"criteria_results": [{"criterion": c, "passed": ok} for c, ok in unmet]}}]}))
+
+
+def test_several_rollouts_are_averaged_and_each_is_in_the_detail_and_the_web_is_off(tmp_path):
+    scores = iter([0.1, 0.5])
+    rolled, ev = [], None
+
+    def run_task(tasks_base, task, out, client, **kw):
+        rolled.append(kw)
+        return {"stop": "finish", "turns": 5}
+
+    def judge_output(task, tasks_base, deliver, details, cfg, finished=True):
+        return SimpleNamespace(status="graded", score=next(scores))
+
+    ev = BenchEvaluator(client=object(), judge=object(), config=BenchConfig(tasks_base=tmp_path, workdir=tmp_path / "w", pass_score=0.5, rollouts=2),
+                        run_task=run_task, judge_output=judge_output)
+    fb = ev.evaluate(harness(), ["occ/task1"])
+    r = fb.results[0]
+    assert abs(r.score - 0.3) < 1e-9 and not r.passed                       # the mean of two rollouts, not the best one
+    assert "over 2 rollout(s)" in r.detail and "rollout 1: score 0.10" in r.detail and "rollout 2: score 0.50" in r.detail
+    assert all(kw["web"] is False for kw in rolled) and len(rolled) == 2
+
+
+def test_the_unmet_criteria_of_the_worst_rollout_reach_the_feedback_in_the_judges_words_and_not_with_score_only(tmp_path):
+    def run_task(tasks_base, task, out, client, **kw):
+        return {"stop": "finish", "turns": 5}
+
+    def judge_output(task, tasks_base, deliver, details, cfg, finished=True):
+        _details(details, [("The guide says API keys stay valid until v3.", False), ("It names SUP-78234.", True), ("It lists the four webhook events.", False)])
+        return SimpleNamespace(status="graded", score=0.2)
+
+    for mode, expect in (("criteria", True), ("score", False)):
+        ev = BenchEvaluator(client=object(), judge=object(), config=BenchConfig(tasks_base=tmp_path, workdir=tmp_path / mode, feedback_detail=mode, max_failed_criteria=5),
+                            run_task=run_task, judge_output=judge_output)
+        detail = ev.evaluate(harness(), ["occ/task1"]).results[0].detail
+        assert ("unmet: The guide says API keys stay valid until v3." in detail and "unmet: It lists the four webhook events." in detail) is expect
+        assert "SUP-78234" not in detail                                    # a criterion that was met is not shown
+
+
+def test_tasks_can_be_rolled_in_parallel_and_the_results_keep_the_order_asked_for(tmp_path):
+    import threading, time
+    live, peak, lock = [0], [0], threading.Lock()
+
+    def run_task(tasks_base, task, out, client, **kw):
+        with lock:
+            live[0] += 1; peak[0] = max(peak[0], live[0])
+        time.sleep(0.05)
+        with lock:
+            live[0] -= 1
+        return {"stop": "finish", "turns": 1}
+
+    def judge_output(task, tasks_base, deliver, details, cfg, finished=True):
+        return SimpleNamespace(status="graded", score=1.0)
+
+    ev = BenchEvaluator(client=object(), judge=object(), config=BenchConfig(tasks_base=tmp_path, workdir=tmp_path / "w", workers=3), run_task=run_task, judge_output=judge_output)
+    fb = ev.evaluate(harness(), ["t1", "t2", "t3", "t4"])
+    assert [r.task_id for r in fb.results] == ["t1", "t2", "t3", "t4"] and peak[0] >= 2

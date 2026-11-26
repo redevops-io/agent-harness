@@ -1,0 +1,9 @@
+# G1 evolve tasks: 8 of the 21 train tasks, random.Random(20261126).sample(sorted(train), 8), fixed before the run
+bookkeeping_accounting_and_auditing_clerks/task2
+civil_engineers/task3
+computer_and_information_research_scientists/task2
+mechanical_engineering_technicians/task2
+medical_and_health_services_managers/task1
+secretaries_and_administrative_assistants_except_legal_medical_and_executive/task2
+social_science_research_assistants/task3
+training_and_development_specialists/task1

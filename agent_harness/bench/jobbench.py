@@ -299,12 +299,14 @@ def main(argv=None) -> int:
     ap.add_argument("--context", type=int, default=40960)
     ap.add_argument("--no-web", action="store_true")
     ap.add_argument("--temperature", type=float)
+    ap.add_argument("--no-thinking", action="store_true", help="send chat_template_kwargs.enable_thinking=false (Qwen on vLLM); recorded in the run's summary")
     ap.add_argument("--max-tokens", type=int, default=8192)
     ap.add_argument("--judge-python"); ap.add_argument("--judge-script")
     ap.add_argument("--judge-model"); ap.add_argument("--judge-base-url")
     a = ap.parse_args(argv)
     system = Path(a.system_file).read_text() if a.system_file else BASE_SYSTEM
-    client = ChatClient(a.base_url, a.model, temperature=a.temperature, max_tokens=a.max_tokens)
+    client = ChatClient(a.base_url, a.model, temperature=a.temperature, max_tokens=a.max_tokens,
+                        extra_body={"chat_template_kwargs": {"enable_thinking": False}} if a.no_thinking else None)
     rows = []
     for t in a.task:
         out = Path(a.out) / a.label / t.replace("/", "__")
