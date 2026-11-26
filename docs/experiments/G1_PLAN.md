@@ -1,0 +1,24 @@
+# G1: does real work make a memory worth selecting from? (plan, written before the run)
+
+Follows `NEXT_EXPERIMENT.md`. The G0 pilot (`~/qualification/jobbench/pilot-g0/RESULTS.md`, copied into `docs/experiments/jobbench-pilot-g0/`) measured one JobBench rollout at 5 to 10 minutes and 250,000 to 570,000 prompt tokens, one judging at 4.5 to 13 minutes, and
+the same task scoring 0.10 and 0.37 on two rollouts. The design (21 evolve tasks, 6 rounds of 2 candidates, one rollout) would take 60 to 120 hours and could not tell a better harness from a lucky rollout. The cuts below are the ones
+NEXT_EXPERIMENT.md allows ("the evolve set is cut by stratum, never the held-out set"); they are fixed here, before any G1 result exists.
+
+| Setting | G1 | Why |
+|---|---|---|
+| Evolve tasks | 8 of the 21 train tasks, `random.Random(20261126).sample(sorted(train), 8)` (`jobbench-seed42/g1_evolve_tasks.txt`) | cost; a seeded draw, not a choice. Train has one task per occupation, so every task is its own stratum |
+| Held-out | `unseen.txt`, not evaluated in G1 | G1 asks only whether a record accumulates; the held-out set stays untouched for the comparison, if the gate passes |
+| Rollouts per task | 2, score = mean | one rollout moved by 0.27 between two identical runs |
+| Rounds, candidates | 4 rounds of 2 candidates, rejected attempts recorded | cost: 1 baseline + up to 8 candidate evaluations of 16 rollouts each |
+| Parallel tasks | 3 | the server's capacity is the limit and is not measured under load; the run records its own wall-clock |
+| Memory | complete record, no selection (the paper's full condition) | G1 produces the record that selection would be tested on |
+| Feedback to the proposer | score, how each rollout stopped, and the criteria the judge found UNMET for the worst rollout, in the judge's words (evolve tasks only); never the rubric file | NEXT_EXPERIMENT.md; the held-out set is never shown to an evaluator that feeds a proposer |
+| Actor, proposer, selector, judge | Qwen3.8-27B FP8 (vLLM 0.34.0, 65,536 context), thinking off; actor temperature 0.55, 16,384 output tokens; judge validated in `jobbench-judge-validation` (94.8 percent criterion agreement with Kimi on low-scoring outputs) | owner decision: local, no paid judge |
+| Context manager | Context Runtime (commit 3b55bec), web off, sandbox network none | as the pilot |
+
+**Gate (unchanged, applied to what accumulates):** the comparison of complete against selected memory runs only if the record holds at least 6 distinct problems and is larger than the selected arm's budget, fixed at one half of the record's size. The run computes both numbers and states them.
+If the gate fails, G1 reports exactly that; no record is added, copied or split, and no threshold moves.
+
+**Estimated cost:** 9 evaluations x 16 rollouts x about 7.5 minutes plus judging, with 3 in parallel: about 10 to 16 hours of local inference. Token use and seconds are recorded.
+
+**What a result would not show:** a better harness (the held-out set is not evaluated), anything about another model, or a rate: one run.
