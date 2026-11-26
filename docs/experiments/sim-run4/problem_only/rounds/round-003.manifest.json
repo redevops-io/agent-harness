@@ -1,0 +1,34 @@
+{
+ "candidates": [
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [],
+   "rationale": "The model previously over-relied on 'security best practices' (e.g., flagging DNS mismatches or non-standard ports) rather than the specific deterministic logic. Explicitly forbidding this behavior reinforces the deterministic nature of the engine.",
+   "refused": "the proposal changes nothing",
+   "root_cause": "P1",
+   "screened_in": true,
+   "what": "Add an explicit instruction to prioritize the deterministic policy rules over general security best practices and to ignore non-standard ports or look-alike domains if they match the trusted substring rule."
+  },
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [],
+   "rationale": "The model previously made inconsistent decisions on 'look-alike' domains and non-standard ports for trusted domains. Explicitly stating that these factors are irrelevant if the substring match is present helps the model stay consistent with the deterministic policy.",
+   "refused": "",
+   "root_cause": "P2",
+   "screened_in": false,
+   "what": "Add a specific instruction to ignore non-standard ports and look-alike domains if they satisfy the trusted substring match, to prevent the model from defaulting to deny based on 'security best practices'."
+  }
+ ],
+ "harness": "269f42bc3b97030f153bb2fb59b5e0efb484004624a5fb9f3c33e7281b33825e",
+ "memory_condition": "problem_only",
+ "memory_view": {
+  "chars": 551,
+  "custom": false,
+  "report": null
+ },
+ "round": 3
+}

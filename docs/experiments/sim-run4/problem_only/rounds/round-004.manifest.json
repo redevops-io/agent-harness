@@ -1,0 +1,34 @@
+{
+ "candidates": [
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [],
+   "rationale": "The model previously suffered from over-relying on security best practices, such as flagging non-standard ports as suspicious. Explicitly stating that ports are ignored for the decision logic ensures the model focuses only on the deterministic DNS and hostname rules.",
+   "refused": "",
+   "root_cause": "P1",
+   "screened_in": true,
+   "what": "Add an explicit 'Port Ignorance' rule to the Network Connection Rules to prevent the model from denying connections based on non-standard ports."
+  },
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [],
+   "rationale": "Previous issues included output truncation leading to missing verdicts. Explicitly instructing the model to prioritize the final verdict over detailed reasoning helps prevent this failure mode.",
+   "refused": "",
+   "root_cause": "P2",
+   "screened_in": true,
+   "what": "Add a strict 'No Truncation' instruction to the Output Format section to ensure the model always produces a final verdict."
+  }
+ ],
+ "harness": "269f42bc3b97030f153bb2fb59b5e0efb484004624a5fb9f3c33e7281b33825e",
+ "memory_condition": "problem_only",
+ "memory_view": {
+  "chars": 551,
+  "custom": false,
+  "report": null
+ },
+ "round": 4
+}

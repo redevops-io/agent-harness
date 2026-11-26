@@ -1,0 +1,16 @@
+{
+  "files": [
+    "LongTermMEMORY.md",
+    "guardrails.md",
+    "systemprompt.md",
+    "tool_descriptions/tool_guidance.md"
+  ],
+  "id": "8d1369b11bc28d0b3edaff9880d36087d7fe73e008bf092cbbf3db09172c18e9",
+  "meta": {
+    "round": 1,
+    "run": "full_sim",
+    "what": "Rewrite the system prompt to handle the 'command-vetting' domain by defining a strict allowlist policy that requires all commands in a compound chain to be allowlisted and all file paths to be within the workspace root."
+  },
+  "parent": "afe5bf62b8031fba9523c9f75c4d09f12f9201dc0509ca0bec0f70649e816fc1",
+  "surface": "opencode"
+}

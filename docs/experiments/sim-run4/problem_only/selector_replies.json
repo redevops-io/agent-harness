@@ -1,0 +1,12 @@
+[
+ "[\n  true,\n  true\n]",
+ "{\"choice\": 1, \"reason\": \"Candidate 1 improves the score from 0.933 to 0.967 by fixing two cases with only one regression, whereas Candidate 0 significantly degrades performance to 0.767 by introducing six new failures.\"}",
+ "[true]",
+ "{\"choice\": 0, \"reason\": \"The edit resolves a specific ambiguity in shell command vetting (distinguishing file paths from data arguments) that directly addresses the P1 diagnosis of over-reliance on generic security heuristics, with a perfect score and no regressions.\"}",
+ "[\n  true,\n  false\n]",
+ "[true, true]",
+ "{\"choice\": null, \"reason\": \"Both candidates have a score of 1.000 with no newly passing or failing tasks, indicating no measurable improvement over the current baseline, so no edit should be adopted.\"}",
+ "[\n  true,\n  true\n]",
+ "{\"choice\": null, \"reason\": \"Both candidates have a score of 1.000 with no newly passing or failing tasks, indicating they do not provide a measurable improvement over the current state.\"}",
+ "[\n  false,\n  false\n]"
+]

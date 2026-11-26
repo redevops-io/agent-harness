@@ -1,0 +1,16 @@
+{
+  "files": [
+    "LongTermMEMORY.md",
+    "guardrails.md",
+    "systemprompt.md",
+    "tool_descriptions/tool_guidance.md"
+  ],
+  "id": "ca49376c54adba0c7c2411c437291b10ca4c949c93e5f8ce9ce64efa908a28f7",
+  "meta": {
+    "round": 1,
+    "run": "problem_only",
+    "what": "Add a specific rule for command vetting that restricts file access to the workspace root unless the command is explicitly allowed to access other paths, and treat /tmp as outside the workspace."
+  },
+  "parent": "afe5bf62b8031fba9523c9f75c4d09f12f9201dc0509ca0bec0f70649e816fc1",
+  "surface": "opencode"
+}

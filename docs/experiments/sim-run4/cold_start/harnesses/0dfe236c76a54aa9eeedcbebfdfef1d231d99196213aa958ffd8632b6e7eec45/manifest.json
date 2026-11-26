@@ -1,0 +1,16 @@
+{
+  "files": [
+    "LongTermMEMORY.md",
+    "guardrails.md",
+    "systemprompt.md",
+    "tool_descriptions/tool_guidance.md"
+  ],
+  "id": "0dfe236c76a54aa9eeedcbebfdfef1d231d99196213aa958ffd8632b6e7eec45",
+  "meta": {
+    "round": 3,
+    "run": "cold_start",
+    "what": "Explicitly state that shell operators (&&, ||, |, ;) are not permitted and that any command containing them must be DENIED."
+  },
+  "parent": "2c2219364d46b8a562a4a10fccea36459cdd0d8b16a9b0847adab50a858ffe42",
+  "surface": "opencode"
+}
