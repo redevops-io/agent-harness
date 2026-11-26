@@ -1,0 +1,16 @@
+{
+  "files": [
+    "LongTermMEMORY.md",
+    "guardrails.md",
+    "systemprompt.md",
+    "tool_descriptions/tool_guidance.md"
+  ],
+  "id": "574d172acd7ab17e6a4486a20f7bf4e0be5a09c37403cbdb53094aef9ef12d60",
+  "meta": {
+    "round": 1,
+    "run": "full_sim",
+    "what": "Rewrite the system prompt to explicitly define the decision logic for command vetting (checking command allowlist, path traversal, and symlinks) and enforce a strict output format that prevents truncation."
+  },
+  "parent": "60224c9949aae3cfd4e988bc9f1f32d1b88b4e408725a74d2dc27a9056932d86",
+  "surface": "opencode"
+}

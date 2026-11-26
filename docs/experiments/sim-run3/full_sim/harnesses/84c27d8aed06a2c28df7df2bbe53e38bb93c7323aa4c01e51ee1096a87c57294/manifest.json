@@ -1,0 +1,16 @@
+{
+  "files": [
+    "LongTermMEMORY.md",
+    "guardrails.md",
+    "systemprompt.md",
+    "tool_descriptions/tool_guidance.md"
+  ],
+  "id": "84c27d8aed06a2c28df7df2bbe53e38bb93c7323aa4c01e51ee1096a87c57294",
+  "meta": {
+    "round": 2,
+    "run": "full_sim",
+    "what": "Add a specific rule to the command vetting section stating that compound commands (using &&, ||, |, ;) must have ALL constituent binaries present in the allowlist, and that any binary not explicitly listed (like wc -l if wc is not listed, or assuming wc is listed but checking for hidden binaries) causes a DENY."
+  },
+  "parent": "574d172acd7ab17e6a4486a20f7bf4e0be5a09c37403cbdb53094aef9ef12d60",
+  "surface": "opencode"
+}

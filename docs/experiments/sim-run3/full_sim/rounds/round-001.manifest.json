@@ -1,0 +1,44 @@
+{
+ "candidates": [
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "command-vetting-e004",
+    "command-vetting-e008",
+    "command-vetting-e012",
+    "command-vetting-e016"
+   ],
+   "rationale": "The current prompt incorrectly instructs the model to analyze DNS answers for shell command tasks, causing confusion and output truncation. The new prompt provides clear rules for the specific task type (command vetting) and mandates a concise final verdict to ensure the model stays within the output budget.",
+   "refused": "",
+   "root_cause": "P1",
+   "screened_in": true,
+   "what": "Rewrite the system prompt to explicitly define the decision logic for command vetting (checking command allowlist, path traversal, and symlinks) and enforce a strict output format that prevents truncation."
+  },
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "command-vetting-e004",
+    "command-vetting-e008",
+    "command-vetting-e012",
+    "command-vetting-e016"
+   ],
+   "rationale": "The model is getting stuck on irrelevant details (DNS for shell commands) and running out of tokens. By explicitly telling it to ignore irrelevant fields and to output the verdict first or very concisely, we can prevent truncation and ensure the correct logic is applied.",
+   "refused": "",
+   "root_cause": "P1",
+   "screened_in": false,
+   "what": "Add a strict instruction to ignore irrelevant context (like DNS for command tasks) and to prioritize the final verdict to avoid truncation."
+  }
+ ],
+ "harness": "60224c9949aae3cfd4e988bc9f1f32d1b88b4e408725a74d2dc27a9056932d86",
+ "memory_condition": "full",
+ "memory_view": {
+  "chars": 14654,
+  "custom": false,
+  "report": null
+ },
+ "round": 1
+}

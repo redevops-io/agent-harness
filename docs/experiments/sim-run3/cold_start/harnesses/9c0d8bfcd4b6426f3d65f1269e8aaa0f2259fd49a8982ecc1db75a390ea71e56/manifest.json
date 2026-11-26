@@ -1,0 +1,16 @@
+{
+  "files": [
+    "LongTermMEMORY.md",
+    "guardrails.md",
+    "systemprompt.md",
+    "tool_descriptions/tool_guidance.md"
+  ],
+  "id": "9c0d8bfcd4b6426f3d65f1269e8aaa0f2259fd49a8982ecc1db75a390ea71e56",
+  "meta": {
+    "round": 6,
+    "run": "cold_start",
+    "what": "Rewrite the system prompt to mandate a 'Verdict First' format (ALLOW or DENY on the first line) and explicitly define that 'command allowlist' policies restrict only the executable binary, ignoring file paths unless a specific path sandbox is defined."
+  },
+  "parent": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+  "surface": "opencode"
+}

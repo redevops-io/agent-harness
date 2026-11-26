@@ -1,0 +1,16 @@
+{
+  "files": [
+    "LongTermMEMORY.md",
+    "guardrails.md",
+    "systemprompt.md",
+    "tool_descriptions/tool_guidance.md"
+  ],
+  "id": "60224c9949aae3cfd4e988bc9f1f32d1b88b4e408725a74d2dc27a9056932d86",
+  "meta": {
+    "round": 2,
+    "run": "source",
+    "what": "Instruct the model to treat the DNS answer as the primary source of truth for security, allowing connections only if the resolved IP is a public, non-private, and non-link-local address that matches the expected range for the domain, or simply if it is not a private/link-local address."
+  },
+  "parent": "a7f5da19ff7e4cb36293e2b46e52f3c679e10d4179430bd981baee1f73851afc",
+  "surface": "opencode"
+}

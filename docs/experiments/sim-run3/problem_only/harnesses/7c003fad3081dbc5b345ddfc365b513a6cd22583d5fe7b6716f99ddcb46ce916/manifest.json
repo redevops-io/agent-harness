@@ -1,0 +1,16 @@
+{
+  "files": [
+    "LongTermMEMORY.md",
+    "guardrails.md",
+    "systemprompt.md",
+    "tool_descriptions/tool_guidance.md"
+  ],
+  "id": "7c003fad3081dbc5b345ddfc365b513a6cd22583d5fe7b6716f99ddcb46ce916",
+  "meta": {
+    "round": 1,
+    "run": "problem_only",
+    "what": "Rewrite the system prompt to explicitly define the command vetting policy rules (allowlist + workspace confinement) and mandate a strict, concise output format to prevent over-analysis and ensure a verdict is always provided."
+  },
+  "parent": "60224c9949aae3cfd4e988bc9f1f32d1b88b4e408725a74d2dc27a9056932d86",
+  "surface": "opencode"
+}

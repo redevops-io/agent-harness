@@ -1,0 +1,6 @@
+[
+ "[\n  true,\n  false\n]",
+ "{\"choice\": 0, \"reason\": \"The candidate improves the score from 0.867 to 0.967 by fixing three tasks without causing any regressions, directly addressing the over-analysis and truncation issues identified in problem P1.\"}",
+ "[\n  true,\n  false\n]",
+ "{\"choice\": 0, \"reason\": \"The candidate fixes the remaining failing task (command-vetting-e012) by explicitly enforcing that all binaries in compound commands must be in the allowlist, with no regressions.\"}"
+]

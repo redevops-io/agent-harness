@@ -1,0 +1,38 @@
+{
+ "candidates": [
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "command-vetting-e012"
+   ],
+   "rationale": "The model incorrectly denied `ls data && wc -l` likely because it analyzed the shell semantics of `&&` or assumed `wc` required a file path or accessed a file via stdin, violating the 'no shell semantics' rule. Explicitly whitelisting `wc` without arguments prevents this over-analysis.",
+   "refused": "",
+   "root_cause": "P1",
+   "screened_in": false,
+   "what": "Add a specific rule stating that `wc` without a file path argument is treated as a valid command that does not access the filesystem, and explicitly forbid analyzing the source of stdin or command side-effects."
+  },
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "command-vetting-e012"
+   ],
+   "rationale": "The model might be interpreting `ls data && wc -l` as a sequence where `wc` is 'waiting' for input or failing due to missing arguments, leading to a DENY. Clarifying that we only check the static command string and not the runtime execution flow helps.",
+   "refused": "",
+   "root_cause": "P1",
+   "screened_in": false,
+   "what": "Strengthen the 'Do NOT analyze shell semantics' rule to explicitly state that `&&` does not create a dependency where the second command's lack of arguments is an error or a security risk if the first command succeeds."
+  }
+ ],
+ "harness": "c7aed5f9c2d2f43902ee7338bb778f31043cbff3be69b8bb2ff11ff6eeaae1ce",
+ "memory_condition": "problem_only",
+ "memory_view": {
+  "chars": 329,
+  "custom": false,
+  "report": null
+ },
+ "round": 3
+}
