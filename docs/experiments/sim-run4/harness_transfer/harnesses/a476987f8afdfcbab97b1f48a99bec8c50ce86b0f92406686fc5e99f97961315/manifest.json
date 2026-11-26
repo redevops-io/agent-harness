@@ -1,0 +1,16 @@
+{
+  "files": [
+    "LongTermMEMORY.md",
+    "guardrails.md",
+    "systemprompt.md",
+    "tool_descriptions/tool_guidance.md"
+  ],
+  "id": "a476987f8afdfcbab97b1f48a99bec8c50ce86b0f92406686fc5e99f97961315",
+  "meta": {
+    "round": 3,
+    "run": "harness_transfer",
+    "what": "Add explicit rules to deny shell metacharacters, redirections, and variable expansions to prevent indirect path traversal or command injection."
+  },
+  "parent": "2b53f26b7609f44d97a92d87b63d2f34572764973a59409026c18d0ecc885c88",
+  "surface": "opencode"
+}

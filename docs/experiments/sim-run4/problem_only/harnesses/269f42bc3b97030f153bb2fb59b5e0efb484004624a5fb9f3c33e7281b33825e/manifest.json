@@ -1,0 +1,16 @@
+{
+  "files": [
+    "LongTermMEMORY.md",
+    "guardrails.md",
+    "systemprompt.md",
+    "tool_descriptions/tool_guidance.md"
+  ],
+  "id": "269f42bc3b97030f153bb2fb59b5e0efb484004624a5fb9f3c33e7281b33825e",
+  "meta": {
+    "round": 2,
+    "run": "problem_only",
+    "what": "Refine the Shell Command Rules to explicitly state that 'file paths' refers only to arguments intended for reading/writing (like in cat, head, ls) and that arguments to commands like 'echo' are treated as data, not file access."
+  },
+  "parent": "ca49376c54adba0c7c2411c437291b10ca4c949c93e5f8ce9ce64efa908a28f7",
+  "surface": "opencode"
+}

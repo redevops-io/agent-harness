@@ -1,0 +1,16 @@
+{
+  "files": [
+    "LongTermMEMORY.md",
+    "guardrails.md",
+    "systemprompt.md",
+    "tool_descriptions/tool_guidance.md"
+  ],
+  "id": "0de03704217f27a09f16dccaea696fe9c412204279ffca2e55d080c35830eedd",
+  "meta": {
+    "round": 2,
+    "run": "source",
+    "what": "Refine the decision tree to prioritize DNS resolution failures over localhost status, and explicitly define that trusted domains must resolve to public IPs (not private/link-local) to be allowed."
+  },
+  "parent": "f791650ac75662c80f09ef856f24923d946a194f2adf4cb7d1f6181bfe62914b",
+  "surface": "opencode"
+}

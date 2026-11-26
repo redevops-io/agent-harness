@@ -33,3 +33,7 @@ Variance (no replicate), transfer across models, real workspace, retrieval or le
 ## Next
 
 Replicate this exact configuration (same pair, same tasks, new sampling) to measure how much of 2 and 3 is sampling; then enlarge the evolve set and add a stop rule on saturation.
+
+## Addendum, after run 4
+
+Run 4 repeated this configuration and did not reproduce the arm ordering reported above (see `../sim-run4/ANALYSIS.md`). Read points 2 and 3 of "What the files support" with that in mind: they are single observations that did not repeat. The text above is kept as written before the replicate.

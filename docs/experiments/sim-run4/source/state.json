@@ -1,0 +1,45 @@
+{
+ "condition": "full",
+ "current": "afe5bf62b8031fba9523c9f75c4d09f12f9201dc0509ca0bec0f70649e816fc1",
+ "promotions": [
+  {
+   "harness": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+   "kind": "start",
+   "round": 0
+  },
+  {
+   "harness": "f791650ac75662c80f09ef856f24923d946a194f2adf4cb7d1f6181bfe62914b",
+   "kind": "promotion",
+   "parent": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+   "problem": "P1",
+   "round": 1
+  },
+  {
+   "harness": "0de03704217f27a09f16dccaea696fe9c412204279ffca2e55d080c35830eedd",
+   "kind": "promotion",
+   "parent": "f791650ac75662c80f09ef856f24923d946a194f2adf4cb7d1f6181bfe62914b",
+   "problem": "P1",
+   "round": 2
+  },
+  {
+   "harness": "afe5bf62b8031fba9523c9f75c4d09f12f9201dc0509ca0bec0f70649e816fc1",
+   "kind": "promotion",
+   "parent": "0de03704217f27a09f16dccaea696fe9c412204279ffca2e55d080c35830eedd",
+   "problem": "P1",
+   "round": 4
+  }
+ ],
+ "provenance": {
+  "benchmark": "egress-vetting",
+  "domain": "policy-vetting",
+  "evaluator": "oracle:egress-vetting",
+  "harness_version": "",
+  "optimizer": "qwen3.8-27b",
+  "policy": "qwen3.8-27b",
+  "run": "source"
+ },
+ "record_rejected": true,
+ "round": 6,
+ "run": "source",
+ "schema": "agent-harness.sim-run/1"
+}

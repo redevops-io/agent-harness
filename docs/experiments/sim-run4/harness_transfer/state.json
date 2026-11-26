@@ -1,0 +1,38 @@
+{
+ "condition": "none",
+ "current": "a476987f8afdfcbab97b1f48a99bec8c50ce86b0f92406686fc5e99f97961315",
+ "promotions": [
+  {
+   "harness": "afe5bf62b8031fba9523c9f75c4d09f12f9201dc0509ca0bec0f70649e816fc1",
+   "kind": "start",
+   "round": 0
+  },
+  {
+   "harness": "2b53f26b7609f44d97a92d87b63d2f34572764973a59409026c18d0ecc885c88",
+   "kind": "promotion",
+   "parent": "afe5bf62b8031fba9523c9f75c4d09f12f9201dc0509ca0bec0f70649e816fc1",
+   "problem": "P1",
+   "round": 1
+  },
+  {
+   "harness": "a476987f8afdfcbab97b1f48a99bec8c50ce86b0f92406686fc5e99f97961315",
+   "kind": "promotion",
+   "parent": "2b53f26b7609f44d97a92d87b63d2f34572764973a59409026c18d0ecc885c88",
+   "problem": "P1",
+   "round": 3
+  }
+ ],
+ "provenance": {
+  "benchmark": "command-vetting",
+  "domain": "policy-vetting",
+  "evaluator": "oracle:command-vetting",
+  "harness_version": "",
+  "optimizer": "qwen3.8-27b",
+  "policy": "qwen3.8-27b",
+  "run": "harness_transfer"
+ },
+ "record_rejected": true,
+ "round": 6,
+ "run": "harness_transfer",
+ "schema": "agent-harness.sim-run/1"
+}

@@ -1,0 +1,12 @@
+[
+ "[true, true]",
+ "{\"choice\": 0, \"reason\": \"Candidate 0 achieves a higher score (0.700 vs 0.633) and fixes more tasks (4 newly passing vs 3) while introducing fewer regressions (2 newly failing vs 3), making it the superior improvement.\"}",
+ "[\n  true,\n  false\n]",
+ "{\n \"choice\": 0,\n \"reason\": \"The candidate fixes four previously failing tasks (e012, e020, e021, e024) without causing any regressions, directly addressing the P1 diagnosis regarding inconsistent handling of DNS resolution and IP validation for trusted domains.\"\n}",
+ "[true, false]",
+ "{\"choice\": 0, \"reason\": \"The candidate improves the score from 0.833 to 0.933 by fixing five previously failing cases (e001, e003, e017, e022, e026) with only two regressions (e011, e025), resulting in a net gain of three correct predictions.\"}",
+ "[\n true,\n false\n]",
+ "{\"choice\": null, \"reason\": \"The candidate reverts to a strict matching rule that causes 9 tasks to fail (including look-alikes and ports that were previously fixed), dropping the score from 0.933 to 0.700, which is a significant regression.\"}",
+ "[true, true]",
+ "{\"choice\": null, \"reason\": \"Both candidates result in a significant performance regression (0.767 and 0.800) compared to the current harness (0.933), as the strict matching rules break previously passing cases involving look-alikes and subdomains.\"}"
+]

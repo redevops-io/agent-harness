@@ -1,0 +1,14 @@
+[
+ "[true]",
+ "{\"choice\": 0, \"reason\": \"The edit addresses a clear root cause (missing command vetting instructions) and improves the score from 0.900 to 1.000 by fixing three failing cases without introducing any regressions.\"}",
+ "[true, true]",
+ "{\"choice\": null, \"reason\": \"Both candidates cause a regression on 'command-vetting-e016' and fail to fix any new issues, so neither is a net improvement over the current state.\"}",
+ "[true, true]",
+ "{\"choice\": 0, \"reason\": \"Candidate 0 maintains the perfect score of 1.000 without introducing any regressions, whereas Candidate 1 causes a new failure and has a lower score.\"}",
+ "[true, true]",
+ "{\"choice\": null, \"reason\": \"Both candidates introduce regressions (newly failing tests) and do not fix any currently failing tasks, so neither represents a net improvement over the current state.\"}",
+ "[true, true]",
+ "{\"choice\": null, \"reason\": \"Candidate 0 maintains the current perfect score without regression, while Candidate 1 introduces new failures and lowers the score.\"}",
+ "[true, true]",
+ "{\"choice\": null, \"reason\": \"Candidate 0 maintains the perfect score without regressions, while Candidate 1 introduces a regression (newly failing test) and has a lower score.\"}"
+]

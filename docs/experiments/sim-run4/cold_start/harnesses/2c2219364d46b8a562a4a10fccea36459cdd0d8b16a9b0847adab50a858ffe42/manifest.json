@@ -1,0 +1,16 @@
+{
+  "files": [
+    "LongTermMEMORY.md",
+    "guardrails.md",
+    "systemprompt.md",
+    "tool_descriptions/tool_guidance.md"
+  ],
+  "id": "2c2219364d46b8a562a4a10fccea36459cdd0d8b16a9b0847adab50a858ffe42",
+  "meta": {
+    "round": 1,
+    "run": "cold_start",
+    "what": "Add a strict instruction to keep reasoning concise and ensure the final verdict is always present at the end of the response, prioritizing the verdict over exhaustive explanation."
+  },
+  "parent": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+  "surface": "opencode"
+}
