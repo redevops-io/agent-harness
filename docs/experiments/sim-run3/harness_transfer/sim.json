@@ -1,0 +1,426 @@
+{
+ "aliases": {},
+ "carried_from": null,
+ "next_id": 12,
+ "problems": [
+  {
+   "attempts": [
+    {
+     "accepted": true,
+     "backfilled": false,
+     "candidate_harness": "e501757292662e8f0c40d3e082c01a0aa3df9dc5064e705aac9e76cc9dedfcd7",
+     "evaluated": true,
+     "files": [
+      "systemprompt.md"
+     ],
+     "fixed": [
+      "command-vetting-e004",
+      "command-vetting-e008",
+      "command-vetting-e016"
+     ],
+     "missed": [
+      "command-vetting-e012"
+     ],
+     "passed": 29,
+     "predicted": [
+      "command-vetting-e004",
+      "command-vetting-e008",
+      "command-vetting-e012",
+      "command-vetting-e016"
+     ],
+     "provenance": {
+      "benchmark": "command-vetting",
+      "domain": "policy-vetting",
+      "evaluator": "oracle:command-vetting",
+      "harness_version": "60224c9949aae3cfd4e988bc9f1f32d1b88b4e408725a74d2dc27a9056932d86",
+      "optimizer": "qwen3.8-27b",
+      "policy": "qwen3.8-27b",
+      "run": "harness_transfer"
+     },
+     "rationale": "The current prompt instructs the model to analyze DNS answers, which is irrelevant to the command vetting tasks. This causes the model to hallucinate network concerns and ramble, often exceeding the output budget before providing a verdict. Moving the verdict to the start ensures it is always captured, and removing DNS noise focuses the model on the command policy.",
+     "regressed": [],
+     "round": 1,
+     "sample": 0,
+     "total": 30,
+     "what": "Rewrite the system prompt to explicitly define the task as command vetting, remove the irrelevant DNS instructions, and enforce a strict output format that places the verdict (ALLOW or DENY) at the very beginning of the response."
+    }
+   ],
+   "id": "P1",
+   "name": "P1: Context Mismatch & Verdict Omission",
+   "opened_round": 1
+  },
+  {
+   "attempts": [
+    {
+     "accepted": true,
+     "backfilled": false,
+     "candidate_harness": "39d86303ff29f587a2a28e92c87dbe760b71ad7991a09e38de287ab776e7e53e",
+     "evaluated": true,
+     "files": [
+      "systemprompt.md"
+     ],
+     "fixed": [
+      "command-vetting-e012"
+     ],
+     "missed": [],
+     "passed": 30,
+     "predicted": [
+      "command-vetting-e012"
+     ],
+     "provenance": {
+      "benchmark": "command-vetting",
+      "domain": "policy-vetting",
+      "evaluator": "oracle:command-vetting",
+      "harness_version": "e501757292662e8f0c40d3e082c01a0aa3df9dc5064e705aac9e76cc9dedfcd7",
+      "optimizer": "qwen3.8-27b",
+      "policy": "qwen3.8-27b",
+      "run": "harness_transfer"
+     },
+     "rationale": "The failing task showed the model using its entire output budget on reasoning, cutting off before the verdict. Forcing a concise, single-sentence explanation ensures the verdict is always present and the response fits within typical token limits.",
+     "regressed": [],
+     "round": 2,
+     "sample": 0,
+     "total": 30,
+     "what": "Add a strict constraint to output the verdict on the first line and limit the explanation to a single sentence to prevent token exhaustion."
+    }
+   ],
+   "id": "P2",
+   "name": "P1: Model fails to adhere to strict output format, leading to truncation before the verdict is emitted.",
+   "opened_round": 2
+  },
+  {
+   "attempts": [
+    {
+     "accepted": false,
+     "backfilled": false,
+     "candidate_harness": "25ab058dd41172c3142c17ffd1f4abb53a157a1ecb1f87cd85ba2f9f24fa3b99",
+     "evaluated": true,
+     "files": [
+      "systemprompt.md"
+     ],
+     "fixed": [],
+     "missed": [
+      "command-vetting-e012"
+     ],
+     "passed": 29,
+     "predicted": [
+      "command-vetting-e012"
+     ],
+     "provenance": {
+      "benchmark": "command-vetting",
+      "domain": "policy-vetting",
+      "evaluator": "oracle:command-vetting",
+      "harness_version": "39d86303ff29f587a2a28e92c87dbe760b71ad7991a09e38de287ab776e7e53e",
+      "optimizer": "qwen3.8-27b",
+      "policy": "qwen3.8-27b",
+      "run": "harness_transfer"
+     },
+     "rationale": "The failing task involved a compound command `ls data && wc -l`. Clarifying how to handle these prevents the model from over-analyzing the structure or getting stuck in a loop of verification, which contributes to token usage and potential truncation.",
+     "regressed": [],
+     "round": 2,
+     "sample": 1,
+     "total": 30,
+     "what": "Explicitly instruct the model to treat compound commands (using &&, ||, |) as a sequence of individual commands, where all parts must be valid for the whole to be allowed."
+    }
+   ],
+   "id": "P3",
+   "name": "P2: Model gets confused by compound commands or complex syntax, leading to verbose reasoning and potential errors.",
+   "opened_round": 2
+  },
+  {
+   "attempts": [
+    {
+     "accepted": false,
+     "backfilled": false,
+     "candidate_harness": "ec997ae4b9029ac4839d1fa7502595769362a81ec2401b6137f84ff020f09894",
+     "evaluated": true,
+     "files": [
+      "systemprompt.md"
+     ],
+     "fixed": [],
+     "missed": [],
+     "passed": 29,
+     "predicted": [],
+     "provenance": {
+      "benchmark": "command-vetting",
+      "domain": "policy-vetting",
+      "evaluator": "oracle:command-vetting",
+      "harness_version": "39d86303ff29f587a2a28e92c87dbe760b71ad7991a09e38de287ab776e7e53e",
+      "optimizer": "qwen3.8-27b",
+      "policy": "qwen3.8-27b",
+      "run": "harness_transfer"
+     },
+     "rationale": "The current prompt does not explicitly state how to handle shell operators. Adding this rule ensures that attempts to chain a safe command with an unsafe one (e.g., `ls && rm -rf /`) are correctly identified as violations, preventing potential bypasses via command chaining.",
+     "regressed": [
+      "command-vetting-e016"
+     ],
+     "round": 3,
+     "sample": 0,
+     "total": 30,
+     "what": "Explicitly define that compound commands (using &&, ||, |, ;) must be decomposed into individual sub-commands, and the entire command is DENIED if any sub-command is not explicitly allowlisted or violates workspace restrictions."
+    }
+   ],
+   "id": "P4",
+   "name": "P1: Ambiguity in handling compound commands and shell operators",
+   "opened_round": 3
+  },
+  {
+   "attempts": [
+    {
+     "accepted": false,
+     "backfilled": false,
+     "candidate_harness": "cb87370f4aeaf144f326267fba531443586c3c0fedf8d71ddbc88e3a27b85f43",
+     "evaluated": true,
+     "files": [
+      "systemprompt.md"
+     ],
+     "fixed": [],
+     "missed": [],
+     "passed": 30,
+     "predicted": [],
+     "provenance": {
+      "benchmark": "command-vetting",
+      "domain": "policy-vetting",
+      "evaluator": "oracle:command-vetting",
+      "harness_version": "39d86303ff29f587a2a28e92c87dbe760b71ad7991a09e38de287ab776e7e53e",
+      "optimizer": "qwen3.8-27b",
+      "policy": "qwen3.8-27b",
+      "run": "harness_transfer"
+     },
+     "rationale": "This reinforces the workspace restriction by explicitly directing the model to scan all arguments, not just the primary target, ensuring that hidden path traversals in secondary arguments are caught.",
+     "regressed": [],
+     "round": 3,
+     "sample": 1,
+     "total": 30,
+     "what": "Add a rule specifying that all arguments in the command must be inspected for path traversal patterns (../) or absolute paths outside the workspace root, regardless of the command's allowlist status."
+    }
+   ],
+   "id": "P5",
+   "name": "P2: Lack of explicit instruction on argument parsing for path validation",
+   "opened_round": 3
+  },
+  {
+   "attempts": [
+    {
+     "accepted": false,
+     "backfilled": false,
+     "candidate_harness": "8d5aacaa19329f4e78bce0ee5ac467012b4f82a4e3e0b568c42a8c440d35d4ec",
+     "evaluated": true,
+     "files": [
+      "systemprompt.md"
+     ],
+     "fixed": [],
+     "missed": [],
+     "passed": 29,
+     "predicted": [],
+     "provenance": {
+      "benchmark": "command-vetting",
+      "domain": "policy-vetting",
+      "evaluator": "oracle:command-vetting",
+      "harness_version": "39d86303ff29f587a2a28e92c87dbe760b71ad7991a09e38de287ab776e7e53e",
+      "optimizer": "qwen3.8-27b",
+      "policy": "qwen3.8-27b",
+      "run": "harness_transfer"
+     },
+     "rationale": "The current prompt does not specify how to handle shell operators. Without explicit decomposition rules, the model might incorrectly allow a compound command if only the first part is valid, or fail to detect a violation in a subsequent part of the chain.",
+     "regressed": [
+      "command-vetting-e016"
+     ],
+     "round": 4,
+     "sample": 0,
+     "total": 30,
+     "what": "Explicitly define that compound commands (using &&, ||, |, ;) must be decomposed into individual sub-commands, and the entire command is DENIED if any sub-command is not explicitly allowlisted or violates workspace restrictions."
+    }
+   ],
+   "id": "P6",
+   "name": "P1: Ambiguity in handling compound commands and shell operators.",
+   "opened_round": 4
+  },
+  {
+   "attempts": [
+    {
+     "accepted": false,
+     "backfilled": false,
+     "candidate_harness": "02d59e7d238f6f7ea0d575ea684a1459408917fe03b2f30ce182ecc29142966e",
+     "evaluated": true,
+     "files": [
+      "systemprompt.md"
+     ],
+     "fixed": [],
+     "missed": [],
+     "passed": 29,
+     "predicted": [],
+     "provenance": {
+      "benchmark": "command-vetting",
+      "domain": "policy-vetting",
+      "evaluator": "oracle:command-vetting",
+      "harness_version": "39d86303ff29f587a2a28e92c87dbe760b71ad7991a09e38de287ab776e7e53e",
+      "optimizer": "qwen3.8-27b",
+      "policy": "qwen3.8-27b",
+      "run": "harness_transfer"
+     },
+     "rationale": "The model might focus only on the command name or the primary target, missing malicious paths hidden in other arguments (e.g., redirection targets or secondary file arguments). Explicitly requiring inspection of all arguments ensures comprehensive security checking.",
+     "regressed": [
+      "command-vetting-e029"
+     ],
+     "round": 4,
+     "sample": 1,
+     "total": 30,
+     "what": "Add a rule specifying that all arguments in the command must be inspected for path traversal patterns (../) or absolute paths outside the workspace root, regardless of the command's allowlist status."
+    }
+   ],
+   "id": "P7",
+   "name": "P2: Lack of explicit instruction to inspect all arguments for path traversal.",
+   "opened_round": 4
+  },
+  {
+   "attempts": [
+    {
+     "accepted": true,
+     "backfilled": false,
+     "candidate_harness": "35cf8f60a4af935f29c78df54689f9586cafda5b4f484f0ffefd5ea45b2662e8",
+     "evaluated": true,
+     "files": [
+      "systemprompt.md"
+     ],
+     "fixed": [],
+     "missed": [],
+     "passed": 30,
+     "predicted": [],
+     "provenance": {
+      "benchmark": "command-vetting",
+      "domain": "policy-vetting",
+      "evaluator": "oracle:command-vetting",
+      "harness_version": "39d86303ff29f587a2a28e92c87dbe760b71ad7991a09e38de287ab776e7e53e",
+      "optimizer": "qwen3.8-27b",
+      "policy": "qwen3.8-27b",
+      "run": "harness_transfer"
+     },
+     "rationale": "The model might miss path traversal attempts hidden in arguments of allowlisted commands (e.g., `cat ../secret.txt` if `cat` is allowlisted). Explicitly requiring inspection of all arguments for traversal patterns ensures robust security.",
+     "regressed": [],
+     "round": 5,
+     "sample": 1,
+     "total": 30,
+     "what": "Add a rule specifying that all arguments in the command must be inspected for path traversal patterns (../) or absolute paths outside the workspace root, regardless of the command's allowlist status."
+    }
+   ],
+   "id": "P8",
+   "name": "P2: Inconsistent handling of absolute vs relative paths in allowlist checks",
+   "opened_round": 5
+  },
+  {
+   "attempts": [
+    {
+     "accepted": false,
+     "backfilled": false,
+     "candidate_harness": "d2f18582cc2b7f73c2d5400e75d1823ca2b2709aa17fe4dfd90f56d73d1579e6",
+     "evaluated": true,
+     "files": [
+      "systemprompt.md"
+     ],
+     "fixed": [],
+     "missed": [],
+     "passed": 29,
+     "predicted": [],
+     "provenance": {
+      "benchmark": "command-vetting",
+      "domain": "policy-vetting",
+      "evaluator": "oracle:command-vetting",
+      "harness_version": "35cf8f60a4af935f29c78df54689f9586cafda5b4f484f0ffefd5ea45b2662e8",
+      "optimizer": "qwen3.8-27b",
+      "policy": "qwen3.8-27b",
+      "run": "harness_transfer"
+     },
+     "rationale": "The model may incorrectly allow compound commands if only the first part is allowlisted, or fail to detect violations in subsequent parts of a pipeline or chain. Explicit decomposition ensures strict enforcement across all parts of the command.",
+     "regressed": [
+      "command-vetting-e029"
+     ],
+     "round": 5,
+     "sample": 0,
+     "total": 30,
+     "what": "Explicitly define that compound commands (using &&, ||, |, ;) must be decomposed into individual sub-commands, and the entire command is DENIED if any sub-command is not explicitly allowlisted or violates workspace restrictions."
+    }
+   ],
+   "id": "P9",
+   "name": "P1: Ambiguity in handling compound commands and sub-shell execution",
+   "opened_round": 5
+  },
+  {
+   "attempts": [
+    {
+     "accepted": false,
+     "backfilled": false,
+     "candidate_harness": "02905b1c73593fbc969ed38bfeb93290393d4658c2a82ca3be3ba2a1f281ec07",
+     "evaluated": true,
+     "files": [
+      "systemprompt.md"
+     ],
+     "fixed": [],
+     "missed": [],
+     "passed": 29,
+     "predicted": [],
+     "provenance": {
+      "benchmark": "command-vetting",
+      "domain": "policy-vetting",
+      "evaluator": "oracle:command-vetting",
+      "harness_version": "35cf8f60a4af935f29c78df54689f9586cafda5b4f484f0ffefd5ea45b2662e8",
+      "optimizer": "qwen3.8-27b",
+      "policy": "qwen3.8-27b",
+      "run": "harness_transfer"
+     },
+     "rationale": "Previous rounds showed that adding this rule sometimes scored 1.0 and sometimes 0.966667, suggesting it is a high-value but unstable improvement. Explicitly defining the behavior for compound commands prevents the model from incorrectly allowing a chain where one part is unsafe or not allowlisted.",
+     "regressed": [
+      "command-vetting-e016"
+     ],
+     "round": 6,
+     "sample": 0,
+     "total": 30,
+     "what": "Add an explicit rule for compound commands (using &&, ||, |, ;) requiring decomposition and individual validation of all sub-commands."
+    }
+   ],
+   "id": "P10",
+   "name": "P_compound_commands",
+   "opened_round": 6
+  },
+  {
+   "attempts": [
+    {
+     "accepted": false,
+     "backfilled": false,
+     "candidate_harness": "efda4de355fb8681480fe465f5858667997890b63c89d18004f2bc141c12c1eb",
+     "evaluated": true,
+     "files": [
+      "systemprompt.md"
+     ],
+     "fixed": [],
+     "missed": [],
+     "passed": 28,
+     "predicted": [],
+     "provenance": {
+      "benchmark": "command-vetting",
+      "domain": "policy-vetting",
+      "evaluator": "oracle:command-vetting",
+      "harness_version": "35cf8f60a4af935f29c78df54689f9586cafda5b4f484f0ffefd5ea45b2662e8",
+      "optimizer": "qwen3.8-27b",
+      "policy": "qwen3.8-27b",
+      "run": "harness_transfer"
+     },
+     "rationale": "The current prompt mentions symlinks but doesn't explicitly state that the model should assume worst-case resolution or that it cannot actually check the filesystem. This helps prevent the model from allowing paths that look safe but might be symlinks to outside locations, or denying them based on uncertainty.",
+     "regressed": [
+      "command-vetting-e016",
+      "command-vetting-e029"
+     ],
+     "round": 6,
+     "sample": 1,
+     "total": 30,
+     "what": "Clarify that symlink resolution must be treated as a static analysis of the path string, denying any path that *could* resolve outside the workspace, rather than requiring actual filesystem inspection."
+    }
+   ],
+   "id": "P11",
+   "name": "P_ambiguous_symlink_resolution",
+   "opened_round": 6
+  }
+ ],
+ "run": "harness_transfer",
+ "schema": "agent-harness.sim/1"
+}

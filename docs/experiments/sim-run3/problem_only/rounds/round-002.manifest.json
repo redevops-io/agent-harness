@@ -1,0 +1,26 @@
+{
+ "candidates": [
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "command-vetting-e012",
+    "command-vetting-e029"
+   ],
+   "rationale": "The model is over-analyzing shell behavior (e012: thinking wc needs stdin) and command semantics (e029: thinking echo reads files). By restricting the analysis to simple string matching against the allowlist and path resolution, we prevent the model from getting stuck in deep reasoning loops that exhaust the output budget or lead to incorrect DENYs based on non-existent policy rules.",
+   "refused": "",
+   "root_cause": "P1",
+   "screened_in": true,
+   "what": "Add a strict 'Decision Protocol' that mandates a 3-step check (Allowlist -> Path -> Network) and explicitly forbids analyzing shell semantics (like pipes vs &&) or command side-effects (like echo reading files)."
+  }
+ ],
+ "harness": "7c003fad3081dbc5b345ddfc365b513a6cd22583d5fe7b6716f99ddcb46ce916",
+ "memory_condition": "problem_only",
+ "memory_view": {
+  "chars": 329,
+  "custom": false,
+  "report": null
+ },
+ "round": 2
+}

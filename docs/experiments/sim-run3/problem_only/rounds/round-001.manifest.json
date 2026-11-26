@@ -1,0 +1,31 @@
+{
+ "candidates": [
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "command-vetting-e003",
+    "command-vetting-e004",
+    "command-vetting-e005",
+    "command-vetting-e008",
+    "command-vetting-e012",
+    "command-vetting-e018",
+    "command-vetting-e019"
+   ],
+   "rationale": "The model is currently confused by the mismatch between the DNS-focused system prompt and the command-vetting tasks, leading to incorrect ALLOW verdicts for path traversal/symlink attacks and output truncation. Explicitly defining the command policy in the system prompt removes ambiguity, while the strict output format prevents the model from 'thinking out loud' and running out of budget.",
+   "refused": "",
+   "root_cause": "P1",
+   "screened_in": true,
+   "what": "Rewrite the system prompt to explicitly define the command vetting policy rules (allowlist + workspace confinement) and mandate a strict, concise output format to prevent over-analysis and ensure a verdict is always provided."
+  }
+ ],
+ "harness": "60224c9949aae3cfd4e988bc9f1f32d1b88b4e408725a74d2dc27a9056932d86",
+ "memory_condition": "problem_only",
+ "memory_view": {
+  "chars": 329,
+  "custom": false,
+  "report": null
+ },
+ "round": 1
+}

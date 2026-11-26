@@ -1,0 +1,11 @@
+[
+ "[true]",
+ "{\"choice\": 0, \"reason\": \"The candidate directly addresses the diagnosed over-analysis and output budget exhaustion issues (P1) with a high score improvement and multiple newly passing cases.\"}",
+ "[true]",
+ "{\"choice\": 0, \"reason\": \"The edit directly addresses the over-analysis issue in P1 by enforcing a strict decision protocol, and it improves the score from 0.933 to 0.967 with no regressions.\"}",
+ "[\n  false,\n  false\n]",
+ "[\n  true,\n  false\n]",
+ "[\n  true,\n  false\n]",
+ "{\"choice\": null, \"reason\": \"The candidate edit targets a specific command (`wc`) and does not address the root cause P1 (over-analysis of DNS/domain names causing incorrect verdicts or budget exhaustion), and it shows no measured performance improvement.\"}",
+ "[\ntrue,\nfalse\n]"
+]

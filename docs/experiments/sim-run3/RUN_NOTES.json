@@ -1,0 +1,18 @@
+{
+ "schema": "agent-harness.sim-run-notes/1",
+ "comparable": true,
+ "caveat": "The source run (egress-vetting, 6 rounds) accepted 2 edits, so the evolved harness and the memory carried into the four target arms (command-vetting) are real. One run per arm; held-out sets of 30 tasks (one task is 3.3 points); one model for proposer, selector and policy; sampling not controlled, so differences of a few tasks are not established. The harness-transfer arm improved most on the target (0.50 to 0.77) and the two arms that carried memory kept the most of the source task (0.83 against 0.63 and 0.67). The evolve set saturated (1.00) in two arms, so held-out scores reflect fitting as well as generalization.",
+ "reasons": [
+  "the source run promoted 2 edits: the carried harness and memory are not the seed and empty",
+  "one run per arm; held-out noise about one task",
+  "evolve set saturated in two arms"
+ ],
+ "configuration": {
+  "feedback": "v2",
+  "record_rejected": true,
+  "rounds": 6,
+  "candidates_per_round": 2,
+  "source": "egress-vetting",
+  "target": "command-vetting"
+ }
+}

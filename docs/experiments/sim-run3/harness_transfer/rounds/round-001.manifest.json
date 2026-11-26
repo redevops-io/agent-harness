@@ -1,0 +1,28 @@
+{
+ "candidates": [
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "command-vetting-e004",
+    "command-vetting-e008",
+    "command-vetting-e012",
+    "command-vetting-e016"
+   ],
+   "rationale": "The current prompt instructs the model to analyze DNS answers, which is irrelevant to the command vetting tasks. This causes the model to hallucinate network concerns and ramble, often exceeding the output budget before providing a verdict. Moving the verdict to the start ensures it is always captured, and removing DNS noise focuses the model on the command policy.",
+   "refused": "",
+   "root_cause": "P1: Context Mismatch & Verdict Omission",
+   "screened_in": true,
+   "what": "Rewrite the system prompt to explicitly define the task as command vetting, remove the irrelevant DNS instructions, and enforce a strict output format that places the verdict (ALLOW or DENY) at the very beginning of the response."
+  }
+ ],
+ "harness": "60224c9949aae3cfd4e988bc9f1f32d1b88b4e408725a74d2dc27a9056932d86",
+ "memory_condition": "none",
+ "memory_view": {
+  "chars": 0,
+  "custom": false,
+  "report": null
+ },
+ "round": 1
+}

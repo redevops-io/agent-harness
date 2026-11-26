@@ -1,0 +1,14 @@
+[
+ "[true]",
+ "{\"choice\": 0, \"reason\": \"The edit significantly improves the score from 0.867 to 0.967 by fixing context mismatch and enforcing a strict output format, with no regressions.\"}",
+ "[true, true]",
+ "{\"choice\": 0, \"reason\": \"Candidate 0 improves the score from 0.967 to 1.000 by fixing a specific truncation issue, whereas Candidate 1 offers no performance gain.\"}",
+ "[true, true]",
+ "{\"choice\": null, \"reason\": \"Candidate 0 causes a regression by failing a previously passing test case, and Candidate 1 provides no performance improvement over the current baseline.\"}",
+ "[true, true]",
+ "{\"choice\": null, \"reason\": \"Both candidates cause a regression (newly failing tests) and do not fix any currently failing tasks, so neither is a net improvement.\"}",
+ "[true, true]",
+ "{\"choice\": 1, \"reason\": \"Candidate 1 maintains the perfect score of 1.000 without introducing any new failures, whereas Candidate 0 causes a regression by failing 'command-vetting-e029'.\"}",
+ "[true, true]",
+ "{\"choice\": null, \"reason\": \"Both candidates introduce regressions (newly failing tests) and fail to fix any predicted issues, making them net negative changes compared to the current perfect score.\"}"
+]

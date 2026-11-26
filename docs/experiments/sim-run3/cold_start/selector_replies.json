@@ -1,0 +1,14 @@
+[
+ "[true]",
+ "{\"choice\": null, \"reason\": \"The candidate edit causes a net regression by breaking 5 previously passing tests while only fixing 1, resulting in a lower overall score (0.700 vs 0.833).\"}",
+ "[true, true]",
+ "{\"choice\": null, \"reason\": \"Both candidates result in a lower score (0.767 and 0.733) compared to the current baseline (0.833) and introduce multiple new failures, indicating they are regressions rather than improvements.\"}",
+ "[true, true]",
+ "{\"choice\": null, \"reason\": \"Both candidates result in a lower score (0.733 and 0.700) compared to the current baseline (0.833) and introduce multiple new failures, indicating they are regressions rather than improvements.\"}",
+ "[true, false]",
+ "{\"choice\": null, \"reason\": \"The candidate causes a net performance regression (0.733 vs 0.833) by introducing four new failures while only fixing one, indicating high regression risk.\"}",
+ "[true, true]",
+ "{\"choice\": null, \"reason\": \"Both candidates result in a lower score (0.700 and 0.733) compared to the current baseline (0.833) and introduce multiple new failures, indicating they are regressions rather than improvements.\"}",
+ "[true, false]",
+ "{\"choice\": 0, \"reason\": \"The edit significantly improves the score from 0.833 to 0.900 by fixing three previously failing cases with only one regression, effectively addressing the root causes of truncation and incorrect path logic.\"}"
+]

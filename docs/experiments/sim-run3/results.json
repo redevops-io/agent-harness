@@ -1,0 +1,206 @@
+{
+ "arms": {
+  "cold_start": {
+   "final_harness_chars": 1041,
+   "source_heldout_final": 0.6666666666666666,
+   "target_heldout_final": 0.5,
+   "target_heldout_start": 0.5,
+   "target_improvement": 0.0
+  },
+  "existing_learning": {
+   "source_heldout_final": 0.6333333333333333,
+   "target_heldout_final": 0.5,
+   "target_heldout_start": 0.5,
+   "target_improvement": 0.0
+  },
+  "full_sim": {
+   "final_harness_chars": 1006,
+   "source_heldout_final": 0.8333333333333334,
+   "target_heldout_final": 0.6333333333333333,
+   "target_heldout_start": 0.5,
+   "target_improvement": 0.1333
+  },
+  "harness_transfer": {
+   "final_harness_chars": 1602,
+   "source_heldout_final": 0.6333333333333333,
+   "target_heldout_final": 0.7666666666666667,
+   "target_heldout_start": 0.5,
+   "target_improvement": 0.2667
+  },
+  "problem_only": {
+   "final_harness_chars": 1558,
+   "source_heldout_final": 0.8333333333333334,
+   "target_heldout_final": 0.6,
+   "target_heldout_start": 0.5,
+   "target_improvement": 0.1
+  }
+ },
+ "candidates_per_round": 2,
+ "caveats": [
+  "one run per arm: single observations, no variance estimate",
+  "30 held-out tasks per set: one task is 3.3 points",
+  "the proposer, selector and task policy are the same model",
+  "task sets are generated from this package's own policy code; they are not the benchmarks of the paper"
+ ],
+ "configuration": {
+  "engineer_temperature": 0.3,
+  "feedback": "v2",
+  "policy_max_tokens": 400,
+  "policy_temperature": 0,
+  "record_rejected": true
+ },
+ "heldout_reference": {
+  "source_heldout": {
+   "seed": 0.6666666666666666,
+   "source_evolved": 0.7
+  },
+  "target_heldout": {
+   "seed": 0.5,
+   "source_evolved": 0.5
+  }
+ },
+ "model": "qwen3.8-27b",
+ "rounds": 6,
+ "runs": {
+  "cold_start": {
+   "candidates_per_round": 2,
+   "evolve_scores": [
+    0.833333,
+    0.833333,
+    0.833333,
+    0.833333,
+    0.833333,
+    0.833333,
+    0.9
+   ],
+   "memory_condition": "none",
+   "missed_predictions": 27,
+   "policy_calls": 300,
+   "predictions": 35,
+   "promotions": 1,
+   "proposed": 11,
+   "refused": 0,
+   "regressed_tasks_in_promotions": 34,
+   "rounds": 6,
+   "seconds": 362.0
+  },
+  "existing_learning": {
+   "chosen": "strict",
+   "evolve_scores": [
+    0.7333,
+    0.8667,
+    0.7333,
+    0.8333,
+    0.9,
+    0.8667,
+    0.7333,
+    0.8667,
+    0.8667,
+    0.8667,
+    0.7333,
+    0.8667
+   ],
+   "note": "selects among prewritten variants; proposes no edit",
+   "policy_calls": 360,
+   "pulls": 12,
+   "seconds": 587.6
+  },
+  "full_sim": {
+   "candidates_per_round": 2,
+   "evolve_scores": [
+    0.866667,
+    0.966667,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "memory_condition": "full",
+   "missed_predictions": 1,
+   "policy_calls": 90,
+   "predictions": 5,
+   "promotions": 2,
+   "proposed": 4,
+   "refused": 0,
+   "regressed_tasks_in_promotions": 0,
+   "rounds": 6,
+   "seconds": 168.1
+  },
+  "harness_transfer": {
+   "candidates_per_round": 2,
+   "evolve_scores": [
+    0.866667,
+    0.966667,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "memory_condition": "none",
+   "missed_predictions": 2,
+   "policy_calls": 360,
+   "predictions": 6,
+   "promotions": 3,
+   "proposed": 11,
+   "refused": 0,
+   "regressed_tasks_in_promotions": 7,
+   "rounds": 6,
+   "seconds": 286.2
+  },
+  "problem_only": {
+   "candidates_per_round": 2,
+   "evolve_scores": [
+    0.766667,
+    0.933333,
+    0.966667,
+    0.966667,
+    0.966667,
+    0.966667,
+    0.9666666666666667
+   ],
+   "memory_condition": "problem_only",
+   "missed_predictions": 3,
+   "policy_calls": 120,
+   "predictions": 10,
+   "promotions": 2,
+   "proposed": 10,
+   "refused": 2,
+   "regressed_tasks_in_promotions": 1,
+   "rounds": 6,
+   "seconds": 277.1
+  },
+  "source": {
+   "candidates_per_round": 2,
+   "evolve_scores": [
+    0.6,
+    0.633333,
+    0.833333,
+    0.833333,
+    0.833333,
+    0.833333,
+    0.8333333333333334
+   ],
+   "memory_condition": "full",
+   "missed_predictions": 8,
+   "policy_calls": 180,
+   "predictions": 39,
+   "promotions": 2,
+   "proposed": 11,
+   "refused": 0,
+   "regressed_tasks_in_promotions": 15,
+   "rounds": 6,
+   "seconds": 462.8
+  }
+ },
+ "schema": "agent-harness.sim-experiment/1",
+ "source": "egress-vetting",
+ "target": "command-vetting",
+ "tasks": {
+  "source_evolve": 30,
+  "source_heldout": 30,
+  "target_evolve": 30,
+  "target_heldout": 30
+ }
+}

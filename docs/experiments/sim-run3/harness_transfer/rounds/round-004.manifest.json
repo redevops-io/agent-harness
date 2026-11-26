@@ -1,0 +1,34 @@
+{
+ "candidates": [
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [],
+   "rationale": "The current prompt does not specify how to handle shell operators. Without explicit decomposition rules, the model might incorrectly allow a compound command if only the first part is valid, or fail to detect a violation in a subsequent part of the chain.",
+   "refused": "",
+   "root_cause": "P1: Ambiguity in handling compound commands and shell operators.",
+   "screened_in": true,
+   "what": "Explicitly define that compound commands (using &&, ||, |, ;) must be decomposed into individual sub-commands, and the entire command is DENIED if any sub-command is not explicitly allowlisted or violates workspace restrictions."
+  },
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [],
+   "rationale": "The model might focus only on the command name or the primary target, missing malicious paths hidden in other arguments (e.g., redirection targets or secondary file arguments). Explicitly requiring inspection of all arguments ensures comprehensive security checking.",
+   "refused": "",
+   "root_cause": "P2: Lack of explicit instruction to inspect all arguments for path traversal.",
+   "screened_in": true,
+   "what": "Add a rule specifying that all arguments in the command must be inspected for path traversal patterns (../) or absolute paths outside the workspace root, regardless of the command's allowlist status."
+  }
+ ],
+ "harness": "39d86303ff29f587a2a28e92c87dbe760b71ad7991a09e38de287ab776e7e53e",
+ "memory_condition": "none",
+ "memory_view": {
+  "chars": 0,
+  "custom": false,
+  "report": null
+ },
+ "round": 4
+}

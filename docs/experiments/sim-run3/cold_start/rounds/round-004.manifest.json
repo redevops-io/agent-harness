@@ -1,0 +1,46 @@
+{
+ "candidates": [
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "command-vetting-e004",
+    "command-vetting-e005",
+    "command-vetting-e012",
+    "command-vetting-e016",
+    "command-vetting-e018"
+   ],
+   "rationale": "Placing the verdict first ensures the answer is present even if the rest of the output is truncated. Explicitly clarifying that the allowlist applies to the binary, not the path, corrects the model's tendency to deny commands based on file location (e.g., /tmp or symlinks) when the policy only lists allowed executables.",
+   "refused": "",
+   "root_cause": "The model spends its entire output budget on reasoning, leading to truncation before a verdict is issued (P1), and it incorrectly applies path-based security logic to a command-only allowlist (P2).",
+   "screened_in": true,
+   "what": "Enforce a strict 'Verdict First' format where the first line must be 'ALLOW' or 'DENY', and explicitly define that a 'command allowlist' restricts only the executable binary, not the file paths, unless a specific path sandbox is defined."
+  },
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "command-vetting-e004",
+    "command-vetting-e005",
+    "command-vetting-e012",
+    "command-vetting-e016",
+    "command-vetting-e018"
+   ],
+   "rationale": "Limiting the justification to one sentence prevents the model from rambling and running out of tokens. The explicit rule that 'binary in allowlist + no path sandbox = ALLOW' provides a clear heuristic to override the model's default security caution regarding file paths.",
+   "refused": "",
+   "root_cause": "The model engages in excessive chain-of-thought reasoning that exceeds the output limit, causing truncation (P1), and it fails to distinguish between command allowlists and path restrictions (P2).",
+   "screened_in": false,
+   "what": "Instruct the model to limit its justification to a single sentence and explicitly state that if the binary is in the allowlist and no path sandbox is mentioned, the answer is ALLOW."
+  }
+ ],
+ "harness": "2415b94ffcc242d3dcb8c0c9f8263f0276371832b2cba6b1301dc9e9058c83f4",
+ "memory_condition": "none",
+ "memory_view": {
+  "chars": 0,
+  "custom": false,
+  "report": null
+ },
+ "round": 4
+}
