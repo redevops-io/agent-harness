@@ -1,0 +1,140 @@
+{
+ "arms": {
+  "complete-1": {
+   "candidates_per_round": 1,
+   "engineer_usage": {
+    "calls": 3,
+    "calls_without_usage": 0,
+    "completion_tokens": 664,
+    "prompt_tokens": 19004,
+    "seconds": 22.87
+   },
+   "error": "",
+   "evolve_scores": [
+    0.833333,
+    0.9333333333333333
+   ],
+   "memory_condition": "full",
+   "missed_predictions": 1,
+   "policy_calls": 60,
+   "policy_usage": {
+    "calls": 60,
+    "calls_without_usage": 0,
+    "completion_tokens": 10777,
+    "prompt_tokens": 21036,
+    "seconds": 336.86
+   },
+   "predictions": 5,
+   "promotions": 1,
+   "proposed": 1,
+   "refused": 0,
+   "regressed_tasks_in_promotions": 1,
+   "rounds": 1,
+   "seconds": 110.0,
+   "selection_trace": [
+    {
+     "compacted": [],
+     "complete": true,
+     "history": {
+      "attempt_descriptions_verbatim": 5,
+      "attempts": 5,
+      "attempts_shown": 5,
+      "attempts_with_identical_measured_fields": 5,
+      "problems": 1,
+      "problems_not_shown": [],
+      "rationales_in_record": 5,
+      "rationales_verbatim": 5
+     },
+     "omitted": [],
+     "tokens": 3665
+    }
+   ],
+   "source_heldout_final": 0.7666666666666667,
+   "status": "completed",
+   "target_heldout_final": 0.5666666666666667
+  },
+  "selected-1": {
+   "candidates_per_round": 1,
+   "engineer_usage": {
+    "calls": 3,
+    "calls_without_usage": 0,
+    "completion_tokens": 784,
+    "prompt_tokens": 12618,
+    "seconds": 21.44
+   },
+   "error": "",
+   "evolve_scores": [
+    0.866667,
+    0.9333333333333333
+   ],
+   "memory_condition": "full",
+   "missed_predictions": 1,
+   "policy_calls": 60,
+   "policy_usage": {
+    "calls": 60,
+    "calls_without_usage": 0,
+    "completion_tokens": 11877,
+    "prompt_tokens": 19836,
+    "seconds": 350.62
+   },
+   "predictions": 4,
+   "promotions": 1,
+   "proposed": 1,
+   "refused": 0,
+   "regressed_tasks_in_promotions": 1,
+   "rounds": 1,
+   "seconds": 112.9,
+   "selection_trace": [
+    {
+     "compacted": [
+      "P1"
+     ],
+     "complete": false,
+     "history": {
+      "attempt_descriptions_verbatim": 0,
+      "attempts": 5,
+      "attempts_shown": 5,
+      "attempts_with_identical_measured_fields": 5,
+      "problems": 1,
+      "problems_not_shown": [],
+      "rationales_in_record": 5,
+      "rationales_verbatim": 0
+     },
+     "omitted": [],
+     "tokens": 2059,
+     "tokens_complete": 3665
+    }
+   ],
+   "source_heldout_final": 0.8,
+   "status": "completed",
+   "target_heldout_final": 0.5666666666666667
+  }
+ },
+ "budget_tokens": 3000,
+ "candidates_per_round": 1,
+ "caveats": [
+  "replicates alternate the two arms; sampling of the harness engineers is not seeded",
+  "30 held-out tasks: one task is 3.3 points",
+  "the carried memory holds ONE problem, so selection can compact its prose but cannot omit or rank problems",
+  "same model proposes, selects and acts"
+ ],
+ "configuration": {
+  "feedback": "v2",
+  "record_rejected": true
+ },
+ "context_runtime": {
+  "commit": "3b55bec98f681b1a25de09787217d715cb3256b6",
+  "dirty": false,
+  "path": "/Users/arybach/qualification/ctx-runtime-3b55bec"
+ },
+ "cost_note": "local GPU inference: no per-token price applies; tokens (as reported by the server) and wall-clock seconds are the cost measures",
+ "from_run": "/Users/arybach/qualification/sim-experiments/run3-qwen-egress-to-cmd",
+ "model": "qwen3.8-27b",
+ "replicates": 1,
+ "rounds": 1,
+ "schema": "agent-harness.sim-selected/1",
+ "source": "egress-vetting",
+ "target": "command-vetting",
+ "target_heldout_start": 0.5,
+ "token_counter": "context_runtime estimate_tokens (4 characters per token)"
+}

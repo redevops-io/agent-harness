@@ -51,13 +51,13 @@ def _ids(tasks) -> List[str]:
 
 def _optimize(out: Path, name: str, *, client, policy_client, ts: TaskSet, harness: HarnessSpec, memory: SelfImprovementMemory,
               condition: MemoryCondition, rounds: int, candidates: int, prov: Provenance, log: Dict[str, Any],
-              feedback: str = "v1", record_rejected: bool = False):
+              feedback: str = "v1", record_rejected: bool = False, memory_text=None):
     evaluator = PolicyEvaluator(policy_client, ts.evolve)                  # holds the EVOLVE half only: held-out is not in this object
     proposer = LLMProposer(client, editable=("systemprompt.md",), task_text={t.task_id: t.prompt for t in ts.evolve}, feedback=feedback)
     selector = LLMSelector(client)
     opt = HarnessOptimizer(evaluator=evaluator, proposer=proposer, selector=selector, workdir=out / name, harness=harness, memory=memory,
                            condition=condition, evolve_tasks=_ids(ts.evolve), heldout_tasks=_ids(ts.heldout), provenance=prov,
-                           candidates_per_round=candidates, record_rejected=record_rejected)
+                           candidates_per_round=candidates, record_rejected=record_rejected, memory_text=memory_text)
     t0 = time.monotonic()
     recs = opt.run(rounds)
     (out / name / "proposer_replies.json").write_text(json.dumps(proposer.raw, indent=1), encoding="utf-8")

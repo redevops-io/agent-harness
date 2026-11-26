@@ -1,0 +1,98 @@
+[
+ {
+  "tokens": 3665,
+  "complete": true,
+  "compacted": [],
+  "omitted": [],
+  "history": {
+   "problems": 1,
+   "problems_not_shown": [],
+   "attempts": 5,
+   "attempts_shown": 5,
+   "attempts_with_identical_measured_fields": 5,
+   "attempt_descriptions_verbatim": 5,
+   "rationales_verbatim": 5,
+   "rationales_in_record": 5
+  }
+ },
+ {
+  "tokens": 4097,
+  "complete": true,
+  "compacted": [],
+  "omitted": [],
+  "history": {
+   "problems": 1,
+   "problems_not_shown": [],
+   "attempts": 6,
+   "attempts_shown": 6,
+   "attempts_with_identical_measured_fields": 5,
+   "attempt_descriptions_verbatim": 5,
+   "rationales_verbatim": 5,
+   "rationales_in_record": 6
+  }
+ },
+ {
+  "tokens": 4511,
+  "complete": true,
+  "compacted": [],
+  "omitted": [],
+  "history": {
+   "problems": 1,
+   "problems_not_shown": [],
+   "attempts": 7,
+   "attempts_shown": 7,
+   "attempts_with_identical_measured_fields": 5,
+   "attempt_descriptions_verbatim": 5,
+   "rationales_verbatim": 5,
+   "rationales_in_record": 7
+  }
+ },
+ {
+  "tokens": 4835,
+  "complete": true,
+  "compacted": [],
+  "omitted": [],
+  "history": {
+   "problems": 1,
+   "problems_not_shown": [],
+   "attempts": 8,
+   "attempts_shown": 8,
+   "attempts_with_identical_measured_fields": 5,
+   "attempt_descriptions_verbatim": 5,
+   "rationales_verbatim": 5,
+   "rationales_in_record": 8
+  }
+ },
+ {
+  "tokens": 4835,
+  "complete": true,
+  "compacted": [],
+  "omitted": [],
+  "history": {
+   "problems": 1,
+   "problems_not_shown": [],
+   "attempts": 8,
+   "attempts_shown": 8,
+   "attempts_with_identical_measured_fields": 5,
+   "attempt_descriptions_verbatim": 5,
+   "rationales_verbatim": 5,
+   "rationales_in_record": 8
+  }
+ },
+ {
+  "tokens": 4835,
+  "complete": true,
+  "compacted": [],
+  "omitted": [],
+  "history": {
+   "problems": 1,
+   "problems_not_shown": [],
+   "attempts": 8,
+   "attempts_shown": 8,
+   "attempts_with_identical_measured_fields": 5,
+   "attempt_descriptions_verbatim": 5,
+   "rationales_verbatim": 5,
+   "rationales_in_record": 8
+  }
+ }
+]

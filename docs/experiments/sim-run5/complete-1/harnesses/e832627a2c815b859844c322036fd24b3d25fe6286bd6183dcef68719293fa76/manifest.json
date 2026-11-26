@@ -1,0 +1,16 @@
+{
+  "files": [
+    "LongTermMEMORY.md",
+    "guardrails.md",
+    "systemprompt.md",
+    "tool_descriptions/tool_guidance.md"
+  ],
+  "id": "e832627a2c815b859844c322036fd24b3d25fe6286bd6183dcef68719293fa76",
+  "meta": {
+    "round": 1,
+    "run": "complete-1",
+    "what": "Rewrite the system prompt to explicitly handle command-vetting tasks by defining the policy as 'allowlisted binary AND path confined to workspace', and enforce a strict 1-sentence output limit to prevent truncation."
+  },
+  "parent": "60224c9949aae3cfd4e988bc9f1f32d1b88b4e408725a74d2dc27a9056932d86",
+  "surface": "opencode"
+}

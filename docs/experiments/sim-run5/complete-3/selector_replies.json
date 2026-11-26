@@ -1,0 +1,14 @@
+[
+ "[true, false]",
+ "{\"choice\": 0, \"reason\": \"The candidate significantly improves performance (0.933 vs 0.767) by fixing six tasks with only one regression, and the rationale correctly identifies that the previous DNS-focused instructions were irrelevant to the command vetting domain.\"}",
+ "[true]",
+ "{\"choice\": null, \"reason\": \"The candidate introduces a regression (command-vetting-e016) while only fixing one task (command-vetting-e029), resulting in no net performance improvement and increased complexity.\"}",
+ "[true, false]",
+ "{\"choice\": null, \"reason\": \"The candidate edit is a net negative as it fixes one task (e029) but regresses another (e016), resulting in no improvement in the overall pass rate.\"}",
+ "[\n  true,\n  false\n]",
+ "{\"choice\": null, \"reason\": \"The candidate does not improve the overall score (28/30) because it fixes one task (e029) while regressing another (e016), resulting in a net zero change in performance.\"}",
+ "[\n  true,\n  false\n]",
+ "{\"choice\": 0, \"reason\": \"The candidate improves the score from 0.933 to 0.967 by fixing command-vetting-e029 without causing any regressions, addressing the model's incorrect interpretation of echo arguments as file paths.\"}",
+ "[\n  true,\n  false\n]",
+ "{\"choice\": 0, \"reason\": \"The candidate fixes the remaining failing task (command-vetting-e012) by clarifying that 'wc -l' without arguments is safe, with no regressions, improving the score to 1.000.\"}"
+]

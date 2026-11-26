@@ -1,0 +1,8 @@
+[
+ "[true, false]",
+ "{\"choice\": null, \"reason\": \"The candidate introduces a net regression of 4 tasks (4 newly passing vs 4 newly failing) and the score remains unchanged at 0.867, indicating it is not a real improvement.\"}",
+ "[\n  true,\n  false\n]",
+ "{\"choice\": 0, \"reason\": \"The candidate significantly improves the score from 0.867 to 0.933 by fixing four command vetting tasks with only two regressions, which is a net gain of two correct predictions.\"}",
+ "[true, false]",
+ "{\"choice\": 0, \"reason\": \"The candidate fixes two previously failing tasks (e016, e029) without causing any regressions, improving the pass rate from 0.933 to 1.000 by clarifying echo arguments and enforcing concise output.\"}"
+]

@@ -1,0 +1,52 @@
+{
+ "candidates": [
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "command-vetting-e003",
+    "command-vetting-e004",
+    "command-vetting-e005",
+    "command-vetting-e008",
+    "command-vetting-e012",
+    "command-vetting-e018",
+    "command-vetting-e019"
+   ],
+   "rationale": "The current system prompt is entirely focused on DNS answers, which is irrelevant to the command vetting tasks. The model is failing because it lacks the specific rules for sandboxing (path traversal, symlinks) and is getting confused by the mismatch between the system prompt and the task. Additionally, the model is running out of output budget, so a strict format is needed.",
+   "refused": "",
+   "root_cause": "P1",
+   "screened_in": true,
+   "what": "Replace the DNS-specific instructions with a generic command vetting policy that explicitly denies path traversal, symlink escapes, and access to files outside the workspace root, while enforcing a strict output format to prevent truncation."
+  },
+  {
+   "files": [
+    "systemprompt.md"
+   ],
+   "predicted": [
+    "command-vetting-e003",
+    "command-vetting-e004",
+    "command-vetting-e005",
+    "command-vetting-e008",
+    "command-vetting-e012",
+    "command-vetting-e018",
+    "command-vetting-e019"
+   ],
+   "rationale": "The model is getting confused by the mismatch between the DNS system prompt and the command vetting task, leading to verbose reasoning and incorrect verdicts. By explicitly telling it to ignore irrelevant context and focus only on the command policy constraints, and by enforcing a strict output limit, we can fix the incorrect verdicts and prevent truncation.",
+   "refused": "",
+   "root_cause": "P1",
+   "screened_in": false,
+   "what": "Instruct the model to prioritize the specific task constraints (command policy) over any previous context or system prompt mismatches, and to strictly limit output to the verdict to avoid truncation."
+  }
+ ],
+ "harness": "60224c9949aae3cfd4e988bc9f1f32d1b88b4e408725a74d2dc27a9056932d86",
+ "memory_condition": "full",
+ "memory_view": {
+  "chars": 14658,
+  "custom": true,
+  "report": {
+   "method": "complete-record"
+  }
+ },
+ "round": 1
+}

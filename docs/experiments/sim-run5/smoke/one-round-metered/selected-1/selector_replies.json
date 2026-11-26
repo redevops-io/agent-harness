@@ -1,0 +1,4 @@
+[
+ "[\n  true\n]",
+ "{\"choice\": 0, \"reason\": \"The candidate addresses a distinct failure mode (command vetting) with a high score improvement (0.933 vs 0.867) and fixes multiple tasks, outweighing the single regression.\"}"
+]

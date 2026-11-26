@@ -1,0 +1,16 @@
+{
+  "files": [
+    "LongTermMEMORY.md",
+    "guardrails.md",
+    "systemprompt.md",
+    "tool_descriptions/tool_guidance.md"
+  ],
+  "id": "d7935f4ae73ea412361c9b921fc768337dad515a3b7b788621ce8b54a065a3c3",
+  "meta": {
+    "round": 1,
+    "run": "selected-3",
+    "what": "Replace the DNS-specific instructions with a generic, concise instruction to identify the specific security policy type (e.g., command allowlist, network egress) and apply its rules directly, explicitly forbidding the model from applying irrelevant policies or over-analyzing context."
+  },
+  "parent": "60224c9949aae3cfd4e988bc9f1f32d1b88b4e408725a74d2dc27a9056932d86",
+  "surface": "opencode"
+}

@@ -1,0 +1,11 @@
+bookkeeping_accounting_and_auditing_clerks/task1
+computer_and_information_systems_managers/task1
+data_entry_keyers/task1
+licensing_examiners_and_inspectors/task1
+mechanical_engineering_technicians/task3
+online_merchants/task1
+producers/task1
+sales_agents_securities_and_commodities/task1
+social_science_research_assistants/task2
+statisticians/task3
+training_and_development_specialists/task2

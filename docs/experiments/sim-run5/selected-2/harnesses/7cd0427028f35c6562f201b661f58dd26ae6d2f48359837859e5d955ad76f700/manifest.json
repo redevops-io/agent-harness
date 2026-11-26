@@ -1,0 +1,16 @@
+{
+  "files": [
+    "LongTermMEMORY.md",
+    "guardrails.md",
+    "systemprompt.md",
+    "tool_descriptions/tool_guidance.md"
+  ],
+  "id": "7cd0427028f35c6562f201b661f58dd26ae6d2f48359837859e5d955ad76f700",
+  "meta": {
+    "round": 1,
+    "run": "selected-2",
+    "what": "Replace the DNS-specific instructions with a generic, strict command-vetting protocol that explicitly denies path traversal, symlink escapes, and absolute paths outside the workspace, and mandates a concise final verdict."
+  },
+  "parent": "60224c9949aae3cfd4e988bc9f1f32d1b88b4e408725a74d2dc27a9056932d86",
+  "surface": "opencode"
+}

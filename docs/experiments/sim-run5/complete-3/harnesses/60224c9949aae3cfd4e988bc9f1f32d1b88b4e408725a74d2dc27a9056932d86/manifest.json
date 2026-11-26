@@ -1,0 +1,15 @@
+{
+  "files": [
+    "LongTermMEMORY.md",
+    "guardrails.md",
+    "systemprompt.md",
+    "tool_descriptions/tool_guidance.md"
+  ],
+  "id": "60224c9949aae3cfd4e988bc9f1f32d1b88b4e408725a74d2dc27a9056932d86",
+  "meta": {
+    "role": "start",
+    "run": "complete-3"
+  },
+  "parent": null,
+  "surface": "opencode"
+}
