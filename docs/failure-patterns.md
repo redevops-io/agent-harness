@@ -1,0 +1,8 @@
+# Failure patterns worth recognising
+
+## Context exhaustion (found 2026-11-26, G1 run 1)
+**Signature:** a step's prompt fills nearly the whole context; the model (thinking on) spends the little room left on reasoning; the reply is empty with `finish_reason=length`. It repeats for the same input, so retries of the identical request fail identically. Measured: prompt 61,716 of 65,536 tokens, 3,820 left, 13,228 characters of reasoning, empty content; the same request with a reply that needs about 2,200 tokens fits and succeeds. Not a timeout, not malformed output, not server contention.
+**Cost when unrecognised:** an evaluation that cannot be scored, a seven-hour run lost, and a generic "no reply" report.
+**Rule for execution planning (Context Runtime and every runner):** reserve the reasoning and the reply before filling the context with retrieved or delivered input: `input_budget = window - reply - reasoning - margin` (`agent_harness/bench/context_budget.py`). Input that does not fit its budget is reduced (fewer or smaller sources) or the step is routed to a longer-context server; it is never sent with "whatever is left". The window is a property of the server, so a longer window is a configuration change recorded with the experiment (G1 amendment 3: 65,536 to 98,304, same weights, KV cache 178,944 tokens, decode throughput unchanged).
+**Recognition:** `context_budget.exhausted(prompt_tokens, completion_tokens, finish_reason, content, window)`; the evaluator names it in `JudgeResult.reason`.
+**Not done here:** Context Runtime's planner packs to `target_tokens` without a reply reserve (`ModelCapabilities.max_context_tokens` exists); adding a reserve there is a shared-runtime change for its owner to decide.

@@ -3,7 +3,8 @@
 Every rule below exists because the opposite happened in a real run:
 
 * A judge failure (rate limit, 5xx, timeout, unparsable reply) is ``ungraded``. It is never a score of 0.
-* Stale judge detail files are deleted before each attempt; a leftover failed file made retries return instantly.
+* A detail file left by ANOTHER output, rubrics or judge is deleted; a leftover failed file made retries return instantly. A file of the SAME output keeps every real
+  judge verdict (right or wrong) and only the rubrics that got no usable reply are asked again (bounded), never the ones the judge answered.
 * Infrastructure failures are retried with backoff; a task is ``graded`` only when every rubric got a real reply.
 * "No output" is a score of 0 only for a rollout that FINISHED and delivered nothing; a rollout that is missing or
   unfinished cannot be judged at all (``NotReady``), so a missing directory is never read as "no output".
@@ -12,6 +13,7 @@ Every rule below exists because the opposite happened in a real run:
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import os
@@ -55,6 +57,8 @@ class JudgeConfig:
     timeout_s: int = 1800
     api_key: str = "dummy"
     batch_script: str = ""                 # the four-answers-per-call judge; empty = the copy shipped with this package
+    recovery_workers: int = 1              # judge requests in flight while recovering rubrics that got no reply (the first pass uses ``workers``)
+    recovery_thinking_off: bool = False    # OFF unless an experiment turns it on (G1 does not: amendment 3). A rubric that got no reply because the judge's reply was cut off is asked again with thinking disabled (judge_shim); see judge_output
 
 
 @dataclass
@@ -71,6 +75,7 @@ class JudgeResult:
     budget_exhausted: bool = False        # the spend proxy refused the calls: stop judging, do not retry
     criteria_passed: Optional[int] = None  # individual criteria passed (the group score is all-or-nothing per rubric group)
     criteria_total: Optional[int] = None
+    recovered: int = 0                     # rubrics whose verdict came from the recovery mode (thinking off); they are marked in the details file
 
 
 def has_deliverables(deliver: Path) -> bool:
@@ -103,13 +108,14 @@ def classify_details(d: Optional[Dict[str, Any]], attempt: int) -> JudgeResult:
     if fails and _budget_exhausted(d):
         return JudgeResult("ungraded", failures=fails, attempts=attempt, reason="spend budget exhausted", budget_exhausted=True)
     if fails or mx <= 0:
-        return JudgeResult("ungraded", failures=fails, attempts=attempt,
-                           reason=f"{fails} rubric criteria got no judge reply" if fails else "max score is 0")
+        cut = sum(1 for r in d.get("rubrics", []) if _no_reply(r) and _cut_off(r))
+        why = f"{fails} rubric criteria got no judge reply" + (f" ({cut} rubric(s) cut off: context exhaustion, see context_budget.py)" if cut else "")
+        return JudgeResult("ungraded", failures=fails, attempts=attempt, reason=why if fails else "max score is 0")
     rubrics = d.get("rubrics") or []
     cp = sum(int((r.get("result") or {}).get("criteria_passed") or 0) for r in rubrics)
     ct = sum(int((r.get("result") or {}).get("criteria_count") or 0) for r in rubrics)
     return JudgeResult("graded", total / mx, total, mx, d.get("passed_count"), d.get("total_count"), 0, attempt,
-                       criteria_passed=cp if ct else None, criteria_total=ct or None)
+                       criteria_passed=cp if ct else None, criteria_total=ct or None, recovered=sum(1 for r in rubrics if r.get("recovered_with")))
 
 
 def judge_batch(task_id: str, tasks_base: Path, candidates: Dict[str, Path], details_dir: Path, cfg: JudgeConfig, *, seed: str,
@@ -168,9 +174,75 @@ def judge_batch(task_id: str, tasks_base: Path, candidates: Dict[str, Path], det
     return out
 
 
+def _no_reply(rubric: Dict[str, Any]) -> bool:
+    """True when the judge produced NO usable verdict for this rubric (no reply, empty content, unparsable text, process error): infrastructure, not an assessment.
+    A rubric the judge answered, whatever it decided, is a verdict and is never asked again."""
+    res = rubric.get("result") or {}
+    crit = res.get("criteria_results") or []
+    return bool(crit) and all(str(c.get("reasoning", "")).startswith(FAIL_PREFIX) for c in crit) and str(res.get("overall_reasoning", "")).startswith("Failed after")
+
+
+_CUT_OFF = ("finish_reason=length", "Could not extract JSON")
+
+
+def _cut_off(rubric: Dict[str, Any]) -> bool:
+    """The judge's reply was cut off (no room left in the context), so asking again with the same request gives the same answer."""
+    why = str((rubric.get("result") or {}).get("overall_reasoning", ""))
+    return any(m in why for m in _CUT_OFF)
+
+
+def _fingerprint(deliver: Path, rubrics: Path, cfg: "JudgeConfig") -> str:
+    """What a stored verdict is a verdict ABOUT: the delivered files, the rubrics and the judge's identity."""
+    h = hashlib.sha256()
+    for p in sorted(q for q in Path(deliver).rglob("*") if q.is_file()):
+        h.update(str(p.relative_to(deliver)).encode() + b"\0" + hashlib.sha256(p.read_bytes()).digest())
+    h.update(hashlib.sha256(Path(rubrics).read_bytes()).digest())
+    h.update(f"{cfg.model}|{cfg.base_url}|{cfg.reasoning_effort}".encode())
+    return h.hexdigest()
+
+
+def _write_json_atomic(path: Path, payload: Dict[str, Any]) -> None:
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(json.dumps(payload, indent=2, ensure_ascii=False))
+    os.replace(tmp, path)
+
+
+def _keep_verdicts(details_file: Path, fp_file: Path, fp: str, log_file: Path, attempt: int) -> Tuple[int, bool]:
+    """Before a judging pass: drop a detail file that belongs to another output; otherwise keep the rubrics the judge answered and remove only
+    those with no usable reply (each removal is logged with the judge's own words first). Returns (how many rubrics are kept, whether every dropped one was cut off)."""
+    try:
+        same = fp_file.read_text().strip() == fp
+    except OSError:
+        same = False
+    if not same:
+        details_file.unlink(missing_ok=True)
+        fp_file.write_text(fp)
+        return 0, False
+    try:
+        d = json.loads(details_file.read_text())
+    except (OSError, ValueError):
+        details_file.unlink(missing_ok=True)
+        return 0, False
+    keep, lost = [], []
+    for r in d.get("rubrics", []):
+        (lost if _no_reply(r) else keep).append(r)
+    if lost:
+        with open(log_file, "a") as f:
+            for r in lost:
+                f.write(json.dumps({"ts": round(time.time(), 1), "attempt": attempt, "rubric": r.get("index"), "criteria": len((r.get("result") or {}).get("criteria_results") or []),
+                                    "why": str((r.get("result") or {}).get("overall_reasoning", ""))[:300]}) + "\n")
+        d["rubrics"] = keep
+        _write_json_atomic(details_file, d)
+    return len(keep), bool(lost) and all(_cut_off(r) for r in lost)
+
+
 def judge_output(task_id: str, tasks_base: Path, deliver: Path, details_file: Path, cfg: JudgeConfig, *,
                  finished: bool = True, sleep=time.sleep) -> JudgeResult:
-    """Score one deliverables directory with the upstream JobBench judge script."""
+    """Score one deliverables directory with the upstream JobBench judge script.
+
+    Durable and bounded: every rubric verdict is written to ``details_file`` as it arrives (the upstream judge does that). A rubric that got no usable reply is asked again, at
+    most ``cfg.attempts`` passes in all, with ``cfg.recovery_workers`` requests in flight after the first pass; a rubric the judge answered is kept as it is and never asked
+    again, a stored verdict is used only for the same files, rubrics and judge (``<details>.fp``), and what was dropped is logged in ``<details>.recovery.jsonl``."""
     if not finished:
         raise NotReady(f"{task_id}: rollout not finished")
     if not has_deliverables(deliver):
@@ -179,12 +251,17 @@ def judge_output(task_id: str, tasks_base: Path, deliver: Path, details_file: Pa
     if not rubrics.is_file():
         return JudgeResult("ungraded", reason=f"no rubrics at {rubrics}")
     details_file.parent.mkdir(parents=True, exist_ok=True)
+    fp_file, log_file = details_file.with_name(details_file.name + ".fp"), details_file.with_name(details_file.name + ".recovery.jsonl")
+    fp = _fingerprint(deliver, rubrics, cfg)
     last = JudgeResult("ungraded", reason="not attempted")
     for attempt in range(1, cfg.attempts + 1):
-        details_file.unlink(missing_ok=True)                      # never reuse a previous (possibly failed) attempt
-        cmd = [cfg.python, cfg.script, "--output-dir", str(deliver), "--rubrics-file", str(rubrics),
+        kept, cut_off = _keep_verdicts(details_file, fp_file, fp, log_file, attempt)
+        workers = cfg.workers if attempt == 1 and not kept else cfg.recovery_workers
+        # A recovery pass after a cut-off reply, and the last pass whatever went wrong, runs with thinking off (the model, prompt, rubric and parsing are the same).
+        off = cfg.recovery_thinking_off and attempt >= 2 and (cut_off or attempt >= cfg.attempts)
+        cmd = [cfg.python, *([str(Path(__file__).with_name("judge_shim.py"))] if off else []), cfg.script, "--output-dir", str(deliver), "--rubrics-file", str(rubrics),
                "--details-file", str(details_file), "--judge-model", cfg.model, "--api-base", cfg.base_url,
-               "--max-workers", str(cfg.workers), "--max-retries", str(cfg.max_retries),
+               "--max-workers", str(workers), "--max-retries", str(cfg.max_retries),
                "--timeout-per-rubric", str(cfg.rubric_timeout_s), "--evaluated-model", "own"]
         env = _judge_env(cfg)
         try:

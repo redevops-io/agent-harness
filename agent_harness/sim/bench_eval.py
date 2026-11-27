@@ -20,6 +20,7 @@ A task the judge could not grade (an infrastructure failure) is not a pass and n
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -83,12 +84,35 @@ class BenchEvaluator:
                     out.append(str(c.get("criterion", ""))[:220])
         return " | ".join(f"unmet: {x}" for x in out[: max(0, int(self.cfg.max_failed_criteria))])
 
+    def _rollout_key(self, task: str, harness_inputs: Dict[str, Any], rollout: int) -> str:
+        """What a finished rollout is the answer TO: the harness text and files, the task, which rollout, and every setting that shapes it."""
+        c = self.cfg
+        blob = json.dumps({"inputs": harness_inputs, "task": task, "rollout": rollout, "max_turns": c.max_turns, "max_seconds": c.max_seconds, "max_context_tokens": c.max_context_tokens,
+                           "attempts": c.attempts, "network": c.network, "context": c.context, "web": c.web}, sort_keys=True, default=str)
+        return hashlib.sha256(blob.encode()).hexdigest()
+
+    def _finished_rollout(self, out: Path, task: str, harness_inputs: Dict[str, Any], rollout: int) -> Optional[Dict[str, Any]]:
+        seal, summary = out / ".rollout.sealed", out / "summary.json"
+        try:
+            if seal.read_text().strip() == self._rollout_key(task, harness_inputs, rollout):
+                return json.loads(summary.read_text())
+        except (OSError, ValueError):
+            pass
+        return None
+
+    def _seal_rollout(self, out: Path, task: str, harness_inputs: Dict[str, Any], rollout: int) -> None:
+        if (out / "summary.json").is_file():
+            (out / ".rollout.sealed").write_text(self._rollout_key(task, harness_inputs, rollout))
+
     def _one(self, run_dir: Path, task: str, harness_inputs: Dict[str, Any], rollout: int):
         safe = task.replace("/", "__") + (f"__r{rollout}" if self.cfg.rollouts > 1 else "")
         out = run_dir / safe
-        summary = self._run_task(self.cfg.tasks_base, task, out, self.client, max_turns=self.cfg.max_turns, max_seconds=self.cfg.max_seconds,
-                                 max_context_tokens=self.cfg.max_context_tokens, attempts=self.cfg.attempts, context=self.cfg.context,
-                                 network=self.cfg.network, web=self.cfg.web, **harness_inputs)
+        summary = self._finished_rollout(out, task, harness_inputs, rollout)
+        if summary is None:                                                # an agent answer already finished for exactly this harness and task is never generated again
+            summary = self._run_task(self.cfg.tasks_base, task, out, self.client, max_turns=self.cfg.max_turns, max_seconds=self.cfg.max_seconds,
+                                     max_context_tokens=self.cfg.max_context_tokens, attempts=self.cfg.attempts, context=self.cfg.context,
+                                     network=self.cfg.network, web=self.cfg.web, **harness_inputs)
+            self._seal_rollout(out, task, harness_inputs, rollout)
         verdict = self._judge_output(task, self.cfg.tasks_base, out / "output", run_dir / "judge" / f"{safe}.json", self.judge, finished=True)
         return summary, verdict, run_dir / "judge" / f"{safe}.json"
 
