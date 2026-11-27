@@ -31,3 +31,25 @@ A one-task smoke run (`1 baseline + 1 candidate evaluation`, 53 minutes, plumbin
 * A candidate is refused when its pass fraction is lower than the current harness's, **or** when the pass fractions are equal and its `mean_score` is lower. Tests: `tests/sim/test_loop.py` (a worse graded harness is not promoted; a better one is).
 * The smoke candidate's rollout ran 200 turns and 7.4 million prompt tokens and delivered one placeholder-blocked file. That is a real failure class (`max_turns`, `invalid_deliverable`) and is reported as one; the turn limit is not lowered, because that would change the task. Cost is local inference time, recorded per evaluation.
 * The proposer's root-cause text in the smoke run was generic ("the system prompt was empty"). With real unmet-criteria feedback and 8 tasks that may improve; if the record is generic, G1 reports that and the gate decides.
+
+## Amendment 2: the evaluator's failure in run 1 and its repair (2026-11-27, prospective: no run 2 result exists)
+
+**What happened.** Run 1 (started 2026-11-26, harness commit 00e1db4) stopped in its second evaluation (a candidate) with `EvaluationIncomplete`: for `social_science_research_assistants/task3` (rollout 1) 18 rubric criteria got no judge reply, so the harness had no score and the run raised, as designed. **It is classified as an evaluation/infrastructure failure, not a result about SIM.** Nothing about it is a negative or positive finding; its artifacts are preserved read-only with a checksum manifest in `~/qualification/jobbench/g1-run1-failed-evaluation-2026-11-26/` and none of its scores are used.
+
+**Cause (measured, not assumed).** The judge prompt for that deliverable is 61,716 tokens of the server's 65,536-token context, leaving 3,820 tokens for the reply. With the server's default (thinking on) the model spends them on reasoning (13,228 characters, empty content, `finish_reason=length`) on rubrics 0, 1, 3 and 4, on every one of three repeats and on a single instrumented request (so not contention, a timeout or a malformed reply); rubrics 2 and 5, whose replies need about 2,200 tokens, fit. With thinking disabled the same rubric replies in 1,197 tokens. The truncated-JSON cases are the same cut-off. Server logs were not reachable from here; the evidence is the client side (`~/qualification/jobbench/g1-eval-reliability/`).
+
+**What changes (evaluator only; nothing about the experiment).**
+* Judge verdicts are kept: a rubric the judge answered, whatever it decided, is never asked again and never replaced; a stored verdict is used only for the same files, rubrics and judge (fingerprint). Previously the harness deleted the detail file before every attempt, so one missing rubric discarded the others.
+* Recovery is bounded to 3 passes (was 1) and only for rubrics with no usable reply. A pass after a cut-off reply, and the last pass, asks with thinking disabled (the same model, prompt, rubric and parser; `judge_shim.py`). Rubrics answered that way are marked `recovered_with: thinking_off` and counted in the run's report. After 3 passes a rubric without a verdict still makes the evaluation `ungraded`, never a 0.
+* A finished agent answer for exactly the same harness, task and rollout is not generated again (`.rollout.sealed`); a genuine task failure keeps its recorded failure and is not retried.
+
+**Unchanged:** model, tasks, rubrics, judge prompt and parser, harness configuration, rollouts, rounds, candidates, the gate and its thresholds.
+
+**Qualification criteria were fixed before they ran** (`QUALIFICATION_CRITERIA.md`, sha256 077889af…). Result:
+1. Regression (the failing output, through the new flow): PASS. 6 of 6 rubrics have a verdict (4 were missing); the answered ones kept their first-pass verdicts; 3 were recovered and marked.
+2. Agreement of the thinking-off judge with the existing verdicts on three outputs the judge had answered (23 rubrics): **FAIL**. Criterion level 65 of 77 = 84.4 percent (threshold 90); rubric level 19 of 22 = 86.4 percent (threshold 85, met); no leniency (50 criteria passed in each mode); one rubric got no reply at all in the repeat.
+3. Determinism: PASS (3 of 3 recovered rubrics repeated the same verdict).
+4. Unit tests: PASS (`tests/test_evalkit.py`, `tests/test_bench_eval_resume.py`).
+Context measured afterwards (changes no verdict and no threshold): the same three outputs judged a second time by the unchanged thinking-on judge agree with their first verdicts on 23 of 23 rubrics and 77 of 81 criteria (95.1 percent), with every rubric answered. So the thinking-off mode differs from the normal judge by more than the judge differs from itself; the miss in criterion 2 is real, not noise.
+
+**Status: the evaluator is NOT qualified under its own criteria. No run 2 is authorized and none was started.** The criteria are not changed after seeing this result.
