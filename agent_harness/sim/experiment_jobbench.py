@@ -68,7 +68,7 @@ def run(out: Path, *, base_url: str, model: str, tasks_file: Path, heldout_file:
     actor = ChatClient(base_url, model, temperature=0.55, max_tokens=16384, timeout=900, retries=2, extra_body=extra)
     engineer_meter = Meter()
     engineer = MeteredClient(ChatClient(base_url, model, temperature=0.3, max_tokens=4000, timeout=600, retries=2, extra_body=extra), engineer_meter)
-    judge = evalkit.JudgeConfig(judge_python, judge_script, model, base_url, "default", workers=2, max_retries=2, attempts=3, recovery_workers=1, backoff_s=30.0, rubric_timeout_s=900, timeout_s=3 * 3600)
+    judge = evalkit.JudgeConfig(judge_python, judge_script, model, base_url, "default", workers=2, max_retries=2, attempts=3, recovery_workers=1, recovery_thinking_off=False, backoff_s=30.0, rubric_timeout_s=900, timeout_s=3 * 3600)
     cfg = BenchConfig(tasks_base=tasks_base, workdir=out / "rollouts", pass_score=pass_score, rollouts=rollouts, workers=workers, attempts=2, context="context-runtime", web=False)
     evaluator = BenchEvaluator(actor, judge, cfg)
     proposer = LLMProposer(engineer, editable=("systemprompt.md",), task_text=task_texts(tasks_base, tasks), feedback="v2", max_failures_shown=len(tasks))

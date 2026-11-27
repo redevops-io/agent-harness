@@ -318,7 +318,7 @@ def upstream(tmp_path):
 
 def test_a_cut_off_reply_is_recovered_with_thinking_off_and_the_recovered_rubrics_are_marked(upstream):
     script, base, deliver, details = upstream
-    cfg = JudgeConfig(sys.executable, str(script), "m", "http://x", attempts=3, backoff_s=0, timeout_s=30)
+    cfg = JudgeConfig(sys.executable, str(script), "m", "http://x", attempts=3, backoff_s=0, timeout_s=30, recovery_thinking_off=True)
     r = judge_output("x/task1", base, deliver, details, cfg, sleep=lambda s: None)
     assert r.status == "graded" and r.attempts == 2 and r.recovered == 2                 # pass 1 normal: both cut off; pass 2 is the recovery mode (thinking off) and answers
     d = json.loads(details.read_text())
@@ -341,3 +341,10 @@ def test_the_shim_changes_only_the_thinking_parameter(upstream):
     assert out.returncode == 0, out.stderr
     d = json.loads(details.read_text())
     assert all(x["result"]["passed"] and x["recovered_with"] == "thinking_off" and x["result"]["criteria_results"][0]["reasoning"] == "criterion met" for x in d["rubrics"])
+
+
+def test_recovery_with_thinking_off_is_off_by_default_and_in_the_g1_runner():
+    import inspect
+    from agent_harness.sim import experiment_jobbench
+    assert JudgeConfig("p", "s", "m", "u").recovery_thinking_off is False
+    assert "recovery_thinking_off=False" in inspect.getsource(experiment_jobbench.run)

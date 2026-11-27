@@ -53,3 +53,12 @@ A one-task smoke run (`1 baseline + 1 candidate evaluation`, 53 minutes, plumbin
 Context measured afterwards (changes no verdict and no threshold): the same three outputs judged a second time by the unchanged thinking-on judge agree with their first verdicts on 23 of 23 rubrics and 77 of 81 criteria (95.1 percent), with every rubric answered. So the thinking-off mode differs from the normal judge by more than the judge differs from itself; the miss in criterion 2 is real, not noise.
 
 **Status: the evaluator is NOT qualified under its own criteria. No run 2 is authorized and none was started.** The criteria are not changed after seeing this result.
+
+## Amendment 3: the judge gets the context it needs; thinking-off recovery is disabled for G1 (2026-11-27, owner decision "Option 1", recorded BEFORE the repeat qualification)
+
+Amendment 2's thinking-off recovery mode failed its qualification (84.4 percent criterion agreement against 90; the unchanged judge agrees with itself at 95.1 percent). The owner chose to remove the cause instead: the judge prompt for the failing output is 61,716 tokens and the server's context was 65,536.
+* The judge server (`qwen-reasoning`, the same FP8 weights and quantization, vLLM) is restarted with `--max-model-len=98304` and nothing else changed (model native context 262,144; KV cost about 64 KiB per token, 16 full-attention layers). The evaluated agent's context budget stays 65,536 tokens, enforced by the harness (`BenchConfig.max_context_tokens`), not by the server; this is checked after the run from the recorded prompt sizes.
+* The judge is the unchanged thinking-on judge: same model, prompt, rubric, parser, temperature 0, scoring. Its completion cap stays at the upstream 65,536 (the server clamps to the room left: 36,588 tokens for the largest prompt seen, against a need of roughly 1,000 to 4,000).
+* `recovery_thinking_off` is **off** for G1 (code retained, default off). Durable per-rubric verdicts, the 3-pass bounded recovery of rubrics with no reply (same request), the sealed agent rollouts and the process-status verification stay.
+* Unchanged: model, tasks, rubrics, harness configuration, rollouts, rounds, candidates, the gate and its thresholds, and the qualification thresholds (`QUALIFICATION_CRITERIA_v2.md`, sha256 fc8c1683..., same numbers, fixed before the server change, 2026-11-27T13:40Z).
+* If the repeat qualification fails, G1 run 2 does not start. If it passes, one run starts; whatever it yields against the original gate is accepted.

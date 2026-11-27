@@ -58,7 +58,7 @@ class JudgeConfig:
     api_key: str = "dummy"
     batch_script: str = ""                 # the four-answers-per-call judge; empty = the copy shipped with this package
     recovery_workers: int = 1              # judge requests in flight while recovering rubrics that got no reply (the first pass uses ``workers``)
-    recovery_thinking_off: bool = True     # a rubric that got no reply because the judge's reply was cut off is asked again with thinking disabled (judge_shim); see judge_output
+    recovery_thinking_off: bool = False    # OFF unless an experiment turns it on (G1 does not: amendment 3). A rubric that got no reply because the judge's reply was cut off is asked again with thinking disabled (judge_shim); see judge_output
 
 
 @dataclass
