@@ -108,8 +108,9 @@ def classify_details(d: Optional[Dict[str, Any]], attempt: int) -> JudgeResult:
     if fails and _budget_exhausted(d):
         return JudgeResult("ungraded", failures=fails, attempts=attempt, reason="spend budget exhausted", budget_exhausted=True)
     if fails or mx <= 0:
-        return JudgeResult("ungraded", failures=fails, attempts=attempt,
-                           reason=f"{fails} rubric criteria got no judge reply" if fails else "max score is 0")
+        cut = sum(1 for r in d.get("rubrics", []) if _no_reply(r) and _cut_off(r))
+        why = f"{fails} rubric criteria got no judge reply" + (f" ({cut} rubric(s) cut off: context exhaustion, see context_budget.py)" if cut else "")
+        return JudgeResult("ungraded", failures=fails, attempts=attempt, reason=why if fails else "max score is 0")
     rubrics = d.get("rubrics") or []
     cp = sum(int((r.get("result") or {}).get("criteria_passed") or 0) for r in rubrics)
     ct = sum(int((r.get("result") or {}).get("criteria_count") or 0) for r in rubrics)
