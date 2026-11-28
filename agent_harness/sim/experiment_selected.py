@@ -61,8 +61,9 @@ def _commit(path: Path) -> Dict[str, Any]:
 class Meter:
     """What one client spent in one arm: calls, the usage the server reports for them, and wall-clock seconds."""
 
-    def __init__(self) -> None:
+    def __init__(self, log: "Optional[str | Path]" = None) -> None:
         self.calls: list = []
+        self.log = Path(log) if log else None        # every call is also appended here, so a run that stops still shows what its proposer and selector spent
 
     def total(self) -> Dict[str, Any]:
         u = lambda k: sum(int((c.get("usage") or {}).get(k) or 0) for c in self.calls)  # noqa: E731
@@ -79,7 +80,14 @@ class MeteredClient:
     def complete(self, messages, tools=None):
         t0 = time.monotonic()
         out = self._inner.complete(messages, tools) if tools is not None else self._inner.complete(messages)
-        self._meter.calls.append({"usage": out.get("usage") or {}, "seconds": time.monotonic() - t0})
+        rec = {"usage": out.get("usage") or {}, "seconds": time.monotonic() - t0}
+        self._meter.calls.append(rec)
+        if self._meter.log is not None:
+            try:
+                with open(self._meter.log, "a", encoding="utf-8") as f:
+                    f.write(json.dumps({"ts": round(time.time(), 1), **rec}) + "\n")
+            except OSError:
+                pass
         return out
 
     def __getattr__(self, name: str):
