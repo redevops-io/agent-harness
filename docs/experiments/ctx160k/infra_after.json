@@ -1,0 +1,42 @@
+[
+ {
+  "kind": "decode",
+  "prompt": 33,
+  "completion": 900,
+  "seconds": 22.57,
+  "tok_per_s": 39.9,
+  "finish": "length"
+ },
+ {
+  "kind": "decode",
+  "prompt": 33,
+  "completion": 900,
+  "seconds": 22.51,
+  "tok_per_s": 40.0,
+  "finish": "length"
+ },
+ {
+  "kind": "decode",
+  "prompt": 33,
+  "completion": 900,
+  "seconds": 22.54,
+  "tok_per_s": 39.9,
+  "finish": "length"
+ },
+ {
+  "kind": "long_97000",
+  "prompt": 90951,
+  "completion": 3,
+  "seconds": 24.77,
+  "finish": "stop",
+  "ok": true
+ },
+ {
+  "kind": "long_155000",
+  "prompt": 145326,
+  "completion": 3,
+  "seconds": 24.96,
+  "finish": "stop",
+  "ok": true
+ }
+]

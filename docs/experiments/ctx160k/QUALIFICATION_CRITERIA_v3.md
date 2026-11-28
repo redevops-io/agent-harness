@@ -1,0 +1,13 @@
+# Judge context capacity qualification for G1 amendment 4, option A: criteria fixed BEFORE the server is changed and BEFORE anything runs (2026-11-28)
+
+Supersedes nothing in `QUALIFICATION_CRITERIA_v2.md` (sha256 fc8c1683...; its numbers are reused unchanged). The judge input stays exactly the upstream judge's (same prompt, rubric, parser, temperature 0, thinking on, `recovery_thinking_off=False`, the benchmark's own 200,000-character per-file cap, G1 judge settings: workers=2, attempts=3). Only the server's context limit changes. Experimental meaning is unchanged: nothing is truncated, capped or re-worded for the judge.
+
+Setup under test: deployment `qwen-reasoning` (ns ml-services, k3s), `--max-model-len` raised from 98,304 to **163,840**, nothing else changed (same weights, FP8, `--gpu-memory-utilization=0.9`, `--max-num-seqs=32`). Earlier startup log: KV cache 178,944 tokens at 0.9 utilization, so one 163,840-token sequence is expected to fit (1.09x); that is a prediction, tested by criterion 4.
+
+Pass criteria (all must hold; none is adjusted after the run):
+1. Regression: the deliverable that stopped run 2 (`mechanical_engineering_technicians/task2` r2, eval-0004, archived read-only under `g1-run2-failed-evaluation-2026-11-28`; 144,169 text tokens), through `evalkit.judge_output`: every rubric (8/8) gets a THINKING-ON verdict; 0 rubrics recovered; 0 rubrics without a reply; 0 context-exceeded.
+2. Agreement with existing verdicts on the same three outputs as in v2 (bookkeeping task2 r1, civil_engineers task3 r1, secretaries task2 r1; eval-0001; 23 rubrics): criterion-level agreement >= 90 percent AND rubric-level agreement >= 85 percent; criteria passed within 10 percent of the old count.
+3. Determinism: judging the same oversize output a second time gives the same rubric-level verdict on at least 6 of its 8 rubrics (the v2 proportion, 3 of 4).
+4. Infrastructure: after the change the pod is Ready with no restarts; GPU free memory >= 1 GiB; the KV cache holds at least one sequence of 163,840 tokens (the server starts without lowering utilization); a synthetic request of at least 155,000 prompt tokens completes; a 97,000-token request still completes; single-stream decode throughput within 10 percent of the pre-change baseline measured the same way right before the change (`baseline_throughput_before_v3.json`).
+5. Existing tests pass; nothing in the evaluator regenerates an agent answer or replaces a stored verdict.
+If any fails: stop, no G1 run 3, report the specific cause; the server change is rolled back to `--max-model-len=98304` if criterion 4 fails. If the oversize output cannot be judged on this server, option B is NOT applied: that is reported as the open issue in G1 amendment 4 for a specific owner decision.
