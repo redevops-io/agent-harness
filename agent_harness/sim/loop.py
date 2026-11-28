@@ -61,6 +61,7 @@ class Feedback:
     results: Tuple[TaskResult, ...]
     cost_usd: float = 0.0
     seconds: float = 0.0
+    usage: Mapping[str, Any] = field(default_factory=dict)       # tokens the evaluation consumed (a local model has cost 0.0 and still consumes): see BenchEvaluator
 
     @property
     def passed(self) -> FrozenSet[str]:
@@ -85,7 +86,8 @@ class Feedback:
                 "failed": sorted(self.failed), "cost_usd": self.cost_usd, "seconds": self.seconds,
                 "details": {r.task_id: r.detail for r in self.results if r.detail},
                 "observed": {r.task_id: r.observed for r in self.results if not r.passed},
-                "truncated": sorted(r.task_id for r in self.results if r.truncated)}
+                "truncated": sorted(r.task_id for r in self.results if r.truncated),
+                **({"usage": dict(self.usage)} if self.usage else {})}
 
 
 @dataclass(frozen=True)
@@ -202,7 +204,7 @@ class HarnessOptimizer:
                  evolve_tasks: Sequence[str], provenance: Provenance, heldout_tasks: Sequence[str] = (),
                  candidates_per_round: int = 2, protected: Sequence[str] = DEFAULT_PROTECTED,
                  allow_score_drop: bool = False, record_rejected: bool = False,
-                 memory_text: Optional[Any] = None) -> None:
+                 memory_text: Optional[Any] = None, _resumed: Optional[Dict[str, Any]] = None) -> None:
         self.evolve = tuple(dict.fromkeys(evolve_tasks))
         if not self.evolve:
             raise LoopRefused("there is no evolve task to optimize on")
@@ -230,10 +232,50 @@ class HarnessOptimizer:
         self.history: List[Dict[str, Any]] = []
         self.round = 0
         self.harness = harness
+        self._pending: Optional[Dict[str, Any]] = None             # the manifest of a round that was interrupted: its proposals are used again, never asked for again
+        if _resumed is not None:
+            self.harness_id, self.round, self.promotions = _resumed["current"], int(_resumed["round"]), list(_resumed["promotions"])
+            self.history = list(_resumed["history"])
+            self._pending = _resumed.get("pending")
+            self._current: Optional[Feedback] = None                # evaluated again at the start of the next round: served from the finished rollouts and the stored verdicts
+            return                                                  # nothing on disk is rewritten until a round completes
         self.harness_id = save_artifact(self.artifacts, harness, meta={"role": "start", "run": memory.run})
         self.promotions: List[Dict[str, Any]] = [{"round": 0, "harness": self.harness_id, "kind": "start"}]
-        self._current: Optional[Feedback] = None
+        self._current = None
         self._save_state()
+
+    @classmethod
+    def resume(cls, workdir: "str | Path", *, evaluator: Evaluator, proposer: Proposer, selector: Selector, evolve_tasks: Sequence[str], provenance: Provenance,
+               heldout_tasks: Sequence[str] = (), candidates_per_round: int = 2, protected: Sequence[str] = DEFAULT_PROTECTED,
+               allow_score_drop: bool = False, memory_text: Optional[Any] = None) -> "HarnessOptimizer":
+        """Continue a run that stopped (a crash, a restart, an evaluation that could not be graded) from what it wrote: the stored harness, the memory, the completed rounds and,
+        for the round that was interrupted, the proposals in its manifest (they were made before any candidate ran and are not made again). The evaluator is expected to find
+        its finished rollouts and stored verdicts (``BenchEvaluator`` does, by content), so nothing already settled is generated or judged again. A run whose interrupted round has
+        no proposals on disk (written before manifests carried them) cannot be continued faithfully and is refused rather than re-drawn."""
+        wd = Path(workdir)
+        try:
+            st = json.loads((wd / "state.json").read_text(encoding="utf-8"))
+            memory = SelfImprovementMemory.load(wd / "sim.json")
+        except (OSError, ValueError) as e:
+            raise LoopRefused(f"there is no run to continue in {wd}: {type(e).__name__}") from e
+        if st.get("schema") != "agent-harness.sim-run/1":
+            raise LoopRefused("not a SIM run directory")
+        harness = load_artifact(wd / "harnesses", st["current"])
+        rounds = wd / "rounds"
+        history, pending = [], None
+        for f in sorted(rounds.glob("round-*.outcome.json")):
+            history.append(json.loads(f.read_text(encoding="utf-8")))
+        nxt = int(st["round"]) + 1
+        mf = rounds / f"round-{nxt:03d}.manifest.json"
+        if mf.is_file() and not (rounds / f"round-{nxt:03d}.outcome.json").is_file():
+            pending = json.loads(mf.read_text(encoding="utf-8"))
+            if "proposals" not in pending:
+                raise LoopRefused(f"round {nxt} was interrupted and its manifest does not hold the proposals' edits (it predates them): the round cannot be continued without drawing new proposals, "
+                                  "which is a different experiment, not a resume")
+        return cls(evaluator=evaluator, proposer=proposer, selector=selector, workdir=wd, harness=harness, memory=memory, condition=MemoryCondition(st["condition"]),
+                   evolve_tasks=evolve_tasks, provenance=provenance, heldout_tasks=heldout_tasks, candidates_per_round=candidates_per_round, protected=protected,
+                   allow_score_drop=allow_score_drop, record_rejected=bool(st.get("record_rejected")), memory_text=memory_text,
+                   _resumed={"current": st["current"], "round": st["round"], "promotions": st["promotions"], "history": history, "pending": pending})
 
     # ── the only way this class runs tasks ───────────────────────────────────────────────────────────────
     def _evaluate(self, harness: HarnessSpec) -> Feedback:
@@ -263,9 +305,17 @@ class HarnessOptimizer:
             if not isinstance(shown, str):
                 raise LoopRefused("memory_text must return text, or (text, report)")
         rec = RoundRecord(round=self.round, current=current.to_json())
-        proposals = list(self.proposer.propose(harness=self.harness, feedback=current, history=tuple(self.history),
-                                               memory=shown, candidates=self.candidates_per_round))[: self.candidates_per_round]
-        screened = list(self.selector.screen(proposals, harness=self.harness, memory=shown)) if proposals else []
+        pending, self._pending = self._pending, None
+        if pending is not None:                                    # an interrupted round: the proposals and the screening are the ones already made and written
+            if int(pending.get("round", -1)) != self.round or pending.get("harness") != self.harness_id:
+                raise LoopRefused("the interrupted round's manifest is not for this harness and round")
+            proposals = [Proposal(root_cause=e["root_cause"], what=e["what"], rationale=e["rationale"], edits=dict(e["edits"]), predicted=tuple(e.get("predicted") or ()))
+                         for e in pending["proposals"]]
+            screened = [bool(c.get("screened_in")) for c in pending["candidates"]]
+        else:
+            proposals = list(self.proposer.propose(harness=self.harness, feedback=current, history=tuple(self.history),
+                                                   memory=shown, candidates=self.candidates_per_round))[: self.candidates_per_round]
+            screened = list(self.selector.screen(proposals, harness=self.harness, memory=shown)) if proposals else []
         if len(screened) != len(proposals):
             raise LoopRefused("the selector must answer once per proposal when screening")
         built: List[Tuple[int, Proposal, HarnessSpec]] = []
@@ -284,7 +334,9 @@ class HarnessOptimizer:
         manifest = self.workdir / "rounds" / f"round-{self.round:03d}.manifest.json"
         manifest.write_text(json.dumps({"round": self.round, "harness": self.harness_id, "memory_condition": self.condition.value,
                                         "memory_view": {"custom": self.memory_text is not None, "chars": len(shown), "report": view_report},
-                                        "candidates": rec.candidates}, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+                                        "candidates": rec.candidates,
+                                        # the proposals in full (the edits' text), so an interrupted round can be continued with exactly these and not drawn again
+                                        "proposals": [{**p.to_json(), "edits": dict(p.edits)} for p in proposals]}, indent=1, sort_keys=True) + "\n", encoding="utf-8")
         evaluated: List[Tuple[int, Proposal, HarnessSpec, Feedback]] = []
         for i, p, spec in built:
             fb = self._evaluate(spec)

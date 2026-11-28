@@ -55,7 +55,7 @@ def test_another_harness_is_a_different_question_and_gets_its_own_answer(tmp_pat
 def test_a_rollout_that_never_finished_is_not_reused(tmp_path):
     ev, calls = make(tmp_path, [Verdict()])
     ev.evaluate(seed_harness(), ["x/task1"])
-    (tmp_path / "w" / "eval-0001" / "x__task1" / ".rollout.sealed").unlink()
+    (next((tmp_path / "w").glob("eval-0001-*")) / "x__task1" / ".rollout.sealed").unlink()
     ev.evaluations = 0
     ev.evaluate(seed_harness(), ["x/task1"])
     assert len(calls["run"]) == 2

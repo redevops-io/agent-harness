@@ -67,3 +67,27 @@ Amendment 2's thinking-off recovery mode failed its qualification (84.4 percent 
 Server: `qwen-reasoning` restarted with `--max-model-len=98304` (13:40:35 to 13:43:20Z; Ready, 0 restarts); GPU1 44,175 of 48,935 MiB (before 44,687); KV cache 178,944 tokens, 1.82 times concurrency at 98,304 per request; decode 39.9 to 40.0 tokens/s (before 40.0); a 97,427-token request completed in 23.4 s; 24,019-token prefill 4.92 s (before 4.85).
 1. Regression: the previously failing output is graded in one attempt, 6 of 6 rubrics with thinking-on verdicts, 0 recovered, 0 without a reply (691 s); rubrics 2 and 5 kept their verdicts. 2. Agreement on 23 rubrics: rubric level 22 of 23 (95.7 percent, bar 85), criterion level 75 of 81 (92.6 percent, bar 90), criteria passed 54 against 52 (minus 3.7 percent, bar plus or minus 10). 3. Determinism: the 4 rubrics that failed before repeat the same verdict (4 of 4; 6 of 6 overall). 4. Unit tests: pass.
 Status: the evaluator is qualified. One G1 run (run 2) is authorized under amendments 2 and 3. Thinking-off recovery stays off for it. Its result against the original gate is accepted whatever it is.
+
+
+## Amendment 4 (PROPOSED, not in force until the owner records a decision; written 2026-11-28 after run 2 failed, before any run 3 exists)
+
+**What happened.** Run 2 stopped in its fourth evaluation: one deliverable's judge prompt (at least 144,169 tokens of extracted text) cannot fit the qualified judge's 98,304-token context. Full account, the
+artifact inventory and why run 2 cannot be resumed validly: `G1_RUN2_ASSESSMENT.md`. Run 2 is classified like run 1: an evaluation failure, not a result about SIM. Its round 1 stays as measured; nothing from it is edited.
+
+**Mechanics changed (no decision needed; the protocol is untouched, see the assessment):** overflow classified and not retried; a partial judgment is never graded; folders addressed by content; manifests store proposals;
+`HarnessOptimizer.resume`; token metering (judge requests unchanged); `results.json` written when a run stops.
+
+**Decision 1: what happens to a deliverable the judge cannot read.** Options, none applied:
+* **A. Give the judge the context it needs** (as amendment 3 did). The input stays exactly the upstream judge's. Needs a server change and a qualification against `QUALIFICATION_CRITERIA_v2.md` numbers fixed beforehand.
+  Measured limits: the oversize deliverable is 144,169 text tokens plus rubric and two images, so roughly 150,000 to 160,000; the KV cache held 178,944 tokens at the current configuration, so about one such request at a time,
+  and the judge's two workers would queue. Feasible but not shown feasible; a restart is needed to find out.
+* **B. A pre-registered cap on the total judge input**, applied only when the prompt would not fit (the per-file cap of 200,000 characters is already the benchmark's own rule that long text is cut). It changes what the judge reads for the
+  rare oversize output, and needs the agreement check against the stored verdicts repeated on truncated inputs.
+* **C. Leave the rule as is.** An unreadable deliverable stops the run, resumably. Given 1 in 64 here, a full run is more likely than not to stop.
+Recommendation: A, tried first with one 150,000-token request against a restarted server; B only if the cache cannot hold it. Either needs the owner's decision before a GPU window.
+
+**Decision 2: the budget reading.** `NEXT_EXPERIMENT.md` fixes the selected arm's budget at one half of the record's size; as a size test that cannot fail. Proposed: keep it, state beside it (as the runner now does) whether the record exceeds
+the selected runner's absolute budget of 3,000 tokens, and treat the problem count as the binding criterion. If the owner wants an absolute budget, it is fixed before the run, at a number, not derived from the record.
+
+**Unchanged:** model, tasks, rubrics, judge prompt and parser, rollouts per task, rounds, candidates, the six-distinct-problem threshold, the comparison it gates, the qualification thresholds, and the rule that a result against the gate
+is accepted whatever it is. Run 3, if authorized, is one run, from the seed harness, with `--resume` available for infrastructure stops only.

@@ -17,6 +17,7 @@ import hashlib
 import json
 import math
 import os
+import re
 import subprocess
 import time
 from dataclasses import dataclass, field
@@ -27,12 +28,13 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 from ..env_policy import child_env
 from ..process_runner import run_subprocess
 
-def _judge_env(cfg) -> Dict[str, str]:
+def _judge_env(cfg, *, usage_log: Optional[Path] = None, thinking_off: bool = True) -> Dict[str, str]:
     """The judge process gets the allowlisted environment (the real ``PATH``, ``HOME``, proxy and CA variables) and the two
     values it is configured with; the rest of the parent environment is not inherited (see :mod:`agent_harness.env_policy`)."""
     return child_env(preset="bench", inherit_path=True,
                      pass_through=("JUDGE_MAX_COMPLETION_TOKENS",),       # read by judge_batch_script.py; the operator's value is kept
-                     extra={"JUDGE_API_KEY": cfg.api_key, "JUDGE_REASONING_EFFORT": cfg.reasoning_effort})
+                     extra={"JUDGE_API_KEY": cfg.api_key, "JUDGE_REASONING_EFFORT": cfg.reasoning_effort,
+                            **({"AGENT_HARNESS_JUDGE_USAGE_LOG": str(usage_log), "AGENT_HARNESS_JUDGE_THINKING_OFF": "1" if thinking_off else "0"} if usage_log else {})})
 
 
 FAIL_PREFIX = "Failed to get judge response"
@@ -58,6 +60,7 @@ class JudgeConfig:
     api_key: str = "dummy"
     batch_script: str = ""                 # the four-answers-per-call judge; empty = the copy shipped with this package
     recovery_workers: int = 1              # judge requests in flight while recovering rubrics that got no reply (the first pass uses ``workers``)
+    meter_usage: bool = False              # write down the tokens the server reports per judge request (``<details>.usage.jsonl``); the requests themselves are unchanged
     recovery_thinking_off: bool = False    # OFF unless an experiment turns it on (G1 does not: amendment 3). A rubric that got no reply because the judge's reply was cut off is asked again with thinking disabled (judge_shim); see judge_output
 
 
@@ -76,6 +79,9 @@ class JudgeResult:
     criteria_passed: Optional[int] = None  # individual criteria passed (the group score is all-or-nothing per rubric group)
     criteria_total: Optional[int] = None
     recovered: int = 0                     # rubrics whose verdict came from the recovery mode (thinking off); they are marked in the details file
+    context_exceeded: bool = False         # the judge PROMPT for this output is larger than the judge's context: the same request can never be answered, so it is not retried
+    prompt_limit: Optional[int] = None     # the judge server's context length when that happened
+    prompt_tokens_at_least: Optional[int] = None  # what the server said the prompt holds (a lower bound: it stops counting at the limit)
 
 
 def has_deliverables(deliver: Path) -> bool:
@@ -93,6 +99,31 @@ def _budget_exhausted(details: Dict[str, Any]) -> bool:
                for r in details.get("rubrics", []) for c in (r.get("result", {}).get("criteria_results") or []))
 
 
+# vLLM: "This model's maximum context length is 98304 tokens. However, your prompt contains at least 98305 input tokens, which exceeds this limit ..."
+# (older servers: "However, you requested N tokens (M in the messages, K in the completion)"). A request that is too large for the context is the same request on every retry.
+_CTX = re.compile(r"maximum context length is (\d+) tokens\. However, (?:your prompt contains (?:at least )?(\d+) input tokens|you requested \d+ tokens \((\d+) in the messages)", re.S)
+
+
+def context_overflow(rubric: Dict[str, Any]) -> Optional[Tuple[int, int]]:
+    """``(limit, prompt tokens)`` when this rubric got no reply because the judge's prompt exceeds the server's context; otherwise None."""
+    res = rubric.get("result") or {}
+    if not _no_reply(rubric):
+        return None
+    m = _CTX.search(" ".join([str(res.get("overall_reasoning", ""))] + [str(c.get("reasoning", "")) for c in res.get("criteria_results") or []]))
+    if not m:
+        return None
+    return int(m.group(1)), int(m.group(2) or m.group(3))
+
+
+def _all_lost_are_context_overflow(details: Dict[str, Any]) -> Optional[Tuple[int, int]]:
+    """The largest ``(limit, prompt tokens)`` when EVERY rubric without a reply failed because the prompt does not fit; None when any failed for another reason."""
+    lost = [r for r in details.get("rubrics", []) if _no_reply(r)]
+    found = [context_overflow(r) for r in lost]
+    if not lost or any(f is None for f in found):
+        return None
+    return max(f[0] for f in found if f), max(f[1] for f in found if f)
+
+
 def _failures(details: Dict[str, Any]) -> int:
     return sum(1 for r in details.get("rubrics", []) for c in (r.get("result", {}).get("criteria_results") or [])
                if str(c.get("reasoning", "")).startswith(FAIL_PREFIX))
@@ -107,11 +138,19 @@ def classify_details(d: Optional[Dict[str, Any]], attempt: int) -> JudgeResult:
     fails = _failures(d)
     if fails and _budget_exhausted(d):
         return JudgeResult("ungraded", failures=fails, attempts=attempt, reason="spend budget exhausted", budget_exhausted=True)
+    over = _all_lost_are_context_overflow(d) if fails else None
+    if over:
+        return JudgeResult("ungraded", failures=fails, attempts=attempt, context_exceeded=True, prompt_limit=over[0], prompt_tokens_at_least=over[1],
+                           reason=f"{fails} rubric criteria got no judge reply: the judge prompt for this output holds at least {over[1]} tokens and the judge's context is {over[0]}; "
+                                  "asking again is the same request (not retried)")
     if fails or mx <= 0:
         cut = sum(1 for r in d.get("rubrics", []) if _no_reply(r) and _cut_off(r))
         why = f"{fails} rubric criteria got no judge reply" + (f" ({cut} rubric(s) cut off: context exhaustion, see context_budget.py)" if cut else "")
         return JudgeResult("ungraded", failures=fails, attempts=attempt, reason=why if fails else "max score is 0")
     rubrics = d.get("rubrics") or []
+    expected = d.get("total_count")
+    if isinstance(expected, int) and len(rubrics) < expected:      # the judge writes each rubric as it finishes: a process that stopped part way leaves a file whose totals cover only what was done
+        return JudgeResult("ungraded", attempts=attempt, reason=f"the judge stopped with {len(rubrics)} of {expected} rubrics judged; the others are asked again")
     cp = sum(int((r.get("result") or {}).get("criteria_passed") or 0) for r in rubrics)
     ct = sum(int((r.get("result") or {}).get("criteria_count") or 0) for r in rubrics)
     return JudgeResult("graded", total / mx, total, mx, d.get("passed_count"), d.get("total_count"), 0, attempt,
@@ -252,6 +291,7 @@ def judge_output(task_id: str, tasks_base: Path, deliver: Path, details_file: Pa
         return JudgeResult("ungraded", reason=f"no rubrics at {rubrics}")
     details_file.parent.mkdir(parents=True, exist_ok=True)
     fp_file, log_file = details_file.with_name(details_file.name + ".fp"), details_file.with_name(details_file.name + ".recovery.jsonl")
+    usage_file = details_file.with_name(details_file.name + ".usage.jsonl")
     fp = _fingerprint(deliver, rubrics, cfg)
     last = JudgeResult("ungraded", reason="not attempted")
     for attempt in range(1, cfg.attempts + 1):
@@ -259,11 +299,12 @@ def judge_output(task_id: str, tasks_base: Path, deliver: Path, details_file: Pa
         workers = cfg.workers if attempt == 1 and not kept else cfg.recovery_workers
         # A recovery pass after a cut-off reply, and the last pass whatever went wrong, runs with thinking off (the model, prompt, rubric and parsing are the same).
         off = cfg.recovery_thinking_off and attempt >= 2 and (cut_off or attempt >= cfg.attempts)
-        cmd = [cfg.python, *([str(Path(__file__).with_name("judge_shim.py"))] if off else []), cfg.script, "--output-dir", str(deliver), "--rubrics-file", str(rubrics),
+        metered = bool(cfg.meter_usage)
+        cmd = [cfg.python, *([str(Path(__file__).with_name("judge_shim.py"))] if (off or metered) else []), cfg.script, "--output-dir", str(deliver), "--rubrics-file", str(rubrics),
                "--details-file", str(details_file), "--judge-model", cfg.model, "--api-base", cfg.base_url,
                "--max-workers", str(workers), "--max-retries", str(cfg.max_retries),
                "--timeout-per-rubric", str(cfg.rubric_timeout_s), "--evaluated-model", "own"]
-        env = _judge_env(cfg)
+        env = _judge_env(cfg, usage_log=usage_file if metered else None, thinking_off=off)
         try:
             run_subprocess(cmd, env=env, capture_output=True, text=True, timeout=cfg.timeout_s)
         except (subprocess.SubprocessError, OSError) as e:
@@ -277,6 +318,8 @@ def judge_output(task_id: str, tasks_base: Path, deliver: Path, details_file: Pa
             d = None
         r = classify_details(d, attempt)
         if r.status == "graded" or r.budget_exhausted:
+            return r
+        if r.context_exceeded:                                         # the prompt does not fit: another pass is the same request and the same answer
             return r
         last = r
         if attempt < cfg.attempts:
