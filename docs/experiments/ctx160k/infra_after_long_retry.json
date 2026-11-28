@@ -1,0 +1,15 @@
+{
+ "note": "repeat of the long-prompt measurement: the first attempt (targets 97k/155k by /tokenize count) produced 90,951 and 145,326 usage prompt tokens, below the criterion floor, a calibration defect of the synthetic prompt, not a server result",
+ "kind": "long_166000",
+ "usage": {
+  "prompt_tokens": 155646,
+  "total_tokens": 155649,
+  "completion_tokens": 3,
+  "completion_tokens_details": {
+   "reasoning_tokens": 0
+  }
+ },
+ "finish": "stop",
+ "seconds": 6.03,
+ "ok": true
+}

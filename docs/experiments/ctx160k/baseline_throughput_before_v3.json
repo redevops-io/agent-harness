@@ -1,0 +1,26 @@
+[
+ {
+  "kind": "decode",
+  "prompt": 33,
+  "completion": 900,
+  "seconds": 22.52,
+  "tok_per_s": 40.0,
+  "finish": "length"
+ },
+ {
+  "kind": "decode",
+  "prompt": 33,
+  "completion": 900,
+  "seconds": 22.5,
+  "tok_per_s": 40.0,
+  "finish": "length"
+ },
+ {
+  "kind": "decode",
+  "prompt": 33,
+  "completion": 900,
+  "seconds": 22.51,
+  "tok_per_s": 40.0,
+  "finish": "length"
+ }
+]
